@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "protocol": "m0_fixed_map_v1",
+  "input": "independently_decoded_visible_luma_matched_by_source_frame_index",
+  "sample_type": "unsigned_8_bit",
+  "peak": 255,
+  "squared_error_accumulator": "unsigned_64_bit_integer",
+  "mse": "sum_squared_error_divided_by_visible_sample_count",
+  "psnr_db": "10_times_log10_peak_squared_divided_by_mse",
+  "lossless_psnr": "positive_infinity",
+  "reported_regions": [
+    "whole_visible_frame",
+    "protected_center",
+    "unprotected_comparison",
+    "protected_minus_unprotected"
+  ],
+  "aggregation": "per_frame_then_arithmetic_mean_with_every_measurement_frame_retained"
+}

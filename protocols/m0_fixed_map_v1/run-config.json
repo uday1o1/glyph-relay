@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "protocol": "m0_fixed_map_v1",
+  "conditions": ["controlled_uniform", "fixed_emphasis_level_4"],
+  "codec": "h264",
+  "preset": "p4",
+  "tuning": "low_latency",
+  "rate_control": "cbr",
+  "multipass": "disabled",
+  "spatial_aq": false,
+  "temporal_aq": false,
+  "b_frames": 0,
+  "lookahead": 0,
+  "gop_frames": 60,
+  "repeat_parameter_sets": "startup_and_every_idr",
+  "initial_requested_payload_bps": 1000000,
+  "calibration": {
+    "method": "bounded_integer_bisection",
+    "minimum_requested_bps": 800000,
+    "maximum_requested_bps": 1200000,
+    "maximum_iterations": 8,
+    "warmup_seconds": 10,
+    "measurement_seconds": 30,
+    "selection": "smallest_absolute_distance_to_1000000_then_lower_requested_bps"
+  },
+  "measurement": {
+    "warmup_seconds": 10,
+    "measurement_seconds": 60,
+    "repeats_per_condition": 10,
+    "run_order": "repeat_index_then_controlled_uniform_then_fixed_emphasis_level_4",
+    "mean_payload_bps_minimum": 980000,
+    "mean_payload_bps_maximum": 1020000,
+    "maximum_between_condition_mean_difference_fraction": 0.02,
+    "minimum_protected_psnr_improvement_db": 1.0,
+    "minimum_spatial_allocation_improvement_db": 0.75,
+    "maximum_encode_latency_p95_ms": 10.0,
+    "maximum_encode_latency_p99_ms": 16.0,
+    "maximum_pending_age_ms": 33.34
+  },
+  "configured_target_policy": "calibrate_each_condition_before_all_measured_repeats_and_never_change_it_during_measurement",
+  "effective_encoder_configuration": "serialize_after_preset_expansion_and_hash_before_submission"
+}

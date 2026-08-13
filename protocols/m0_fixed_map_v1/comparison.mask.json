@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "protocol": "m0_fixed_map_v1",
+  "name": "unprotected_comparison",
+  "coordinate_space": "visible_luma_pixels",
+  "encoding": "one_inside_axis_aligned_half_open_rectangle_zero_elsewhere",
+  "visible_width": 1920,
+  "visible_height": 1080,
+  "rectangle": {
+    "x": 640,
+    "y": 32,
+    "width": 640,
+    "height": 320
+  }
+}

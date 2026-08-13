@@ -33,6 +33,18 @@ The command reports unsupported or unverified capabilities instead of fabricatin
 
 The stable fields, probe semantics, decision modes, and safe-attachment rules are documented in [docs/doctor.md](docs/doctor.md).
 
+The frozen Milestone 0 benchmark input can be verified through the public workflow:
+
+```bash
+build/macos-local/glyphrelay benchmark \
+  --manifest protocols/m0_fixed_map_v1/manifest.lock \
+  --output build/m0-result
+```
+
+The command hashes every generated frame and every protocol component before checking hardware.
+
+It exits with unsupported-capability code 3 on a host that cannot run the NVENC comparison and does not create a result directory there.
+
 Run the pinned Linux x86-64 portable compile and test path with:
 
 ```bash

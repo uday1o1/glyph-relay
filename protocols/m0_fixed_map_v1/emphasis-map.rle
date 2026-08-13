@@ -1,0 +1,49 @@
+glyphrelay-emphasis-map-rle-v1
+protocol	m0_fixed_map_v1
+entry_type	signed_int8
+raster_order	macroblock_row_major
+macroblock_width	120
+macroblock_height	68
+entry_count	8160
+default_level	0
+run	0	2920	0
+run	2920	40	4
+run	2960	80	0
+run	3040	40	4
+run	3080	80	0
+run	3160	40	4
+run	3200	80	0
+run	3280	40	4
+run	3320	80	0
+run	3400	40	4
+run	3440	80	0
+run	3520	40	4
+run	3560	80	0
+run	3640	40	4
+run	3680	80	0
+run	3760	40	4
+run	3800	80	0
+run	3880	40	4
+run	3920	80	0
+run	4000	40	4
+run	4040	80	0
+run	4120	40	4
+run	4160	80	0
+run	4240	40	4
+run	4280	80	0
+run	4360	40	4
+run	4400	80	0
+run	4480	40	4
+run	4520	80	0
+run	4600	40	4
+run	4640	80	0
+run	4720	40	4
+run	4760	80	0
+run	4840	40	4
+run	4880	80	0
+run	4960	40	4
+run	5000	80	0
+run	5080	40	4
+run	5120	80	0
+run	5200	40	4
+run	5240	2920	0

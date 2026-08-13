@@ -2,9 +2,9 @@ CMAKE := uvx --from cmake==4.1.0 cmake
 CLANG_FORMAT := uvx --from clang-format==22.1.8 clang-format
 HOST_SYSTEM := $(shell uname -s)
 PRESET := $(if $(filter Darwin,$(HOST_SYSTEM)),macos-local,linux-cpu)
-CXX_FILES := $(shell find include src tests -type f \( -name '*.cpp' -o -name '*.hpp' \) | sort)
+CXX_FILES := $(shell find include src tests tools -type f \( -name '*.cpp' -o -name '*.hpp' \) | sort)
 
-.PHONY: all analyze build check clean clean-tree-check configure dependency-check format format-check lint linux-cpu-check python-check secret-scan test typecheck
+.PHONY: all analyze build check clean clean-tree-check configure dependency-check format format-check lint linux-cpu-check protocol-check python-check secret-scan test typecheck
 
 all: build
 
@@ -42,10 +42,13 @@ python-check:
 dependency-check:
 	uv run python tools/check_dependency_lock.py
 
+protocol-check:
+	uv run python tools/check_m0_protocol.py
+
 secret-scan:
 	uv run python tools/check_repository.py
 
-lint: format-check analyze typecheck python-check dependency-check secret-scan
+lint: format-check analyze typecheck python-check dependency-check protocol-check secret-scan
 
 linux-cpu-check:
 	bash scripts/ci/check_linux_cpu.sh

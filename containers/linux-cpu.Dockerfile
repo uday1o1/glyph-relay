@@ -12,8 +12,10 @@ RUN apt-get update \
 WORKDIR /workspace
 COPY CMakeLists.txt CMakePresets.json ./
 COPY include ./include
+COPY protocols ./protocols
 COPY src ./src
 COPY tests/native ./tests/native
+COPY tools/freeze_m0_protocol.cpp ./tools/freeze_m0_protocol.cpp
 COPY schemas ./schemas
 
 ENV CXX=clang++

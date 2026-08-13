@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "protocol": "m0_fixed_map_v1",
+  "generator": "glyphrelay_m0_synthetic_nv12_v1",
+  "seed_hex": "6d305f6669786564",
+  "visible_width": 1920,
+  "visible_height": 1080,
+  "coded_width": 1920,
+  "coded_height": 1088,
+  "frame_rate_numerator": 30,
+  "frame_rate_denominator": 1,
+  "warmup_seconds": 10,
+  "measurement_seconds": 60,
+  "frame_count": 2100,
+  "pixel_format": "nv12",
+  "color_primaries": "bt709",
+  "transfer_characteristics": "bt709",
+  "matrix_coefficients": "bt709",
+  "range": "limited",
+  "padding": "repeat_last_visible_luma_row_and_neutral_chroma",
+  "frame_hash_domain": "coded_nv12_bytes_y_then_interleaved_uv"
+}
