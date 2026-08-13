@@ -1,4 +1,5 @@
 #include "glyphrelay/doctor.hpp"
+#include "glyphrelay/dependency_versions.hpp"
 
 #include <array>
 #include <cstdlib>
@@ -209,11 +210,10 @@ DoctorReport build_doctor_report(const EnvironmentSnapshot &snapshot) {
   report.cuda_runtime = {std::string(kNotProbed), "cuda_runtime_probe_not_implemented"};
   report.cuda_toolkit_version = GLYPHRELAY_HAS_CUDA_COMPILER ? "compiler_available" : "unavailable";
   report.nvenc_max_api_version = "not_probed";
-  report.pinned_nvenc_header_version = "13.1.15.0-candidate";
-  report.pinned_nvenc_header_sha256 =
-      "8776fddcb8febc6aec4d73989b1f21831eb30306bc583da55b4bf0c14a1dc228";
-  report.pinned_nvenc_header_license = "MIT";
-  report.pinned_nvenc_minimum_driver_api = "13.1";
+  report.pinned_nvenc_header_version = dependency_versions::nvenc_header_version;
+  report.pinned_nvenc_header_sha256 = dependency_versions::nvenc_header_sha256;
+  report.pinned_nvenc_header_license = dependency_versions::nvenc_header_license;
+  report.pinned_nvenc_minimum_driver_version = dependency_versions::nvenc_minimum_linux_driver;
   report.recording_profile_hash = "not_frozen";
   report.recording_profile_compatibility = {std::string(kNotProbed), "browser_offers_required"};
   report.h264_nvenc =
@@ -293,8 +293,8 @@ std::string doctor_report_json(const DoctorReport &report) {
          << "\"pinned_header_version\":" << json_quote(report.pinned_nvenc_header_version) << ','
          << "\"pinned_header_sha256\":" << json_quote(report.pinned_nvenc_header_sha256) << ','
          << "\"pinned_header_license\":" << json_quote(report.pinned_nvenc_header_license) << ','
-         << "\"minimum_driver_api\":" << json_quote(report.pinned_nvenc_minimum_driver_api) << ','
-         << "\"recording_profile_hash\":" << json_quote(report.recording_profile_hash) << ','
+         << "\"minimum_driver_version\":" << json_quote(report.pinned_nvenc_minimum_driver_version)
+         << ',' << "\"recording_profile_hash\":" << json_quote(report.recording_profile_hash) << ','
          << "\"recording_profile_compatibility\":"
          << result_json(report.recording_profile_compatibility) << ','
          << "\"h264\":" << result_json(report.h264_nvenc) << ','

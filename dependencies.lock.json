@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "nvenc_headers": {
+    "repository": "https://github.com/FFmpeg/nv-codec-headers.git",
+    "tag": "n13.1.15.0",
+    "commit": "0a6fba9a2820628b8103464f4c8753ee05838baa",
+    "header": "include/ffnvcodec/nvEncodeAPI.h",
+    "header_sha256": "8776fddcb8febc6aec4d73989b1f21831eb30306bc583da55b4bf0c14a1dc228",
+    "api_major": 13,
+    "api_minor": 1,
+    "minimum_linux_driver": "610.0",
+    "license": "MIT",
+    "redistribution": "header_notice_must_be_preserved"
+  },
+  "libdatachannel": {
+    "repository": "https://github.com/paullouisageneau/libdatachannel.git",
+    "tag": "v0.24.1",
+    "commit": "a02b751917ac8afc8c58dc6f4461d25ff9465d48",
+    "license": "MPL-2.0",
+    "license_sha256": "fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85",
+    "build_flags": {
+      "BUILD_SHARED_LIBS": false,
+      "BUILD_SHARED_DEPS_LIBS": false,
+      "NO_EXAMPLES": true,
+      "NO_MEDIA": false,
+      "NO_TESTS": false,
+      "NO_WEBSOCKET": false,
+      "PREFER_SYSTEM_LIB": false,
+      "USE_GNUTLS": false,
+      "USE_MBEDTLS": false,
+      "USE_NICE": false,
+      "USE_SYSTEM_JSON": false,
+      "USE_SYSTEM_JUICE": false,
+      "USE_SYSTEM_PLOG": false,
+      "USE_SYSTEM_SRTP": false,
+      "USE_SYSTEM_USRSCTP": false
+    },
+    "submodules": [
+      {
+        "path": "deps/json",
+        "commit": "55f93686c01528224f448c19128836e7df245f72",
+        "license": "MIT",
+        "license_sha256": "46a65cffd1ea955132d95a8dd921640714a8d6b537d2e4e482d31145ae95b603"
+      },
+      {
+        "path": "deps/libjuice",
+        "commit": "5948a4162d37bc213d6051b67ee2876ccc5a99a6",
+        "license": "MPL-2.0",
+        "license_sha256": "fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85"
+      },
+      {
+        "path": "deps/libsrtp",
+        "commit": "ee1a77c9f9dc02c42bda9901038c500c5efe4cfa",
+        "license": "BSD-3-Clause",
+        "license_sha256": "8e19d42a1eec9561f3f347253ddf2e385c55f392f025bb0fd41b88dbf38db5ae"
+      },
+      {
+        "path": "deps/plog",
+        "commit": "94899e0b926ac1b0f4750bfbd495167b4a6ae9ef",
+        "license": "MIT",
+        "license_sha256": "e4d01796524cbc13b1571a1f0914823c6a23b316ba039e7014f47a4eef7fd4c3"
+      },
+      {
+        "path": "deps/usrsctp",
+        "commit": "fec583d54493f879d2ae44a743423bf8a04371ab",
+        "license": "BSD-3-Clause",
+        "license_sha256": "fa53711b25af4b9a9b8dadfea3cb38166ec4b96760c8d62b284055554537d9ef"
+      }
+    ],
+    "transport_contract": {
+      "ice_dependency": "libjuice",
+      "concurrency_mode": "JUICE_CONCURRENCY_MODE_THREAD",
+      "final_send_source": "deps/libjuice/src/udp.c::udp_sendto",
+      "final_send_syscall": "sendto",
+      "final_datagram_patch_required": true,
+      "builtin_nack_responder_allowed": false
+    }
+  },
+  "openh264": {
+    "upstream_tag": "v2.4.1",
+    "upstream_commit": "c59550a2147c255cc8e09451f6deb96de2526b6d",
+    "ubuntu_release": "24.04",
+    "development_package": "libopenh264-dev=2.4.1+dfsg-1",
+    "development_package_sha256_amd64": "19716178e02c284b5ee197278038c54a12a3d9cdaf15e83938f71349f1258759",
+    "runtime_package": "libopenh264-7=2.4.1+dfsg-1",
+    "runtime_package_sha256_amd64": "1042d48b6827906ae689ec18db944c689beca9eb563d23b4fa8f06ce80cb9a45",
+    "architecture": "amd64",
+    "soname": "libopenh264.so.7",
+    "license": "BSD-2-Clause",
+    "linkage": "dynamic_system_package",
+    "encoder_input_layout": "I420",
+    "color_contract": "8-bit 4:2:0 with frozen matrix and range"
+  },
+  "playwright": {
+    "package": "@playwright/test",
+    "version": "1.62.1",
+    "browser_install_policy": "PLAYWRIGHT_BROWSERS_PATH=0",
+    "chromium": {
+      "revision": "1234",
+      "version": "151.0.7922.34"
+    },
+    "firefox": {
+      "revision": "1538",
+      "version": "153.0"
+    },
+    "binary_hashes": "capture_during_qualification_before_oracle_freeze"
+  },
+  "ubuntu_tools": {
+    "ffmpeg": "7:6.1.1-3ubuntu5",
+    "tesseract_ocr": "5.3.4-1build5",
+    "tshark": "4.2.2-1.1build3"
+  },
+  "coturn": {
+    "image": "coturn/coturn:4.15.0-r0",
+    "linux_amd64_digest": "sha256:b0e616a8fc46c0e8d29546c8271fda2e691c9ef912812757786ea586f73f414f",
+    "transports_eligible_for_cap_claim": ["udp"]
+  },
+  "linux_cpu_container": {
+    "image": "ubuntu:24.04",
+    "digest": "sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea",
+    "platform": "linux/amd64"
+  }
+}

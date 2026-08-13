@@ -4,7 +4,7 @@ HOST_SYSTEM := $(shell uname -s)
 PRESET := $(if $(filter Darwin,$(HOST_SYSTEM)),macos-local,linux-cpu)
 CXX_FILES := $(shell find include src tests -type f \( -name '*.cpp' -o -name '*.hpp' \) | sort)
 
-.PHONY: all analyze build check clean clean-tree-check configure format format-check lint linux-cpu-check python-check secret-scan test typecheck
+.PHONY: all analyze build check clean clean-tree-check configure dependency-check format format-check lint linux-cpu-check python-check secret-scan test typecheck
 
 all: build
 
@@ -39,10 +39,13 @@ python-check:
 	uv run mypy tools tests/python
 	uv run pytest -q tests/python
 
+dependency-check:
+	uv run python tools/check_dependency_lock.py
+
 secret-scan:
 	uv run python tools/check_repository.py
 
-lint: format-check analyze typecheck python-check secret-scan
+lint: format-check analyze typecheck python-check dependency-check secret-scan
 
 linux-cpu-check:
 	bash scripts/ci/check_linux_cpu.sh

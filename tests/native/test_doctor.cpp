@@ -50,7 +50,9 @@ int main() {
           "JSON must include its schema version");
   require(json.find("8776fddcb8febc6aec4d73989b1f21831eb30306bc583da55b4bf0c14a1dc228") !=
               std::string::npos,
-          "JSON must report the candidate header hash");
+          "JSON must report the pinned header hash");
+  require(json.find("\"minimum_driver_version\":\"610.0\"") != std::string::npos,
+          "JSON must report the pinned minimum Linux driver");
 
   auto unsupported = linux_snapshot();
   unsupported.operating_system = "macos";

@@ -43,7 +43,7 @@ struct DoctorReport {
   std::string pinned_nvenc_header_version;
   std::string pinned_nvenc_header_sha256;
   std::string pinned_nvenc_header_license;
-  std::string pinned_nvenc_minimum_driver_api;
+  std::string pinned_nvenc_minimum_driver_version;
   std::string recording_profile_hash;
   ProbeResult recording_profile_compatibility;
   ProbeResult h264_nvenc;
