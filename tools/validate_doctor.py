@@ -6,18 +6,17 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from jsonschema import Draft202012Validator
+
 
 def validate_report(report: dict[str, Any], schema: dict[str, Any]) -> None:
-    required = schema["required"]
-    missing = sorted(set(required) - report.keys())
-    if missing:
-        raise ValueError(f"doctor report is missing required keys: {missing}")
-    expected_version = schema["properties"]["schema_version"]["const"]
-    if report.get("schema_version") != expected_version:
-        raise ValueError("doctor schema version does not match the committed schema")
-    unexpected = sorted(set(report) - set(schema["properties"]))
-    if unexpected:
-        raise ValueError(f"doctor report has unexpected top-level keys: {unexpected}")
+    Draft202012Validator.check_schema(schema)
+    validator = Draft202012Validator(schema)
+    errors = sorted(validator.iter_errors(report), key=lambda error: list(error.absolute_path))
+    if errors:
+        error = errors[0]
+        location = ".".join(str(part) for part in error.absolute_path) or "<root>"
+        raise ValueError(f"doctor report violates schema at {location}: {error.message}")
 
 
 def main() -> int:

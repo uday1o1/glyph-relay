@@ -23,11 +23,12 @@ else()
   set(GLYPHRELAY_HAS_CUDA_COMPILER 0)
 endif()
 
-add_library(glyphrelay_core src/app/doctor.cpp)
+add_library(glyphrelay_core src/app/doctor.cpp src/app/doctor_probes.cpp)
 target_include_directories(glyphrelay_core PUBLIC include)
 target_compile_definitions(glyphrelay_core PUBLIC
   GLYPHRELAY_VERSION="${PROJECT_VERSION}"
   GLYPHRELAY_HAS_CUDA_COMPILER=${GLYPHRELAY_HAS_CUDA_COMPILER}
+  GLYPHRELAY_CUDA_COMPILER_VERSION="${CMAKE_CUDA_COMPILER_VERSION}"
 )
 
 if(MSVC)

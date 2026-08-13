@@ -53,7 +53,7 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 | --- | --- | --- | --- |
 | M0-L01 | `IMPLEMENTED_LOCAL` | Reproducible repository foundation, CI, truthful doctor, lockfiles, checks, and clean-check workflow | `make check`; `make linux-cpu-check`; `scripts/ci/check_clean_tree.sh`; real text and JSON doctor invocation |
 | M0-L02 | `IMPLEMENTED_LOCAL` | Exact dependency, API, build-flag, ABI, and license locks | `make dependency-check`; pinned Ubuntu amd64 package hash and SONAME inspection; `THIRD_PARTY_NOTICES.md` |
-| M0-L03 | `PENDING_LOCAL` | Complete versioned doctor adapters, schema, redaction, and decision fixtures | Foundation subset in progress |
+| M0-L03 | `IMPLEMENTED_LOCAL` | Complete versioned doctor adapters, schema, redaction, and decision fixtures | Real text and JSON CLI inspection; full Draft 2020-12 validation; enhanced, uniform, CPU, API-incompatible, pending, unsupported, and redaction fixtures; macOS sanitizers; Linux amd64 compile and tests |
 | M0-L04 | `PENDING_LOCAL` | Canonical `m0_fixed_map_v1` generator, manifests, metrics, strict hash enforcement, and runner | None |
 | M0-L05 | `PENDING_LOCAL` | Annex B, SPS, SDP, recording-profile, OpenH264, and independent-decode contracts | None |
 | M0-L06 | `PENDING_LOCAL` | CUDA context and NVENC feasibility source, ownership state machines, pre-submit rejection, and cleanup | None |

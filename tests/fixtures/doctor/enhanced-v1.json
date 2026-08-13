@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "application_version": "0.1.0",
+  "environment": {
+    "operating_system": "linux",
+    "architecture": "x86_64",
+    "desktop_session": "wayland"
+  },
+  "capture": {
+    "xdg_portal": {
+      "status": "available",
+      "reason": "window_screencast_portal_available"
+    },
+    "portal_backend": "org.freedesktop.impl.portal.desktop.gnome",
+    "portal_version": "5",
+    "source_types": ["monitor", "window"],
+    "cursor_modes": ["hidden", "embedded", "metadata"],
+    "pipewire": {
+      "status": "available",
+      "reason": "pipewire_library_loadable"
+    },
+    "pipewire_version": "1.0.5",
+    "dmabuf_import": {
+      "status": "not_probed",
+      "reason": "selected_capture_format_required"
+    },
+    "shared_memory": {
+      "status": "available",
+      "reason": "shared_memory_capture_verified"
+    }
+  },
+  "gpu": {
+    "model": "NVIDIA test GPU",
+    "architecture": "compute_8.9",
+    "visible_count": 1,
+    "nvidia_driver_version": "610.43.02",
+    "cuda_driver": {
+      "status": "available",
+      "reason": "cuda_driver_initialized"
+    },
+    "cuda_driver_version": "13.3",
+    "cuda_runtime": {
+      "status": "available",
+      "reason": "cuda_runtime_version_queried"
+    },
+    "cuda_runtime_version": "13.3",
+    "cuda_toolkit_version": "13.3"
+  },
+  "nvenc": {
+    "maximum_api_version": "13.1",
+    "api_compatibility": {
+      "status": "available",
+      "reason": "compiled_nvenc_api_supported"
+    },
+    "pinned_header_version": "13.1.15.0",
+    "pinned_header_sha256": "8776fddcb8febc6aec4d73989b1f21831eb30306bc583da55b4bf0c14a1dc228",
+    "pinned_header_license": "MIT",
+    "minimum_driver_version": "610.0",
+    "recording_profile_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "recording_profile_compatibility": {
+      "status": "available",
+      "reason": "recording_profile_compatible"
+    },
+    "h264": {
+      "status": "available",
+      "reason": "h264_nvenc_supported"
+    },
+    "emphasis_map": {
+      "status": "available",
+      "reason": "emphasis_map_supported"
+    },
+    "input_formats": ["nv12"],
+    "maximum_width": 8192,
+    "maximum_height": 8192,
+    "maximum_sessions": 8
+  },
+  "fallbacks": {
+    "cpu_encoder": {
+      "status": "available",
+      "reason": "system_openh264_library_loadable"
+    },
+    "openh264_version": "2.4.1"
+  },
+  "privacy": {
+    "screen_lock_hook": {
+      "status": "available",
+      "reason": "screen_lock_hook_verified"
+    },
+    "capture_revocation_hook": {
+      "status": "available",
+      "reason": "capture_revocation_hook_verified"
+    }
+  },
+  "browser": {
+    "chromium": {
+      "status": "available",
+      "reason": "browser_version_queried"
+    },
+    "chromium_version": "151.0.7922.34",
+    "firefox": {
+      "status": "available",
+      "reason": "browser_version_queried"
+    },
+    "firefox_version": "153.0"
+  },
+  "network": {
+    "signaling_origin": {
+      "status": "available",
+      "reason": "loopback_signaling_origin_configured"
+    },
+    "turn": {
+      "status": "not_probed",
+      "reason": "turn_udp_connectivity_test_required"
+    },
+    "wire_cap_accounting": {
+      "status": "available",
+      "reason": "final_datagram_hook_verified"
+    },
+    "selected_ip_family": "ipv4"
+  },
+  "decision": {
+    "mode": "enhanced_nvenc",
+    "reasons": ["enhanced_nvenc_requirements_satisfied"]
+  }
+}

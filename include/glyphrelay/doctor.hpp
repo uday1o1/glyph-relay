@@ -1,25 +1,59 @@
 #pragma once
 
-#include <map>
 #include <string>
 #include <vector>
 
 namespace glyphrelay {
 
 struct ProbeResult {
-  std::string status;
-  std::string reason;
+  std::string status = "not_probed";
+  std::string reason = "probe_not_run";
 };
 
 struct EnvironmentSnapshot {
   std::string operating_system;
   std::string architecture;
-  std::map<std::string, std::string> environment;
-  bool cuda_driver_library_available = false;
-  bool nvenc_driver_library_available = false;
-  bool openh264_library_available = false;
-  bool chromium_available = false;
-  bool firefox_available = false;
+  std::string desktop_session;
+  ProbeResult xdg_portal;
+  std::string portal_backend = "unavailable";
+  std::string portal_version = "unavailable";
+  std::vector<std::string> portal_source_types;
+  std::vector<std::string> portal_cursor_modes;
+  ProbeResult pipewire;
+  std::string pipewire_version = "unavailable";
+  std::string gpu_model = "unavailable";
+  std::string gpu_architecture = "unavailable";
+  std::string nvidia_driver_version = "unavailable";
+  int visible_gpu_count = 0;
+  ProbeResult cuda_driver;
+  std::string cuda_driver_version = "unavailable";
+  ProbeResult cuda_runtime;
+  std::string cuda_runtime_version = "unavailable";
+  std::string cuda_toolkit_version = "unavailable";
+  std::string nvenc_max_api_version = "unavailable";
+  ProbeResult nvenc_api_compatibility;
+  std::string recording_profile_hash = "not_frozen";
+  ProbeResult recording_profile_compatibility;
+  ProbeResult h264_nvenc;
+  ProbeResult emphasis_map;
+  std::vector<std::string> nvenc_input_formats;
+  int maximum_width = 0;
+  int maximum_height = 0;
+  int maximum_sessions = 0;
+  ProbeResult dmabuf_import;
+  ProbeResult shared_memory_capture;
+  ProbeResult cpu_encoder;
+  std::string openh264_version = "unavailable";
+  ProbeResult screen_lock_hook;
+  ProbeResult capture_revocation_hook;
+  ProbeResult chromium;
+  std::string chromium_version = "unavailable";
+  ProbeResult firefox;
+  std::string firefox_version = "unavailable";
+  ProbeResult signaling_origin;
+  ProbeResult turn_configuration;
+  ProbeResult wire_cap_accounting;
+  std::string selected_ip_family = "none";
 };
 
 struct DoctorReport {
@@ -30,16 +64,22 @@ struct DoctorReport {
   std::string desktop_session;
   ProbeResult xdg_portal;
   std::string portal_backend;
+  std::string portal_version;
   std::vector<std::string> portal_source_types;
   std::vector<std::string> portal_cursor_modes;
   ProbeResult pipewire;
+  std::string pipewire_version;
   std::string gpu_model;
   std::string gpu_architecture;
   std::string nvidia_driver_version;
+  int visible_gpu_count = 0;
   ProbeResult cuda_driver;
+  std::string cuda_driver_version;
   ProbeResult cuda_runtime;
+  std::string cuda_runtime_version;
   std::string cuda_toolkit_version;
   std::string nvenc_max_api_version;
+  ProbeResult nvenc_api_compatibility;
   std::string pinned_nvenc_header_version;
   std::string pinned_nvenc_header_sha256;
   std::string pinned_nvenc_header_license;
@@ -55,10 +95,14 @@ struct DoctorReport {
   ProbeResult dmabuf_import;
   ProbeResult shared_memory_capture;
   ProbeResult cpu_encoder;
+  std::string openh264_version;
   ProbeResult screen_lock_hook;
   ProbeResult capture_revocation_hook;
   ProbeResult chromium;
+  std::string chromium_version;
   ProbeResult firefox;
+  std::string firefox_version;
+  ProbeResult signaling_origin;
   ProbeResult turn_configuration;
   ProbeResult wire_cap_accounting;
   std::string selected_ip_family;

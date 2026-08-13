@@ -31,6 +31,8 @@ On Linux, the executable is under `build/linux-cpu` for the portable preset.
 
 The command reports unsupported or unverified capabilities instead of fabricating a passing hardware result.
 
+The stable fields, probe semantics, decision modes, and safe-attachment rules are documented in [docs/doctor.md](docs/doctor.md).
+
 Run the pinned Linux x86-64 portable compile and test path with:
 
 ```bash

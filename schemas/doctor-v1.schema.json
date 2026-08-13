@@ -19,15 +19,157 @@
   ],
   "properties": {
     "schema_version": { "const": 1 },
-    "application_version": { "type": "string" },
-    "environment": { "$ref": "#/$defs/environment" },
-    "capture": { "type": "object" },
-    "gpu": { "type": "object" },
-    "nvenc": { "type": "object" },
-    "fallbacks": { "type": "object" },
-    "privacy": { "type": "object" },
-    "browser": { "type": "object" },
-    "network": { "type": "object" },
+    "application_version": { "$ref": "#/$defs/public_string" },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operating_system", "architecture", "desktop_session"],
+      "properties": {
+        "operating_system": { "$ref": "#/$defs/public_string" },
+        "architecture": { "$ref": "#/$defs/public_string" },
+        "desktop_session": { "$ref": "#/$defs/public_string" }
+      }
+    },
+    "capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "xdg_portal",
+        "portal_backend",
+        "portal_version",
+        "source_types",
+        "cursor_modes",
+        "pipewire",
+        "pipewire_version",
+        "dmabuf_import",
+        "shared_memory"
+      ],
+      "properties": {
+        "xdg_portal": { "$ref": "#/$defs/probe" },
+        "portal_backend": { "$ref": "#/$defs/public_string" },
+        "portal_version": { "$ref": "#/$defs/public_string" },
+        "source_types": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["monitor", "window", "virtual"] }
+        },
+        "cursor_modes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["hidden", "embedded", "metadata"] }
+        },
+        "pipewire": { "$ref": "#/$defs/probe" },
+        "pipewire_version": { "$ref": "#/$defs/public_string" },
+        "dmabuf_import": { "$ref": "#/$defs/probe" },
+        "shared_memory": { "$ref": "#/$defs/probe" }
+      }
+    },
+    "gpu": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model",
+        "architecture",
+        "visible_count",
+        "nvidia_driver_version",
+        "cuda_driver",
+        "cuda_driver_version",
+        "cuda_runtime",
+        "cuda_runtime_version",
+        "cuda_toolkit_version"
+      ],
+      "properties": {
+        "model": { "$ref": "#/$defs/public_string" },
+        "architecture": { "$ref": "#/$defs/public_string" },
+        "visible_count": { "type": "integer", "minimum": 0 },
+        "nvidia_driver_version": { "$ref": "#/$defs/public_string" },
+        "cuda_driver": { "$ref": "#/$defs/probe" },
+        "cuda_driver_version": { "$ref": "#/$defs/public_string" },
+        "cuda_runtime": { "$ref": "#/$defs/probe" },
+        "cuda_runtime_version": { "$ref": "#/$defs/public_string" },
+        "cuda_toolkit_version": { "$ref": "#/$defs/public_string" }
+      }
+    },
+    "nvenc": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maximum_api_version",
+        "api_compatibility",
+        "pinned_header_version",
+        "pinned_header_sha256",
+        "pinned_header_license",
+        "minimum_driver_version",
+        "recording_profile_hash",
+        "recording_profile_compatibility",
+        "h264",
+        "emphasis_map",
+        "input_formats",
+        "maximum_width",
+        "maximum_height",
+        "maximum_sessions"
+      ],
+      "properties": {
+        "maximum_api_version": { "$ref": "#/$defs/public_string" },
+        "api_compatibility": { "$ref": "#/$defs/probe" },
+        "pinned_header_version": { "const": "13.1.15.0" },
+        "pinned_header_sha256": { "pattern": "^[0-9a-f]{64}$" },
+        "pinned_header_license": { "const": "MIT" },
+        "minimum_driver_version": { "const": "610.0" },
+        "recording_profile_hash": { "$ref": "#/$defs/public_string" },
+        "recording_profile_compatibility": { "$ref": "#/$defs/probe" },
+        "h264": { "$ref": "#/$defs/probe" },
+        "emphasis_map": { "$ref": "#/$defs/probe" },
+        "input_formats": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/public_string" }
+        },
+        "maximum_width": { "type": "integer", "minimum": 0 },
+        "maximum_height": { "type": "integer", "minimum": 0 },
+        "maximum_sessions": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "fallbacks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cpu_encoder", "openh264_version"],
+      "properties": {
+        "cpu_encoder": { "$ref": "#/$defs/probe" },
+        "openh264_version": { "$ref": "#/$defs/public_string" }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["screen_lock_hook", "capture_revocation_hook"],
+      "properties": {
+        "screen_lock_hook": { "$ref": "#/$defs/probe" },
+        "capture_revocation_hook": { "$ref": "#/$defs/probe" }
+      }
+    },
+    "browser": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chromium", "chromium_version", "firefox", "firefox_version"],
+      "properties": {
+        "chromium": { "$ref": "#/$defs/probe" },
+        "chromium_version": { "$ref": "#/$defs/public_string" },
+        "firefox": { "$ref": "#/$defs/probe" },
+        "firefox_version": { "$ref": "#/$defs/public_string" }
+      }
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["signaling_origin", "turn", "wire_cap_accounting", "selected_ip_family"],
+      "properties": {
+        "signaling_origin": { "$ref": "#/$defs/probe" },
+        "turn": { "$ref": "#/$defs/probe" },
+        "wire_cap_accounting": { "$ref": "#/$defs/probe" },
+        "selected_ip_family": { "enum": ["none", "ipv4", "ipv6"] }
+      }
+    },
     "decision": {
       "type": "object",
       "additionalProperties": false,
@@ -43,19 +185,34 @@
             "enhanced_nvenc"
           ]
         },
-        "reasons": { "type": "array", "items": { "type": "string" } }
+        "reasons": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reason" }
+        }
       }
     }
   },
   "$defs": {
-    "environment": {
+    "public_string": { "type": "string", "maxLength": 160 },
+    "reason": { "type": "string", "pattern": "^[a-z0-9_]+$", "maxLength": 96 },
+    "probe": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["operating_system", "architecture", "desktop_session"],
+      "required": ["status", "reason"],
       "properties": {
-        "operating_system": { "type": "string" },
-        "architecture": { "type": "string" },
-        "desktop_session": { "type": "string" }
+        "status": {
+          "enum": [
+            "available",
+            "unavailable",
+            "unsupported",
+            "not_probed",
+            "incompatible",
+            "error"
+          ]
+        },
+        "reason": { "$ref": "#/$defs/reason" }
       }
     }
   }

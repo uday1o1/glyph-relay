@@ -1,32 +1,57 @@
 #include "glyphrelay/doctor.hpp"
 #include "glyphrelay/dependency_versions.hpp"
 
+#include <algorithm>
 #include <array>
-#include <cstdlib>
-#include <filesystem>
 #include <sstream>
 #include <string_view>
-#include <utility>
-
-#if defined(__APPLE__) || defined(__linux__)
-#include <dlfcn.h>
-#include <sys/utsname.h>
-#include <unistd.h>
-#endif
 
 namespace glyphrelay {
 namespace {
 
-constexpr std::string_view kUnavailable = "unavailable";
-constexpr std::string_view kUnsupported = "unsupported";
-constexpr std::string_view kNotProbed = "not_probed";
+constexpr std::string_view kAvailable = "available";
+constexpr std::array<std::string_view, 6> kProbeStatuses = {
+    "available", "unavailable", "unsupported", "not_probed", "incompatible", "error"};
+
+bool valid_status(std::string_view status) {
+  return std::find(kProbeStatuses.begin(), kProbeStatuses.end(), status) != kProbeStatuses.end();
+}
+
+bool safe_reason(std::string_view reason) {
+  return !reason.empty() && std::all_of(reason.begin(), reason.end(), [](char character) {
+    return (character >= 'a' && character <= 'z') || (character >= '0' && character <= '9') ||
+           character == '_';
+  });
+}
+
+bool contains_sensitive_value(std::string_view value) {
+  if (value.empty()) {
+    return false;
+  }
+  if (value.front() == '/' || value.front() == '~' || value.find("://") != std::string_view::npos ||
+      value.starts_with("turn:") || value.starts_with("turns:") ||
+      value.find("/Users/") != std::string_view::npos ||
+      value.find("/home/") != std::string_view::npos ||
+      value.find("\\Users\\") != std::string_view::npos) {
+    return true;
+  }
+  return value.size() >= 3U && value[1] == ':' && (value[2] == '\\' || value[2] == '/');
+}
+
+std::string public_value(std::string_view value) {
+  if (contains_sensitive_value(value)) {
+    return "redacted";
+  }
+  constexpr std::size_t maximum_length = 160U;
+  return std::string(value.substr(0U, maximum_length));
+}
 
 std::string json_escape(std::string_view value) {
   std::ostringstream output;
   for (const char raw_character : value) {
     const auto character = static_cast<unsigned char>(raw_character);
     switch (character) {
-    case '\"':
+    case '"':
       output << "\\\"";
       break;
     case '\\':
@@ -59,18 +84,21 @@ std::string json_escape(std::string_view value) {
   return output.str();
 }
 
-std::string json_quote(std::string_view value) { return "\"" + json_escape(value) + "\""; }
+std::string json_quote(std::string_view value) {
+  return "\"" + json_escape(public_value(value)) + "\"";
+}
 
 std::string result_json(const ProbeResult &result) {
-  return "{\"status\":" + json_quote(result.status) + ",\"reason\":" + json_quote(result.reason) +
-         "}";
+  const std::string status = valid_status(result.status) ? result.status : "error";
+  const std::string reason = safe_reason(result.reason) ? result.reason : "invalid_probe_reason";
+  return "{\"status\":" + json_quote(status) + ",\"reason\":" + json_quote(reason) + "}";
 }
 
 std::string string_array_json(const std::vector<std::string> &values) {
   std::ostringstream output;
   output << '[';
   for (std::size_t index = 0; index < values.size(); ++index) {
-    if (index != 0) {
+    if (index != 0U) {
       output << ',';
     }
     output << json_quote(values[index]);
@@ -79,189 +107,139 @@ std::string string_array_json(const std::vector<std::string> &values) {
   return output.str();
 }
 
-std::string environment_value(const EnvironmentSnapshot &snapshot, std::string_view key) {
-  const auto iterator = snapshot.environment.find(std::string(key));
-  return iterator == snapshot.environment.end() ? std::string{} : iterator->second;
+bool available(const ProbeResult &result) { return result.status == kAvailable; }
+
+bool pending(const ProbeResult &result) {
+  return result.status == "not_probed" || result.status == "error";
 }
 
-bool has_library(const std::vector<const char *> &names) {
-#if defined(__APPLE__) || defined(__linux__)
-  for (const char *name : names) {
-    if (void *handle = dlopen(name, RTLD_LAZY | RTLD_LOCAL); handle != nullptr) {
-      dlclose(handle);
-      return true;
+void add_reason(std::vector<std::string> &reasons, std::string reason) {
+  if (std::find(reasons.begin(), reasons.end(), reason) == reasons.end()) {
+    reasons.push_back(std::move(reason));
+  }
+}
+
+void decide_mode(DoctorReport &report) {
+  const bool supported_platform =
+      report.operating_system == "linux" &&
+      (report.architecture == "x86_64" || report.architecture == "amd64");
+  if (!supported_platform) {
+    report.mode = "unsupported_sender";
+    add_reason(report.reasons, "linux_x86_64_sender_required");
+    return;
+  }
+
+  const std::array required_runtime = {
+      &report.xdg_portal,
+      &report.pipewire,
+      &report.shared_memory_capture,
+      &report.screen_lock_hook,
+      &report.capture_revocation_hook,
+  };
+  bool runtime_pending = false;
+  bool runtime_unavailable = false;
+  for (const ProbeResult *probe : required_runtime) {
+    if (!available(*probe)) {
+      add_reason(report.reasons, probe->reason);
+      runtime_pending = runtime_pending || pending(*probe);
+      runtime_unavailable = runtime_unavailable || !pending(*probe);
     }
   }
-#else
-  static_cast<void>(names);
-#endif
-  return false;
-}
-
-bool command_available(std::string_view command) {
-#if defined(__APPLE__) || defined(__linux__)
-  const char *path_value = std::getenv("PATH");
-  if (path_value == nullptr) {
-    return false;
+  if (runtime_pending || runtime_unavailable) {
+    report.mode = runtime_unavailable ? "unsupported" : "diagnostic_only";
+    return;
   }
-  std::stringstream paths(path_value);
-  std::string path;
-  while (std::getline(paths, path, ':')) {
-    if (path.empty()) {
-      continue;
+
+  if (available(report.h264_nvenc) && available(report.nvenc_api_compatibility)) {
+    if (!available(report.recording_profile_compatibility)) {
+      report.mode = "diagnostic_only";
+      add_reason(report.reasons, report.recording_profile_compatibility.reason);
+      return;
     }
-    const auto candidate = std::filesystem::path(path) / command;
-    if (access(candidate.c_str(), X_OK) == 0) {
-      return true;
+    if (available(report.emphasis_map)) {
+      report.mode = "enhanced_nvenc";
+      add_reason(report.reasons, "enhanced_nvenc_requirements_satisfied");
+    } else {
+      report.mode = "uniform_nvenc";
+      add_reason(report.reasons, report.emphasis_map.reason);
+      add_reason(report.reasons, "uniform_nvenc_selected");
     }
+    return;
   }
-#else
-  static_cast<void>(command);
-#endif
-  return false;
-}
 
-std::string normalized_session(std::string session) {
-  if (session == "wayland" || session == "x11") {
-    return session;
+  if (available(report.cpu_encoder) && available(report.recording_profile_compatibility)) {
+    report.mode = "cpu_fallback";
+    add_reason(report.reasons, available(report.nvenc_api_compatibility)
+                                   ? report.h264_nvenc.reason
+                                   : report.nvenc_api_compatibility.reason);
+    add_reason(report.reasons, "cpu_fallback_selected");
+    return;
   }
-  return session.empty() ? "unavailable" : "other";
-}
 
-ProbeResult available_if(bool value, std::string available_reason, std::string missing_reason) {
-  return {value ? "available" : std::string(kUnavailable),
-          value ? std::move(available_reason) : std::move(missing_reason)};
+  if (pending(report.h264_nvenc) || pending(report.nvenc_api_compatibility) ||
+      pending(report.recording_profile_compatibility)) {
+    report.mode = "diagnostic_only";
+    add_reason(report.reasons, "encoder_capabilities_not_fully_verified");
+    return;
+  }
+
+  report.mode = "unsupported";
+  add_reason(report.reasons, "no_supported_encoder_available");
 }
 
 } // namespace
-
-EnvironmentSnapshot collect_environment_snapshot() {
-  EnvironmentSnapshot snapshot;
-#if defined(__APPLE__)
-  snapshot.operating_system = "macos";
-#elif defined(__linux__)
-  snapshot.operating_system = "linux";
-#elif defined(_WIN32)
-  snapshot.operating_system = "windows";
-#else
-  snapshot.operating_system = "other";
-#endif
-
-#if defined(__APPLE__) || defined(__linux__)
-  utsname identity{};
-  if (uname(&identity) == 0) {
-    snapshot.architecture = identity.machine;
-  }
-#endif
-  if (snapshot.architecture.empty()) {
-    snapshot.architecture = "unknown";
-  }
-
-  constexpr std::array environment_keys = {"XDG_SESSION_TYPE", "DBUS_SESSION_BUS_ADDRESS",
-                                           "GLYPHRELAY_SIGNALING_ORIGIN", "GLYPHRELAY_TURN_URL"};
-  for (const char *key : environment_keys) {
-    if (const char *value = std::getenv(key); value != nullptr) {
-      snapshot.environment.emplace(key, value);
-    }
-  }
-
-  snapshot.cuda_driver_library_available =
-      has_library({"libcuda.so.1", "libcuda.so", "libcuda.dylib"});
-  snapshot.nvenc_driver_library_available =
-      has_library({"libnvidia-encode.so.1", "libnvidia-encode.so"});
-  snapshot.openh264_library_available =
-      has_library({"libopenh264.so.7", "libopenh264.so.6", "libopenh264.so", "libopenh264.dylib"});
-  snapshot.chromium_available = command_available("chromium") ||
-                                command_available("chromium-browser") ||
-                                command_available("google-chrome");
-#if defined(__APPLE__)
-  snapshot.chromium_available =
-      snapshot.chromium_available ||
-      std::filesystem::exists("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome");
-#endif
-  snapshot.firefox_available = command_available("firefox");
-  return snapshot;
-}
 
 DoctorReport build_doctor_report(const EnvironmentSnapshot &snapshot) {
   DoctorReport report;
   report.application_version = GLYPHRELAY_VERSION;
   report.operating_system = snapshot.operating_system;
   report.architecture = snapshot.architecture;
-  report.desktop_session = normalized_session(environment_value(snapshot, "XDG_SESSION_TYPE"));
-
-  const bool linux = snapshot.operating_system == "linux";
-  const bool session_bus = !environment_value(snapshot, "DBUS_SESSION_BUS_ADDRESS").empty();
-  report.xdg_portal = linux ? ProbeResult{std::string(kNotProbed),
-                                          session_bus ? "portal_runtime_probe_not_implemented"
-                                                      : "desktop_session_bus_unavailable"}
-                            : ProbeResult{std::string(kUnsupported), "linux_sender_only"};
-  report.portal_backend = "unknown";
-  report.pipewire =
-      linux ? ProbeResult{std::string(kNotProbed), "pipewire_runtime_probe_not_implemented"}
-            : ProbeResult{std::string(kUnsupported), "linux_sender_only"};
-
-  report.gpu_model = "unknown";
-  report.gpu_architecture = "unknown";
-  report.nvidia_driver_version = "unknown";
-  report.cuda_driver =
-      available_if(snapshot.cuda_driver_library_available, "cuda_driver_library_loadable",
-                   "cuda_driver_library_unavailable");
-  report.cuda_runtime = {std::string(kNotProbed), "cuda_runtime_probe_not_implemented"};
-  report.cuda_toolkit_version = GLYPHRELAY_HAS_CUDA_COMPILER ? "compiler_available" : "unavailable";
-  report.nvenc_max_api_version = "not_probed";
+  report.desktop_session = snapshot.desktop_session;
+  report.xdg_portal = snapshot.xdg_portal;
+  report.portal_backend = snapshot.portal_backend;
+  report.portal_version = snapshot.portal_version;
+  report.portal_source_types = snapshot.portal_source_types;
+  report.portal_cursor_modes = snapshot.portal_cursor_modes;
+  report.pipewire = snapshot.pipewire;
+  report.pipewire_version = snapshot.pipewire_version;
+  report.gpu_model = snapshot.gpu_model;
+  report.gpu_architecture = snapshot.gpu_architecture;
+  report.nvidia_driver_version = snapshot.nvidia_driver_version;
+  report.visible_gpu_count = snapshot.visible_gpu_count;
+  report.cuda_driver = snapshot.cuda_driver;
+  report.cuda_driver_version = snapshot.cuda_driver_version;
+  report.cuda_runtime = snapshot.cuda_runtime;
+  report.cuda_runtime_version = snapshot.cuda_runtime_version;
+  report.cuda_toolkit_version = snapshot.cuda_toolkit_version;
+  report.nvenc_max_api_version = snapshot.nvenc_max_api_version;
+  report.nvenc_api_compatibility = snapshot.nvenc_api_compatibility;
   report.pinned_nvenc_header_version = dependency_versions::nvenc_header_version;
   report.pinned_nvenc_header_sha256 = dependency_versions::nvenc_header_sha256;
   report.pinned_nvenc_header_license = dependency_versions::nvenc_header_license;
   report.pinned_nvenc_minimum_driver_version = dependency_versions::nvenc_minimum_linux_driver;
-  report.recording_profile_hash = "not_frozen";
-  report.recording_profile_compatibility = {std::string(kNotProbed), "browser_offers_required"};
-  report.h264_nvenc =
-      snapshot.nvenc_driver_library_available
-          ? ProbeResult{std::string(kNotProbed), "nvenc_capability_query_required"}
-          : ProbeResult{std::string(kUnavailable), "nvenc_driver_library_unavailable"};
-  report.emphasis_map =
-      snapshot.nvenc_driver_library_available
-          ? ProbeResult{std::string(kNotProbed), "nvenc_capability_query_required"}
-          : ProbeResult{std::string(kUnavailable), "nvenc_driver_library_unavailable"};
-  report.dmabuf_import = linux ? ProbeResult{std::string(kNotProbed), "capture_format_required"}
-                               : ProbeResult{std::string(kUnsupported), "linux_sender_only"};
-  report.shared_memory_capture =
-      linux ? ProbeResult{std::string(kNotProbed), "portal_capture_required"}
-            : ProbeResult{std::string(kUnsupported), "linux_sender_only"};
-  report.cpu_encoder =
-      available_if(snapshot.openh264_library_available, "system_openh264_library_loadable",
-                   "system_openh264_library_unavailable");
-  report.screen_lock_hook =
-      linux ? ProbeResult{std::string(kNotProbed), "desktop_hook_probe_required"}
-            : ProbeResult{std::string(kUnsupported), "linux_sender_only"};
-  report.capture_revocation_hook =
-      linux ? ProbeResult{std::string(kNotProbed), "portal_session_probe_required"}
-            : ProbeResult{std::string(kUnsupported), "linux_sender_only"};
-  report.chromium = available_if(snapshot.chromium_available, "browser_binary_available",
-                                 "browser_binary_unavailable");
-  report.firefox = available_if(snapshot.firefox_available, "browser_binary_available",
-                                "browser_binary_unavailable");
-  report.turn_configuration =
-      environment_value(snapshot, "GLYPHRELAY_TURN_URL").empty()
-          ? ProbeResult{std::string(kUnavailable), "turn_not_configured"}
-          : ProbeResult{std::string(kNotProbed), "turn_configuration_requires_validation"};
-  report.wire_cap_accounting = {std::string(kUnavailable), "transport_hook_not_initialized"};
-  report.selected_ip_family = "none";
-
-  if (!linux) {
-    report.mode = "unsupported_sender";
-    report.reasons.emplace_back("linux_x86_64_sender_required");
-  } else if (!snapshot.openh264_library_available && !snapshot.nvenc_driver_library_available) {
-    report.mode = "unsupported";
-    report.reasons.emplace_back("no_supported_encoder_available");
-  } else {
-    report.mode = "diagnostic_only";
-    report.reasons.emplace_back("runtime_capability_probes_incomplete");
-  }
-  if (report.emphasis_map.status != "available") {
-    report.reasons.emplace_back("enhanced_mode_not_verified");
-  }
+  report.recording_profile_hash = snapshot.recording_profile_hash;
+  report.recording_profile_compatibility = snapshot.recording_profile_compatibility;
+  report.h264_nvenc = snapshot.h264_nvenc;
+  report.emphasis_map = snapshot.emphasis_map;
+  report.nvenc_input_formats = snapshot.nvenc_input_formats;
+  report.maximum_width = snapshot.maximum_width;
+  report.maximum_height = snapshot.maximum_height;
+  report.maximum_sessions = snapshot.maximum_sessions;
+  report.dmabuf_import = snapshot.dmabuf_import;
+  report.shared_memory_capture = snapshot.shared_memory_capture;
+  report.cpu_encoder = snapshot.cpu_encoder;
+  report.openh264_version = snapshot.openh264_version;
+  report.screen_lock_hook = snapshot.screen_lock_hook;
+  report.capture_revocation_hook = snapshot.capture_revocation_hook;
+  report.chromium = snapshot.chromium;
+  report.chromium_version = snapshot.chromium_version;
+  report.firefox = snapshot.firefox;
+  report.firefox_version = snapshot.firefox_version;
+  report.signaling_origin = snapshot.signaling_origin;
+  report.turn_configuration = snapshot.turn_configuration;
+  report.wire_cap_accounting = snapshot.wire_cap_accounting;
+  report.selected_ip_family = snapshot.selected_ip_family;
+  decide_mode(report);
   return report;
 }
 
@@ -276,20 +254,26 @@ std::string doctor_report_json(const DoctorReport &report) {
          << "\"capture\":{"
          << "\"xdg_portal\":" << result_json(report.xdg_portal) << ','
          << "\"portal_backend\":" << json_quote(report.portal_backend) << ','
+         << "\"portal_version\":" << json_quote(report.portal_version) << ','
          << "\"source_types\":" << string_array_json(report.portal_source_types) << ','
          << "\"cursor_modes\":" << string_array_json(report.portal_cursor_modes) << ','
          << "\"pipewire\":" << result_json(report.pipewire) << ','
+         << "\"pipewire_version\":" << json_quote(report.pipewire_version) << ','
          << "\"dmabuf_import\":" << result_json(report.dmabuf_import) << ','
          << "\"shared_memory\":" << result_json(report.shared_memory_capture) << "},"
          << "\"gpu\":{"
          << "\"model\":" << json_quote(report.gpu_model) << ','
          << "\"architecture\":" << json_quote(report.gpu_architecture) << ','
+         << "\"visible_count\":" << report.visible_gpu_count << ','
          << "\"nvidia_driver_version\":" << json_quote(report.nvidia_driver_version) << ','
          << "\"cuda_driver\":" << result_json(report.cuda_driver) << ','
+         << "\"cuda_driver_version\":" << json_quote(report.cuda_driver_version) << ','
          << "\"cuda_runtime\":" << result_json(report.cuda_runtime) << ','
+         << "\"cuda_runtime_version\":" << json_quote(report.cuda_runtime_version) << ','
          << "\"cuda_toolkit_version\":" << json_quote(report.cuda_toolkit_version) << "},"
          << "\"nvenc\":{"
          << "\"maximum_api_version\":" << json_quote(report.nvenc_max_api_version) << ','
+         << "\"api_compatibility\":" << result_json(report.nvenc_api_compatibility) << ','
          << "\"pinned_header_version\":" << json_quote(report.pinned_nvenc_header_version) << ','
          << "\"pinned_header_sha256\":" << json_quote(report.pinned_nvenc_header_sha256) << ','
          << "\"pinned_header_license\":" << json_quote(report.pinned_nvenc_header_license) << ','
@@ -304,14 +288,18 @@ std::string doctor_report_json(const DoctorReport &report) {
          << "\"maximum_height\":" << report.maximum_height << ','
          << "\"maximum_sessions\":" << report.maximum_sessions << "},"
          << "\"fallbacks\":{"
-         << "\"cpu_encoder\":" << result_json(report.cpu_encoder) << "},"
+         << "\"cpu_encoder\":" << result_json(report.cpu_encoder) << ','
+         << "\"openh264_version\":" << json_quote(report.openh264_version) << "},"
          << "\"privacy\":{"
          << "\"screen_lock_hook\":" << result_json(report.screen_lock_hook) << ','
          << "\"capture_revocation_hook\":" << result_json(report.capture_revocation_hook) << "},"
          << "\"browser\":{"
          << "\"chromium\":" << result_json(report.chromium) << ','
-         << "\"firefox\":" << result_json(report.firefox) << "},"
+         << "\"chromium_version\":" << json_quote(report.chromium_version) << ','
+         << "\"firefox\":" << result_json(report.firefox) << ','
+         << "\"firefox_version\":" << json_quote(report.firefox_version) << "},"
          << "\"network\":{"
+         << "\"signaling_origin\":" << result_json(report.signaling_origin) << ','
          << "\"turn\":" << result_json(report.turn_configuration) << ','
          << "\"wire_cap_accounting\":" << result_json(report.wire_cap_accounting) << ','
          << "\"selected_ip_family\":" << json_quote(report.selected_ip_family) << "},"
@@ -324,20 +312,39 @@ std::string doctor_report_json(const DoctorReport &report) {
 std::string doctor_report_text(const DoctorReport &report) {
   std::ostringstream output;
   output << "GlyphRelay doctor schema v" << report.schema_version << '\n'
-         << "Environment: " << report.operating_system << " / " << report.architecture << '\n'
-         << "Desktop session: " << report.desktop_session << '\n'
-         << "XDG portal: " << report.xdg_portal.status << " (" << report.xdg_portal.reason << ")\n"
-         << "PipeWire: " << report.pipewire.status << " (" << report.pipewire.reason << ")\n"
+         << "Environment: " << public_value(report.operating_system) << " / "
+         << public_value(report.architecture) << '\n'
+         << "Desktop session: " << public_value(report.desktop_session) << '\n'
+         << "XDG portal: " << report.xdg_portal.status << " (" << report.xdg_portal.reason << ")"
+         << ", API " << public_value(report.portal_version) << '\n'
+         << "PipeWire: " << report.pipewire.status << " (" << report.pipewire.reason << ")"
+         << ", version " << public_value(report.pipewire_version) << '\n'
+         << "GPU: " << public_value(report.gpu_model) << " / "
+         << public_value(report.gpu_architecture) << '\n'
+         << "NVIDIA driver: " << public_value(report.nvidia_driver_version) << '\n'
          << "CUDA driver: " << report.cuda_driver.status << " (" << report.cuda_driver.reason
-         << ")\n"
+         << "), version " << public_value(report.cuda_driver_version) << '\n'
+         << "CUDA runtime: " << report.cuda_runtime.status << " (" << report.cuda_runtime.reason
+         << "), version " << public_value(report.cuda_runtime_version) << '\n'
+         << "NVENC API: " << report.nvenc_api_compatibility.status << " ("
+         << report.nvenc_api_compatibility.reason << "), maximum "
+         << public_value(report.nvenc_max_api_version) << '\n'
          << "H.264 NVENC: " << report.h264_nvenc.status << " (" << report.h264_nvenc.reason << ")\n"
          << "Emphasis map: " << report.emphasis_map.status << " (" << report.emphasis_map.reason
          << ")\n"
          << "CPU encoder: " << report.cpu_encoder.status << " (" << report.cpu_encoder.reason
+         << "), OpenH264 " << public_value(report.openh264_version) << '\n'
+         << "Chromium: " << report.chromium.status << " (" << report.chromium.reason
+         << "), version " << public_value(report.chromium_version) << '\n'
+         << "Firefox: " << report.firefox.status << " (" << report.firefox.reason << "), version "
+         << public_value(report.firefox_version) << '\n'
+         << "TURN: " << report.turn_configuration.status << " (" << report.turn_configuration.reason
          << ")\n"
+         << "Wire cap accounting: " << report.wire_cap_accounting.status << " ("
+         << report.wire_cap_accounting.reason << ")\n"
          << "Mode: " << report.mode << '\n';
   for (const auto &reason : report.reasons) {
-    output << "Reason: " << reason << '\n';
+    output << "Reason: " << public_value(reason) << '\n';
   }
   return output.str();
 }
