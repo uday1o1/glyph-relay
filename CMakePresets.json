@@ -1,0 +1,80 @@
+{
+  "version": 8,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 28,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "macos-local",
+      "displayName": "macOS portable development",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/macos-local",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "cacheVariables": {
+        "BUILD_TESTING": "ON",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "GLYPHRELAY_ENABLE_CUDA": "OFF"
+      }
+    },
+    {
+      "name": "linux-cpu",
+      "displayName": "Linux CPU development",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/linux-cpu",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "cacheVariables": {
+        "BUILD_TESTING": "ON",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "GLYPHRELAY_ENABLE_CUDA": "OFF"
+      }
+    },
+    {
+      "name": "linux-gpu",
+      "displayName": "Linux CUDA and NVENC target",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux-gpu",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "cacheVariables": {
+        "BUILD_TESTING": "ON",
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "GLYPHRELAY_ENABLE_CUDA": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "macos-local", "configurePreset": "macos-local" },
+    { "name": "linux-cpu", "configurePreset": "linux-cpu" },
+    { "name": "linux-gpu", "configurePreset": "linux-gpu" }
+  ],
+  "testPresets": [
+    {
+      "name": "macos-local",
+      "configurePreset": "macos-local",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "linux-cpu",
+      "configurePreset": "linux-cpu",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "linux-gpu",
+      "configurePreset": "linux-gpu",
+      "output": { "outputOnFailure": true }
+    }
+  ]
+}

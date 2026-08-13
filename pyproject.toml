@@ -1,0 +1,31 @@
+[project]
+name = "glyphrelay-tooling"
+version = "0.1.0"
+description = "Reproducibility and evaluation tooling for GlyphRelay"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "mypy==2.3.0",
+  "pytest==9.1.1",
+  "ruff==0.16.3",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "C4", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests/python"]

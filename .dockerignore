@@ -1,0 +1,11 @@
+.git
+.venv
+artifacts
+build
+corpus/generated
+dist
+evaluation/results
+node_modules
+out
+profiler
+recordings

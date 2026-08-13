@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.invalid/schemas/doctor-v1.schema.json",
+  "title": "GlyphRelay doctor report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "application_version",
+    "environment",
+    "capture",
+    "gpu",
+    "nvenc",
+    "fallbacks",
+    "privacy",
+    "browser",
+    "network",
+    "decision"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "application_version": { "type": "string" },
+    "environment": { "$ref": "#/$defs/environment" },
+    "capture": { "type": "object" },
+    "gpu": { "type": "object" },
+    "nvenc": { "type": "object" },
+    "fallbacks": { "type": "object" },
+    "privacy": { "type": "object" },
+    "browser": { "type": "object" },
+    "network": { "type": "object" },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "reasons"],
+      "properties": {
+        "mode": {
+          "enum": [
+            "unsupported_sender",
+            "unsupported",
+            "diagnostic_only",
+            "cpu_fallback",
+            "uniform_nvenc",
+            "enhanced_nvenc"
+          ]
+        },
+        "reasons": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  },
+  "$defs": {
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operating_system", "architecture", "desktop_session"],
+      "properties": {
+        "operating_system": { "type": "string" },
+        "architecture": { "type": "string" },
+        "desktop_session": { "type": "string" }
+      }
+    }
+  }
+}
