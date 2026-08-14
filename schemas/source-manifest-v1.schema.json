@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.invalid/schemas/source-manifest-v1.schema.json",
+  "title": "GlyphRelay canonical source manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "git_commit",
+    "submodules",
+    "dependencies",
+    "files",
+    "bundle_id"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "git_commit": { "type": "string", "pattern": "^[0-9a-f]{40,64}$" },
+    "bundle_id": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "submodules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "commit"],
+        "properties": {
+          "path": { "$ref": "#/$defs/relative_path" },
+          "commit": { "type": "string", "pattern": "^[0-9a-f]{40,64}$" }
+        }
+      }
+    },
+    "dependencies": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lockfiles", "image_digests", "qualification_scripts"],
+      "properties": {
+        "lockfiles": { "$ref": "#/$defs/hash_map" },
+        "image_digests": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "qualification_scripts": { "$ref": "#/$defs/hash_map" }
+      }
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "mode", "bytes", "sha256"],
+        "properties": {
+          "path": { "$ref": "#/$defs/relative_path" },
+          "mode": { "enum": ["100644", "100755", "120000"] },
+          "bytes": { "type": "integer", "minimum": 0, "maximum": 67108864 },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "symlink_target": { "type": "string", "minLength": 1 }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "mode": { "const": "120000" } } },
+            "then": { "required": ["symlink_target"] },
+            "else": { "not": { "required": ["symlink_target"] } }
+          }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "relative_path": {
+      "type": "string",
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//).+$"
+    },
+    "hash_map": {
+      "type": "object",
+      "propertyNames": { "minLength": 1 },
+      "additionalProperties": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+    }
+  }
+}

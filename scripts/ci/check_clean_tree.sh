@@ -13,12 +13,17 @@ esac
 git archive --format=tar "$(git write-tree)" | tar -xf - -C "${temporary_root}"
 git -C "${temporary_root}" init --quiet
 git -C "${temporary_root}" add .
+git -C "${temporary_root}" \
+  -c user.name=GlyphRelay-Clean-Check \
+  -c user.email=clean-check@glyphrelay.invalid \
+  commit --quiet -m "test: materialize staged source"
 
 (
   cd "${temporary_root}"
   corepack pnpm install --frozen-lockfile
   uv sync --locked
   make check
+  make handoff-check
 )
 
 echo "clean source verification passed: ${temporary_root}"

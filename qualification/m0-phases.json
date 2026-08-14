@@ -1,0 +1,210 @@
+{
+  "schema_version": 1,
+  "phases": [
+    {
+      "id": "preflight",
+      "title": "Required noninteractive target prerequisites",
+      "kind": "preflight",
+      "required": true,
+      "dependencies": [],
+      "commands": [],
+      "environment_names": []
+    },
+    {
+      "id": "source-integrity",
+      "title": "Content-addressed source manifest verification",
+      "kind": "command",
+      "required": true,
+      "dependencies": [],
+      "commands": [
+        [
+          "python3",
+          "-m",
+          "tools.gpu.source_bundle",
+          "validate-source",
+          "--root",
+          "{source_root}",
+          "--manifest",
+          "{source_root}/SOURCE_MANIFEST.json"
+        ]
+      ],
+      "environment_names": []
+    },
+    {
+      "id": "native-dependencies",
+      "title": "Exact NVENC headers and patched libdatachannel checkout",
+      "kind": "command",
+      "required": true,
+      "dependencies": ["preflight", "source-integrity"],
+      "commands": [
+        ["bash", "scripts/bootstrap_nvcodec_headers.sh"],
+        ["bash", "scripts/bootstrap_libdatachannel.sh"]
+      ],
+      "environment_names": ["HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY"]
+    },
+    {
+      "id": "language-dependencies",
+      "title": "Locked project-local TypeScript and Python environments",
+      "kind": "command",
+      "required": true,
+      "dependencies": ["preflight", "source-integrity"],
+      "commands": [
+        ["corepack", "pnpm", "install", "--frozen-lockfile"],
+        ["uv", "sync", "--locked"]
+      ],
+      "environment_names": [
+        "HTTPS_PROXY",
+        "HTTP_PROXY",
+        "NO_PROXY",
+        "PNPM_HOME",
+        "UV_CACHE_DIR"
+      ]
+    },
+    {
+      "id": "portable-check",
+      "title": "Formatting, analysis, portable tests, schemas, and audits",
+      "kind": "command",
+      "required": true,
+      "dependencies": ["language-dependencies"],
+      "commands": [["make", "check"]],
+      "environment_names": ["CC", "CXX", "UV_CACHE_DIR"]
+    },
+    {
+      "id": "sanitizers",
+      "title": "Address and undefined behavior sanitizer contracts",
+      "kind": "command",
+      "required": true,
+      "dependencies": ["preflight", "source-integrity"],
+      "commands": [["bash", "scripts/ci/check_sanitizers.sh"]],
+      "environment_names": ["CC", "CXX", "ASAN_OPTIONS", "UBSAN_OPTIONS"]
+    },
+    {
+      "id": "gpu-build",
+      "title": "Clean Linux CUDA and NVENC configure and build",
+      "kind": "command",
+      "required": true,
+      "dependencies": ["native-dependencies", "preflight"],
+      "commands": [
+        ["cmake", "--preset", "linux-gpu", "--fresh"],
+        ["cmake", "--build", "--preset", "linux-gpu", "--parallel"]
+      ],
+      "environment_names": ["CC", "CXX", "CUDAHOSTCXX", "CUDA_PATH"]
+    },
+    {
+      "id": "gpu-selection",
+      "title": "Per-device CUDA, H.264 NVENC, NV12, and emphasis-map selection",
+      "kind": "gpu_selection",
+      "required": true,
+      "dependencies": ["gpu-build"],
+      "commands": [],
+      "environment_names": []
+    },
+    {
+      "id": "doctor-gpu",
+      "title": "Truthful selected-target doctor report",
+      "kind": "command",
+      "required": true,
+      "dependencies": ["gpu-selection"],
+      "commands": [["build/linux-gpu/glyphrelay", "doctor", "--json"]],
+      "environment_names": []
+    },
+    {
+      "id": "nvenc-capability",
+      "title": "Selected-target NVENC API and emphasis-map capability probe",
+      "kind": "command",
+      "required": true,
+      "dependencies": ["gpu-selection"],
+      "commands": [["build/linux-gpu/glyphrelay_probe_nvenc"]],
+      "environment_names": []
+    },
+    {
+      "id": "openh264-record-only",
+      "title": "System OpenH264 record-only encode and independent decode",
+      "kind": "command",
+      "required": true,
+      "dependencies": ["gpu-build"],
+      "commands": [
+        [
+          "ctest",
+          "--test-dir",
+          "build/linux-gpu",
+          "--output-on-failure",
+          "--no-tests=error",
+          "-R",
+          "integration\\.(openh264_record_only|ffmpeg_decodes_openh264)"
+        ]
+      ],
+      "environment_names": []
+    },
+    {
+      "id": "transport-contracts",
+      "title": "Pinned WebRTC packetization, recovery, and final-egress contracts",
+      "kind": "command",
+      "required": true,
+      "dependencies": ["native-dependencies"],
+      "commands": [["make", "transport-check"]],
+      "environment_names": ["CC", "CXX"]
+    },
+    {
+      "id": "browser-install",
+      "title": "Exact project-local Chromium and Firefox binaries",
+      "kind": "command",
+      "required": true,
+      "dependencies": ["language-dependencies"],
+      "commands": [
+        [
+          "corepack",
+          "pnpm",
+          "exec",
+          "playwright",
+          "install",
+          "chromium",
+          "firefox"
+        ]
+      ],
+      "environment_names": [
+        "HTTPS_PROXY",
+        "HTTP_PROXY",
+        "NO_PROXY",
+        "PLAYWRIGHT_BROWSERS_PATH",
+        "PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT"
+      ],
+      "environment_values": { "PLAYWRIGHT_BROWSERS_PATH": "0" }
+    },
+    {
+      "id": "browser-offers",
+      "title": "Unmodified Chromium and Firefox recording-profile offers",
+      "kind": "command",
+      "required": true,
+      "dependencies": ["browser-install"],
+      "commands": [
+        [
+          "node",
+          "tooling/m0/capture-browser-offers.ts",
+          "--output",
+          "{phase_dir}/browser-offers.json"
+        ]
+      ],
+      "environment_names": ["PLAYWRIGHT_BROWSERS_PATH"],
+      "environment_values": { "PLAYWRIGHT_BROWSERS_PATH": "0" }
+    },
+    {
+      "id": "m0-fixed-map-quality",
+      "title": "Frozen fixed-map quality, bitrate, latency, and cleanup experiment",
+      "kind": "command",
+      "required": true,
+      "dependencies": ["gpu-selection", "doctor-gpu"],
+      "commands": [
+        [
+          "build/linux-gpu/glyphrelay",
+          "benchmark",
+          "--manifest",
+          "protocols/m0_fixed_map_v1/manifest.lock",
+          "--output",
+          "{phase_dir}/benchmark"
+        ]
+      ],
+      "environment_names": []
+    }
+  ]
+}

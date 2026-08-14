@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.invalid/schemas/source-bundle-metadata-v1.schema.json",
+  "title": "GlyphRelay source bundle metadata",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "bundle_id",
+    "archive_name",
+    "archive_sha256",
+    "archive_bytes",
+    "manifest_name",
+    "manifest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "bundle_id": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "archive_name": {
+      "type": "string",
+      "pattern": "^glyphrelay-source-[0-9a-f]{64}\\.tar$"
+    },
+    "archive_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "archive_bytes": { "type": "integer", "minimum": 1 },
+    "manifest_name": {
+      "type": "string",
+      "pattern": "^glyphrelay-source-[0-9a-f]{64}\\.manifest\\.json$"
+    },
+    "manifest_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}

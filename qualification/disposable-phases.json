@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "phases": [
+    {
+      "id": "source-integrity",
+      "title": "Disposable source verification",
+      "kind": "command",
+      "required": true,
+      "dependencies": [],
+      "commands": [
+        [
+          "python3",
+          "-m",
+          "tools.gpu.source_bundle",
+          "validate-source",
+          "--root",
+          "{source_root}",
+          "--manifest",
+          "{source_root}/SOURCE_MANIFEST.json"
+        ]
+      ],
+      "environment_names": []
+    },
+    {
+      "id": "resumable-command",
+      "title": "Disposable durable phase output",
+      "kind": "command",
+      "required": true,
+      "dependencies": ["source-integrity"],
+      "commands": [
+        [
+          "python3",
+          "-c",
+          "from pathlib import Path; Path(r'{phase_dir}/evidence.txt').write_text('verified\\n')"
+        ]
+      ],
+      "environment_names": []
+    }
+  ]
+}

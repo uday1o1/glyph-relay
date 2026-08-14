@@ -71,6 +71,24 @@ The receiver, probe result states, and unfrozen browser-oracle workflow are docu
 
 CUDA, NVENC, XDG portal, PipeWire, browser, network, and performance acceptance remains deferred to the consolidated target qualification workflow required by the build plan.
 
+The content-addressed source bundle and resumable qualification runner can be exercised without a GPU through:
+
+```bash
+make handoff-check
+```
+
+The final designated-workstation workflow uses one stable command after all local work is ready:
+
+```bash
+./scripts/gpu/qualify_cuda_pm.sh
+```
+
+That command performs safe synchronization, detached execution, polling, result retrieval, and hash verification.
+
+It exits nonzero for `BLOCKED` or `FAILED` evidence and does not turn either state into an accepted hardware claim.
+
+The workflow, security boundaries, resume behavior, artifacts, and exit codes are documented in [docs/qualification.md](docs/qualification.md).
+
 ## License
 
 Original GlyphRelay source is available under the MIT License.

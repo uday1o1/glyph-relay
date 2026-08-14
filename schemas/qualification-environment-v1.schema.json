@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.invalid/schemas/qualification-environment-v1.schema.json",
+  "title": "GlyphRelay qualification environment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "captured_at_utc",
+    "hostname_class",
+    "hostname_sha256",
+    "os",
+    "kernel",
+    "architecture",
+    "cpu",
+    "desktop",
+    "tools",
+    "gpus",
+    "gpu_inventory_error",
+    "bundle_id",
+    "fingerprint_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "captured_at_utc": { "type": "string", "format": "date-time" },
+    "hostname_class": { "const": "linux_gpu_workstation" },
+    "hostname_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "os": { "type": "object", "additionalProperties": { "type": "string" } },
+    "kernel": { "type": "string" },
+    "architecture": { "type": "string" },
+    "cpu": { "type": "string" },
+    "desktop": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_type",
+        "display_present",
+        "wayland_display_present",
+        "runtime_directory_present"
+      ],
+      "properties": {
+        "session_type": { "type": "string" },
+        "display_present": { "type": "boolean" },
+        "wayland_display_present": { "type": "boolean" },
+        "runtime_directory_present": { "type": "boolean" }
+      }
+    },
+    "tools": { "type": "object", "additionalProperties": { "type": "object" } },
+    "gpus": { "type": "array", "items": { "type": "object" } },
+    "gpu_inventory_error": { "type": "string" },
+    "bundle_id": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "fingerprint_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}

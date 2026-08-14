@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.invalid/schemas/qualification-phase-v1.schema.json",
+  "title": "GlyphRelay qualification phase result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "phase",
+    "title",
+    "status",
+    "reason",
+    "required",
+    "input_sha256",
+    "commands",
+    "environment_names",
+    "returncodes",
+    "duration_seconds",
+    "output_hashes",
+    "reused",
+    "completed_at_utc"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "phase": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+    "title": { "type": "string", "minLength": 1 },
+    "status": {
+      "enum": ["PASSED", "FAILED", "BLOCKED", "DEFERRED_INTERACTIVE"]
+    },
+    "reason": { "type": "string", "minLength": 1 },
+    "required": { "type": "boolean" },
+    "input_sha256": { "type": "string", "pattern": "^(|[0-9a-f]{64})$" },
+    "commands": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "minItems": 1,
+        "items": { "type": "string" }
+      }
+    },
+    "environment_names": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" }
+    },
+    "returncodes": { "type": "array", "items": { "type": "integer" } },
+    "duration_seconds": { "type": "number", "minimum": 0 },
+    "output_hashes": {
+      "type": "object",
+      "propertyNames": { "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" },
+      "additionalProperties": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+    },
+    "reused": { "type": "boolean" },
+    "completed_at_utc": { "type": "string", "format": "date-time" }
+  }
+}
