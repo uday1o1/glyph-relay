@@ -153,6 +153,10 @@ make cuda-compile-check
 
 The designated target runs CUDA differential, compute-sanitizer, and 1080p30 P95 qualification through the same consolidated handoff entry point shown below.
 
+After the saliency configuration is frozen, the target evaluates controlled uniform plus all 11 `uniform_aq_v1` candidates at five measured payload targets and freezes one best-supported uniform configuration before validation access.
+
+The source schedule, rate search, independent decode, OCR, pinned-browser checks, selection order, and current hardware boundary are documented in [the uniform AQ development protocol](docs/uniform-aq.md).
+
 Exercise the static loopback receiver in the exact pinned Chromium build with:
 
 ```bash

@@ -3,29 +3,77 @@
   "protocol": "uniform_aq_v1",
   "files": [
     {
+      "path": "CMakeLists.txt",
+      "sha256": "e41723c081fa585340ef12d9ae9d4cb5330a69996c3b73ab109f1ebb989c436d"
+    },
+    {
       "path": "corpus/uniform-aq-v1.json",
       "sha256": "ff284d7c9426fd3e4def75b12d00814796933a3623b2e4294a7f6b85c954d9c6"
     },
     {
+      "path": "include/glyphrelay/nvenc_encoder.hpp",
+      "sha256": "e2b259cb42be043a798d14b91efa1620f1862d9bfcc0deb68c2ebd9ce375f4b0"
+    },
+    {
+      "path": "protocols/uniform_aq_v1/execution-contract.json",
+      "sha256": "4a55940e0a8c1224d6c73428506c437389fe577d8d53590b6635ba6ebc5f0da1"
+    },
+    {
+      "path": "qualification/m0-phases.json",
+      "sha256": "d0ad0984ceb5ab9a539260a9c66e847b51f770779b911a581758edad680d2b50"
+    },
+    {
       "path": "schemas/uniform-aq-development-evidence-v1.schema.json",
-      "sha256": "3e84fe7225264f00dde4c0ef4069437f086f2899a5ce8f96c6ef5f60e5d5f4dc"
+      "sha256": "fb3ea20a063398d1ddb44d59ce12daaf2925cd3d38ab50fbcaa5302695665c2c"
     },
     {
       "path": "schemas/uniform-aq-selection-v1.schema.json",
       "sha256": "be0f9809fb841863c92a851a2f6771aa3d1aa7d7ca7eaa276ea33e58fba52149"
     },
     {
+      "path": "src/gpu/cuda_preprocess.cu",
+      "sha256": "d062e6c85d0d12aeec735352fb4d7b97eefdd1f8681bbd5b78c8115dd93e52aa"
+    },
+    {
+      "path": "src/gpu/nvenc_encoder.cpp",
+      "sha256": "a58d72ee68090fbf341a72f07ad36bcee90741fb54d92f763eb53dc1035cbc2c"
+    },
+    {
+      "path": "tooling/corpus/prepare-decoded-ocr.ts",
+      "sha256": "4a7119e6326586829bcb29de4f2e6b35525f5b694dc4e50eb3b69a37ba333998"
+    },
+    {
+      "path": "tooling/corpus/verify-browser-decode.ts",
+      "sha256": "baf4f2f32c109ff7b7c8cde17433f6861bcbef569b4ba2a16f7faa07e04376c6"
+    },
+    {
       "path": "tools/check_uniform_aq_protocol.py",
-      "sha256": "8d391afb777a38a8fcc0572958ac895f0149ed524f89a6d49be14b29c21be46c"
+      "sha256": "895a205c417dbde0f874cd004de9ea2ca31a8f8a3edbd52e57f00db48dc910ab"
     },
     {
       "path": "tools/corpus/aq_selector.py",
       "sha256": "9eedb853ef9ec69aa41c7e5995be7507ca421f12be34597a25813c27f2792625"
     },
     {
+      "path": "tools/corpus/evaluate_ocr.py",
+      "sha256": "2bde2f91ba8ef675ba65e449287109f194a1d439309eb2590e12f538df15d2ca"
+    },
+    {
+      "path": "tools/corpus/run_tesseract.sh",
+      "sha256": "03aee2705b9a811cb07568267534038b1a988ee670ba940a0ef27b92527bb1cc"
+    },
+    {
       "path": "tools/corpus/uniform_aq_selector.py",
-      "sha256": "d9ac65666a2a8cdf758c38cbb058bf07dc51b8171d7f63bdf372234bdaa2c242"
+      "sha256": "21c6dee227e1c6ce70e5bfb1632e9f0f5e5ca849c6e04a61b8295611865bf246"
+    },
+    {
+      "path": "tools/evaluate_uniform_aq.cpp",
+      "sha256": "ae3b1407260d44b92c986ded5596af65eca87c29ac0c81e3404d6c23a5da97fe"
+    },
+    {
+      "path": "tools/run_uniform_aq_development.py",
+      "sha256": "580eb5f1c99b136502c4da9b960903615dff009540c1eb4153fcf70c344d8535"
     }
   ],
-  "protocol_sha256": "0f4faf4cda2489c5cbde4e57730af862829dd728298035267d258b4febd180d4"
+  "protocol_sha256": "40774e385cae46e2b45a06d9de2fd94715e819928875257887f6560fdb1e5c1a"
 }

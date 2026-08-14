@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "protocol": "uniform_aq_v1",
+  "targetSearch": {
+    "initialRequestedPayloadBps": "round_target_mbps_times_1000000",
+    "maximumAttempts": 4,
+    "minimumRequestedPayloadBps": 100000,
+    "maximumRequestedPayloadBps": 20000000,
+    "update": "round_previous_request_times_target_divided_by_measured",
+    "invalidTrialRetry": "same_requested_rate_until_attempt_budget_exhausted"
+  },
+  "sourceSchedule": "each_frozen_sample_frame_held_for_its_exact_60_frame_interval",
+  "systemsWindow": {
+    "warmupFrames": 300,
+    "measuredRealtimeFrames": 300,
+    "remainingFrames": "accelerated_with_30fps_timestamps_and_serial_output_completion"
+  }
+}

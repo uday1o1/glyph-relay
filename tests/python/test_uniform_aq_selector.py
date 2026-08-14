@@ -51,6 +51,7 @@ def _target(target: float, error: float) -> dict[str, Any]:
         },
         "equalStratumCer": error,
         "p95PreprocessMs": 2.0,
+        "p95PreprocessEncodeMs": 7.0,
         "p95EncodeMs": 5.0,
         "p99EncodeMs": 8.0,
         "meanSenderCpuPercent": 12.0,
@@ -119,6 +120,7 @@ def _evidence() -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
         "gridSha256": sha256_file(GRID_PATH),
         "protocolSha256": lock["protocol_sha256"],
         "processingPlatformSha256": "c" * 64,
+        "implementationSha256": "d" * 64,
         "controlledUniform": _condition(
             AqFields(False, 0, False), [0.55, 0.47, 0.40, 0.22, 0.10], 0
         ),
@@ -173,6 +175,7 @@ def test_invalid_trial_is_preserved_but_never_selected() -> None:
             "perStratumCer": None,
             "equalStratumCer": None,
             "p95PreprocessMs": None,
+            "p95PreprocessEncodeMs": None,
             "p95EncodeMs": None,
             "p99EncodeMs": None,
             "meanSenderCpuPercent": None,
@@ -196,6 +199,23 @@ def test_invalid_trial_is_preserved_but_never_selected() -> None:
     )
     result = select_development_evidence(evidence, grid, lock)
     assert result["bestSupportedUniform"]["candidateId"] != candidate["candidateId"]
+
+
+def test_invalid_same_rate_retry_is_preserved_before_selected_attempt() -> None:
+    evidence, grid, lock = _evidence()
+    target = evidence["controlledUniform"]["targetSearch"][0]
+    target["attempts"].insert(
+        0,
+        {
+            "requestedPayloadBps": 500_000,
+            "measuredPayloadMbps": None,
+            "status": "INVALID",
+            "invalidReason": "interrupted_native_trial",
+        },
+    )
+    target["selectedAttemptIndex"] = 1
+    selected = select_development_evidence(evidence, grid, lock)
+    assert selected["status"] == "SELECTED"
 
 
 def test_selector_rejects_grid_gaps_rate_mismatch_and_hidden_failures() -> None:

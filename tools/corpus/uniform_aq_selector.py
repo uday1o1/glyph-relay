@@ -210,13 +210,8 @@ def _selected_measurement(target: dict[str, Any], label: str) -> float | None:
     attempts = target.get("attempts")
     if not isinstance(attempts, list) or not attempts:
         raise UniformAqSelectionError(f"target_attempts_missing:{label}")
-    requested_rates: set[int] = set()
     for index, attempt in enumerate(attempts):
         _validate_attempt(attempt, f"{label}.{index}")
-        requested = int(attempt["requestedPayloadBps"])
-        if requested in requested_rates:
-            raise UniformAqSelectionError(f"target_attempt_requested_rate_duplicate:{label}")
-        requested_rates.add(requested)
     selected_index = target.get("selectedAttemptIndex")
     if selected_index is None:
         return None
@@ -260,6 +255,9 @@ def _validate_passed_target(target: dict[str, Any], measured: float, label: str)
     ):
         raise UniformAqSelectionError(f"target_equal_stratum_cer_invalid:{label}")
     preprocess = finite_number(target.get("p95PreprocessMs"), f"{label}.p95PreprocessMs")
+    combined_p95 = finite_number(
+        target.get("p95PreprocessEncodeMs"), f"{label}.p95PreprocessEncodeMs"
+    )
     encode_p95 = finite_number(target.get("p95EncodeMs"), f"{label}.p95EncodeMs")
     encode_p99 = finite_number(target.get("p99EncodeMs"), f"{label}.p99EncodeMs")
     finite_number(target.get("meanSenderCpuPercent"), f"{label}.meanSenderCpuPercent")
@@ -268,6 +266,7 @@ def _validate_passed_target(target: dict[str, Any], measured: float, label: str)
     decoded = target.get("decodedFrames")
     if (
         preprocess > MAXIMUM_PREPROCESS_P95_MS
+        or combined_p95 > MAXIMUM_PREPROCESS_P95_MS + MAXIMUM_ENCODE_P95_MS
         or encode_p95 > MAXIMUM_ENCODE_P95_MS
         or encode_p99 > MAXIMUM_ENCODE_P99_MS
         or pending_age > MAXIMUM_PENDING_AGE_MS

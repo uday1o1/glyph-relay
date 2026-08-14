@@ -17,12 +17,24 @@ from tools.corpus.uniform_aq_selector import AqFields, expected_aq_fields  # noq
 LOCK_PATH = ROOT / "protocols" / "uniform_aq_v1" / "manifest.lock"
 SELECTION_PATH = ROOT / "protocols" / "uniform_aq_v1" / "selected-configuration.json"
 EXPECTED_FILES = {
+    "CMakeLists.txt",
     "corpus/uniform-aq-v1.json",
+    "include/glyphrelay/nvenc_encoder.hpp",
+    "protocols/uniform_aq_v1/execution-contract.json",
+    "qualification/m0-phases.json",
     "schemas/uniform-aq-development-evidence-v1.schema.json",
     "schemas/uniform-aq-selection-v1.schema.json",
+    "src/gpu/cuda_preprocess.cu",
+    "src/gpu/nvenc_encoder.cpp",
+    "tooling/corpus/prepare-decoded-ocr.ts",
+    "tooling/corpus/verify-browser-decode.ts",
     "tools/check_uniform_aq_protocol.py",
     "tools/corpus/aq_selector.py",
+    "tools/corpus/evaluate_ocr.py",
+    "tools/corpus/run_tesseract.sh",
     "tools/corpus/uniform_aq_selector.py",
+    "tools/evaluate_uniform_aq.cpp",
+    "tools/run_uniform_aq_development.py",
 }
 EXPECTED_TARGETS = [0.5, 0.75, 1, 2, 4]
 EXPECTED_OBJECTIVE = [
@@ -102,6 +114,28 @@ def validate_grid(root: Path = ROOT) -> list[str]:
         errors.append("uniform AQ target matrix changed")
     if grid.get("rateMatchToleranceFraction") != 0.02:
         errors.append("uniform AQ rate-match tolerance changed")
+    execution = load_object(root / "protocols" / "uniform_aq_v1" / "execution-contract.json")
+    if execution.get("schemaVersion") != 1 or execution.get("protocol") != "uniform_aq_v1":
+        errors.append("uniform AQ execution identity changed")
+    if execution.get("targetSearch") != {
+        "initialRequestedPayloadBps": "round_target_mbps_times_1000000",
+        "maximumAttempts": 4,
+        "minimumRequestedPayloadBps": 100000,
+        "maximumRequestedPayloadBps": 20000000,
+        "update": "round_previous_request_times_target_divided_by_measured",
+        "invalidTrialRetry": "same_requested_rate_until_attempt_budget_exhausted",
+    }:
+        errors.append("uniform AQ target-search contract changed")
+    if execution.get(
+        "sourceSchedule"
+    ) != "each_frozen_sample_frame_held_for_its_exact_60_frame_interval" or execution.get(
+        "systemsWindow"
+    ) != {
+        "warmupFrames": 300,
+        "measuredRealtimeFrames": 300,
+        "remainingFrames": ("accelerated_with_30fps_timestamps_and_serial_output_completion"),
+    }:
+        errors.append("uniform AQ source or systems window changed")
     expected_grid = {
         "enableAQ": [False, True],
         "aqStrengthWhenEnabled": [1, 4, 8, 12, 15],

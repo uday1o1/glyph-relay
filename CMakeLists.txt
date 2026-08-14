@@ -293,6 +293,15 @@ target_link_libraries(glyphrelay_hash_m0_browser_source PRIVATE glyphrelay_core)
 add_executable(glyphrelay_saliency_preview tools/render_saliency_preview.cpp)
 target_link_libraries(glyphrelay_saliency_preview PRIVATE glyphrelay_core)
 
+add_executable(glyphrelay_uniform_aq_evaluate tools/evaluate_uniform_aq.cpp)
+target_link_libraries(glyphrelay_uniform_aq_evaluate PRIVATE glyphrelay_core)
+if(MSVC)
+  target_compile_options(glyphrelay_uniform_aq_evaluate PRIVATE /W4 /WX /permissive-)
+else()
+  target_compile_options(glyphrelay_uniform_aq_evaluate PRIVATE
+    -Wall -Wconversion -Werror -Wextra -Wpedantic -Wshadow)
+endif()
+
 if(GLYPHRELAY_HAS_CUDA_COMPILER)
   add_executable(glyphrelay_cuda_saliency_qualify tools/qualify_cuda_saliency.cpp)
   target_link_libraries(glyphrelay_cuda_saliency_qualify PRIVATE glyphrelay_core)
@@ -373,6 +382,8 @@ if(BUILD_TESTING)
       -DGLYPHRELAY_PROGRAM=$<TARGET_FILE:glyphrelay_saliency_preview>
       -DGLYPHRELAY_OUTPUT=${CMAKE_CURRENT_BINARY_DIR}/saliency-preview.ppm
       -P "${CMAKE_SOURCE_DIR}/tests/cmake/assert_saliency_preview.cmake")
+  add_test(NAME cli.uniform_aq_evaluate_help
+    COMMAND glyphrelay_uniform_aq_evaluate --help)
   if(GLYPHRELAY_HAS_CUDA_COMPILER)
     add_test(NAME integration.cuda_saliency_correctness
       COMMAND "${CMAKE_COMMAND}"

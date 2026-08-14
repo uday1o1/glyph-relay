@@ -13,6 +13,7 @@
     "gridSha256",
     "protocolSha256",
     "processingPlatformSha256",
+    "implementationSha256",
     "controlledUniform",
     "candidates"
   ],
@@ -25,6 +26,7 @@
     "gridSha256": { "$ref": "#/$defs/hash" },
     "protocolSha256": { "$ref": "#/$defs/hash" },
     "processingPlatformSha256": { "$ref": "#/$defs/hash" },
+    "implementationSha256": { "$ref": "#/$defs/hash" },
     "controlledUniform": { "$ref": "#/$defs/condition" },
     "candidates": {
       "type": "array",
@@ -109,6 +111,7 @@
         "perStratumCer",
         "equalStratumCer",
         "p95PreprocessMs",
+        "p95PreprocessEncodeMs",
         "p95EncodeMs",
         "p99EncodeMs",
         "meanSenderCpuPercent",
@@ -144,6 +147,10 @@
           "maximum": 1
         },
         "p95PreprocessMs": { "type": ["number", "null"], "minimum": 0 },
+        "p95PreprocessEncodeMs": {
+          "type": ["number", "null"],
+          "minimum": 0
+        },
         "p95EncodeMs": { "type": ["number", "null"], "minimum": 0 },
         "p99EncodeMs": { "type": ["number", "null"], "minimum": 0 },
         "meanSenderCpuPercent": { "type": ["number", "null"], "minimum": 0 },

@@ -30,7 +30,7 @@ The phase retains raw captures privately and exports only the safe reduced valid
 
 ### Qualification phase coverage
 
-The committed graph contains 18 required Milestone 0 phases, four required Milestone 2 CUDA saliency phases, and one required Milestone 3 enhanced-encoder phase.
+The committed graph contains 18 required Milestone 0 phases, four required Milestone 2 CUDA saliency phases, one required Milestone 3 enhanced-encoder phase, and one required Milestone 4 uniform-AQ development phase.
 
 The graph validates the source and exact dependencies, runs the complete portable and sanitizer suites, builds the Linux GPU targets, selects a device, validates doctor output, probes H.264, NV12, and emphasis-map support, and repeats the pre-submit and ownership contracts ten times with CTest `until-fail` semantics.
 
@@ -61,6 +61,7 @@ The target-only acceptance mapping is:
 | M3-H03 | `nvenc-ownership-failure-contracts`, `nvenc-enhanced-runtime` |
 | M3-H04 | `m0-fixed-map-quality` |
 | M3-H05 | `nvenc-enhanced-runtime` |
+| M4 AQ development freeze | `uniform-aq-development-selection` |
 
 The final Milestone 2 phase renders only the frozen development split, prepares hash-bound macroblock truth, evaluates all 2,511 configurations through the actual CUDA pipeline, and durably checkpoints each candidate.
 
@@ -75,6 +76,12 @@ The phase cannot run before the selected `saliency_v1` artifact is committed, an
 It requires multiple simultaneous owned submissions, a dedicated output thread, exact FIFO frame identity, IDR plus SPS and PPS startup, complete resource release, and ten additional teardown cycles with a rejected foreign-context generation.
 
 Its independent validator checks each stream hash, fully decodes all three streams with FFmpeg, and verifies H.264, 1920 by 1080 geometry, Level 4.0, 8-bit 4:2:0 limited-range BT.709 output, and the exact 300-frame count with FFprobe.
+
+The Milestone 4 AQ phase evaluates controlled uniform plus all 11 frozen AQ candidates at five measured payload targets.
+
+It preserves every valid and invalid rate-search trial, independently decodes every selected stream, evaluates all frozen OCR regions, and seek-decodes the actual remuxed stream through both pinned browsers.
+
+The phase returns a repository-freeze handoff until the exact selected configuration and endpoint comparator identities are committed.
 
 ## Designated GPU workflow
 

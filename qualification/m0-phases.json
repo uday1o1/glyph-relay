@@ -595,6 +595,46 @@
       "environment_names": ["UV_CACHE_DIR"],
       "timeout_seconds": 1800,
       "resource_policy": "nvenc-performance-v1"
+    },
+    {
+      "id": "uniform-aq-development-selection",
+      "title": "Complete frozen uniform AQ development grid and repository freeze",
+      "kind": "command",
+      "required": true,
+      "dependencies": [
+        "browser-install",
+        "language-dependencies",
+        "saliency-development-selection",
+        "nvenc-enhanced-runtime"
+      ],
+      "commands": [
+        [
+          "uv",
+          "run",
+          "python",
+          "tools/run_uniform_aq_development.py",
+          "--native",
+          "build/linux-gpu/glyphrelay_uniform_aq_evaluate",
+          "--renderer-directory",
+          "{phase_dir}/render",
+          "--checkpoint-root",
+          "{phase_root}/aq-checkpoint",
+          "--phase-output",
+          "{phase_dir}",
+          "--source-bundle-id",
+          "{source_bundle_id}",
+          "--processing-platform-sha256",
+          "{environment_fingerprint}"
+        ]
+      ],
+      "environment_names": [
+        "HTTPS_PROXY",
+        "HTTP_PROXY",
+        "NO_PROXY",
+        "UV_CACHE_DIR"
+      ],
+      "timeout_seconds": 86400,
+      "resource_policy": "nvenc-performance-v1"
     }
   ]
 }

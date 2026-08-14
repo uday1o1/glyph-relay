@@ -14,6 +14,8 @@
     "browser:playback": "node tooling/m0/qualify-browser-playback.ts",
     "browser:oracle:freeze": "node tooling/m0/freeze-browser-oracle.ts",
     "browser:probe": "node tooling/m0/capture-browser-offers.ts --output build/m0-browser-offers.json",
+    "corpus:browser-decode": "node tooling/corpus/verify-browser-decode.ts",
+    "corpus:decoded-ocr": "node tooling/corpus/prepare-decoded-ocr.ts",
     "dashboard:browser": "node tooling/dashboard/verify-dashboard.ts",
     "dashboard:start": "node dashboard/main.ts",
     "signaling:start": "node signaling/main.ts",
