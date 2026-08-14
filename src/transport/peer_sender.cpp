@@ -195,6 +195,8 @@ struct PeerSender::Implementation {
     if (!config.event_callback || !config.request_idr_with_parameter_sets) {
       throw std::invalid_argument("peer sender callbacks are required");
     }
+    diagnostics_state.media_epoch = kInitialMediaEpoch;
+    diagnostics_state.reason = "PEER_NEW";
     install_callbacks();
     worker = std::thread([this] { run_worker(); });
   }
@@ -233,11 +235,15 @@ struct PeerSender::Implementation {
   void install_callbacks() {
     peer.onLocalDescription([this](rtc::Description description) {
       emit({.kind = PeerSenderEventKind::local_description,
-            .value = static_cast<std::string>(description)});
+            .value = static_cast<std::string>(description),
+            .number = 0U,
+            .receiver_stats = {}});
     });
     peer.onLocalCandidate([this](rtc::Candidate candidate) {
-      emit(
-          {.kind = PeerSenderEventKind::local_candidate, .value = local_candidate_json(candidate)});
+      emit({.kind = PeerSenderEventKind::local_candidate,
+            .value = local_candidate_json(candidate),
+            .number = 0U,
+            .receiver_stats = {}});
     });
     peer.onStateChange([this](rtc::PeerConnection::State state) {
       if (state == rtc::PeerConnection::State::Connected) {
@@ -247,14 +253,20 @@ struct PeerSender::Implementation {
           diagnostics_state.reason = "PEER_CONNECTED";
         }
         changed.notify_all();
-        emit({.kind = PeerSenderEventKind::connected});
+        emit({.kind = PeerSenderEventKind::connected,
+              .value = {},
+              .number = 0U,
+              .receiver_stats = {}});
       } else if (state == rtc::PeerConnection::State::Disconnected) {
         {
           std::scoped_lock lock(mutex);
           diagnostics_state.connected = false;
           diagnostics_state.reason = "PEER_DISCONNECTED";
         }
-        emit({.kind = PeerSenderEventKind::disconnected});
+        emit({.kind = PeerSenderEventKind::disconnected,
+              .value = {},
+              .number = 0U,
+              .receiver_stats = {}});
       } else if (state == rtc::PeerConnection::State::Failed ||
                  state == rtc::PeerConnection::State::Closed) {
         fail("PEER_CONNECTION_FAILED");
@@ -358,7 +370,10 @@ struct PeerSender::Implementation {
       auto nack = std::make_shared<rtc_adapter::BoundedNackResponder>(
           kMediaSsrc, [this] { return elapsed_ms_u64(); },
           [this] {
-            emit({.kind = PeerSenderEventKind::recovery_requested});
+            emit({.kind = PeerSenderEventKind::recovery_requested,
+                  .value = {},
+                  .number = 0U,
+                  .receiver_stats = {}});
             safe_request_idr();
           },
           [this] { fail("PEER_FEEDBACK_FLOOD"); });
@@ -368,7 +383,10 @@ struct PeerSender::Implementation {
           std::scoped_lock lock(mutex);
           diagnostics_state.latest_remb_bps = bitrate;
         }
-        emit({.kind = PeerSenderEventKind::remb, .number = bitrate});
+        emit({.kind = PeerSenderEventKind::remb,
+              .value = {},
+              .number = bitrate,
+              .receiver_stats = {}});
       }));
       incoming->setMediaHandler(packetizer);
       incoming->onOpen([this] {
@@ -377,6 +395,10 @@ struct PeerSender::Implementation {
           diagnostics_state.track_open = true;
         }
         changed.notify_all();
+        emit({.kind = PeerSenderEventKind::track_open,
+              .value = {},
+              .number = 0U,
+              .receiver_stats = {}});
       });
       incoming->onClosed([this] {
         bool should_fail = false;
@@ -470,7 +492,10 @@ struct PeerSender::Implementation {
     }
     changed.notify_all();
     apply_control(std::move(output));
-    emit({.kind = PeerSenderEventKind::control_open});
+    emit({.kind = PeerSenderEventKind::control_open,
+          .value = {},
+          .number = 0U,
+          .receiver_stats = {}});
   }
 
   void control_received(std::string message) {
@@ -508,7 +533,10 @@ struct PeerSender::Implementation {
     std::optional<std::string> terminal_reason;
     for (const auto &event : output.events) {
       if (event.kind == ReceiverControlEventKind::receiver_stats) {
-        emit({.kind = PeerSenderEventKind::receiver_stats, .receiver_stats = event.stats});
+        emit({.kind = PeerSenderEventKind::receiver_stats,
+              .value = {},
+              .number = 0U,
+              .receiver_stats = event.stats});
       } else if (event.kind == ReceiverControlEventKind::terminal ||
                  event.kind == ReceiverControlEventKind::protocol_error) {
         terminal_reason = event.reason;
@@ -671,7 +699,10 @@ struct PeerSender::Implementation {
       stopped = true;
       stopping = false;
     }
-    emit({.kind = PeerSenderEventKind::ended, .value = std::string(reason)});
+    emit({.kind = PeerSenderEventKind::ended,
+          .value = std::string(reason),
+          .number = 0U,
+          .receiver_stats = {}});
   }
 
   void run_worker() {
@@ -748,7 +779,10 @@ struct PeerSender::Implementation {
     if (notify) {
       static_cast<void>(egress.close_media(MediaBoundaryReason::stop));
       changed.notify_all();
-      emit({.kind = PeerSenderEventKind::failed, .value = std::move(reason)});
+      emit({.kind = PeerSenderEventKind::failed,
+            .value = std::move(reason),
+            .number = 0U,
+            .receiver_stats = {}});
     }
   }
 
@@ -796,7 +830,7 @@ struct PeerSender::Implementation {
   std::shared_ptr<rtc_adapter::StrictH264Packetizer> packetizer_handler;
   std::shared_ptr<rtc_adapter::BoundedNackResponder> recovery;
   std::optional<std::uint8_t> payload_type;
-  PeerSenderDiagnostics diagnostics_state{.media_epoch = kInitialMediaEpoch, .reason = "PEER_NEW"};
+  PeerSenderDiagnostics diagnostics_state;
   std::uint64_t next_access_unit_id = 0U;
   bool shutdown_worker = false;
   bool stopping = false;
@@ -833,6 +867,8 @@ std::string_view peer_sender_event_name(PeerSenderEventKind kind) {
     return "LOCAL_CANDIDATE";
   case PeerSenderEventKind::connected:
     return "CONNECTED";
+  case PeerSenderEventKind::track_open:
+    return "TRACK_OPEN";
   case PeerSenderEventKind::disconnected:
     return "DISCONNECTED";
   case PeerSenderEventKind::control_open:

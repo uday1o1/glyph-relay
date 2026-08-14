@@ -19,6 +19,7 @@ enum class PeerSenderEventKind {
   local_description,
   local_candidate,
   connected,
+  track_open,
   disconnected,
   control_open,
   receiver_stats,

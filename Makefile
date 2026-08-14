@@ -9,6 +9,7 @@ CXX_FILES := $(shell find include src tests tools -type f \( -name '*.cpp' -o -n
 all: build
 
 configure:
+	$(if $(filter Linux,$(HOST_SYSTEM)),bash scripts/bootstrap_libdatachannel.sh)
 	$(CMAKE) --preset $(PRESET)
 
 build: configure

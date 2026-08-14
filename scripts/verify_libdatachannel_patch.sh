@@ -36,11 +36,12 @@ fi
   -DUSE_SYSTEM_USRSCTP=OFF \
   -DWARNINGS_AS_ERRORS=ON
 "${cmake_command[@]}" --build "${build_root}" \
-  --target glyphrelay_m0_webrtc_sender glyphrelay_m0_transport_fixture \
+  --target glyphrelay glyphrelay_m0_webrtc_sender glyphrelay_m0_transport_fixture \
            glyphrelay_libdatachannel_contract_tests glyphrelay_owner_signaling_tests \
            glyphrelay_control_protocol_tests glyphrelay_peer_sender_tests \
            glyphrelay_owner_signaling_fixture \
            glyphrelay-juice-egress-tests --parallel
+"${build_root}/glyphrelay" --help
 "${build_root}/glyphrelay_m0_webrtc_sender" --help
 "${build_root}/glyphrelay_m0_transport_fixture" --help
 "${build_root}/glyphrelay_libdatachannel_contract_tests"

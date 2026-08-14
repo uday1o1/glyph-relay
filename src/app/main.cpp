@@ -4,8 +4,10 @@
 #include "glyphrelay/nvenc_browser_fixture.hpp"
 #include "glyphrelay/record_command.hpp"
 #include "glyphrelay/recording.hpp"
+#include "glyphrelay/share_command.hpp"
 
 #include <csignal>
+#include <cstdlib>
 #include <filesystem>
 #include <iostream>
 #include <string>
@@ -13,9 +15,9 @@
 
 namespace {
 
-volatile std::sig_atomic_t record_stop_requested = 0;
+volatile std::sig_atomic_t command_stop_requested = 0;
 
-extern "C" void request_record_stop(int) { record_stop_requested = 1; }
+extern "C" void request_command_stop(int) { command_stop_requested = 1; }
 
 void print_help() {
   std::cout << "GlyphRelay " << GLYPHRELAY_VERSION << "\n"
@@ -23,10 +25,51 @@ void print_help() {
             << "  glyphrelay doctor [--json]\n"
             << "  glyphrelay benchmark --manifest FILE --output DIR\n"
             << "  glyphrelay browser-fixture --manifest FILE --output DIR\n"
+            << "  glyphrelay share [--bitrate 500k|1m|2m|4m] [--record PATH.h264] [--json]\n"
             << "  glyphrelay record --output PATH.h264 [--window-label LABEL]"
                " [--bitrate 500k|1m|2m|4m]\n"
             << "  glyphrelay inspect --recording FILE [--json]\n"
             << "  glyphrelay --help\n";
+}
+
+std::string json_quote(std::string_view value) {
+  std::string result = "\"";
+  for (const unsigned char character : value) {
+    switch (character) {
+    case '\"':
+      result += "\\\"";
+      break;
+    case '\\':
+      result += "\\\\";
+      break;
+    case '\b':
+      result += "\\b";
+      break;
+    case '\f':
+      result += "\\f";
+      break;
+    case '\n':
+      result += "\\n";
+      break;
+    case '\r':
+      result += "\\r";
+      break;
+    case '\t':
+      result += "\\t";
+      break;
+    default:
+      if (character < 0x20U) {
+        constexpr char digits[] = "0123456789abcdef";
+        result += "\\u00";
+        result.push_back(digits[(character >> 4U) & 0x0FU]);
+        result.push_back(digits[character & 0x0FU]);
+      } else {
+        result.push_back(static_cast<char>(character));
+      }
+    }
+  }
+  result.push_back('\"');
+  return result;
 }
 
 struct ArtifactArguments {
@@ -142,11 +185,11 @@ int run_record(int argc, char **argv) {
     return 2;
   }
 
-  record_stop_requested = 0;
-  const auto previous_interrupt = std::signal(SIGINT, request_record_stop);
-  const auto previous_terminate = std::signal(SIGTERM, request_record_stop);
+  command_stop_requested = 0;
+  const auto previous_interrupt = std::signal(SIGINT, request_command_stop);
+  const auto previous_terminate = std::signal(SIGTERM, request_command_stop);
   const auto result = glyphrelay::run_interactive_record(
-      options, []() { return record_stop_requested != 0; },
+      options, []() { return command_stop_requested != 0; },
       [](std::string_view label) { std::cout << "Selected window label: " << label << '\n'; });
   static_cast<void>(std::signal(SIGINT, previous_interrupt));
   static_cast<void>(std::signal(SIGTERM, previous_terminate));
@@ -155,6 +198,82 @@ int run_record(int argc, char **argv) {
               << result.encoded_access_units << " access units)\n";
   } else {
     std::cerr << "record failed: " << result.reason << '\n';
+  }
+  return result.exit_code;
+}
+
+int run_share(int argc, char **argv) {
+  glyphrelay::ShareCommandOptions options;
+  bool bitrate_seen = false;
+  bool record_seen = false;
+  bool json_seen = false;
+  for (int index = 2; index < argc; ++index) {
+    const std::string_view option(argv[index]);
+    if ((option == "--bitrate" || option == "--record") && index + 1 < argc) {
+      if ((option == "--bitrate" && bitrate_seen) || (option == "--record" && record_seen)) {
+        std::cerr << option << " may be provided only once\n";
+        return 2;
+      }
+      const std::string value(argv[++index]);
+      if (option == "--bitrate") {
+        options.bitrate_profile = value;
+        bitrate_seen = true;
+      } else {
+        options.recording_path = value;
+        record_seen = true;
+      }
+    } else if (option == "--json" && !json_seen) {
+      options.json = true;
+      json_seen = true;
+    } else {
+      std::cerr << "share accepts only --bitrate, --record, and --json\n";
+      return 2;
+    }
+  }
+  if (const char *origin = std::getenv("GLYPHRELAY_SIGNALING_ORIGIN")) {
+    options.signaling_origin = origin;
+  }
+  if (const char *ca_path = std::getenv("GLYPHRELAY_SIGNALING_CA_PATH")) {
+    options.signaling_ca_path = ca_path;
+  }
+  std::string validation_reason;
+  if (!glyphrelay::valid_share_options(options, validation_reason)) {
+    if (options.json) {
+      std::cout << "{\"exitCode\":2,\"reason\":" << json_quote(validation_reason)
+                << ",\"connectionState\":\"idle\",\"joinUrl\":\"\"}\n";
+    } else {
+      std::cerr << "share failed: " << validation_reason << '\n';
+    }
+    return 2;
+  }
+
+  command_stop_requested = 0;
+  const auto previous_interrupt = std::signal(SIGINT, request_command_stop);
+  const auto previous_terminate = std::signal(SIGTERM, request_command_stop);
+  const auto result = glyphrelay::run_interactive_share(
+      options, []() { return command_stop_requested != 0; },
+      options.json
+          ? glyphrelay::ShareStatusCallback{}
+          : glyphrelay::ShareStatusCallback{[](std::string_view state, std::string_view detail) {
+              if (state == "join_open") {
+                std::cout << "Share link: " << detail << '\n';
+              } else {
+                std::cout << "Share state: " << state << " (" << detail << ")\n";
+              }
+            }});
+  static_cast<void>(std::signal(SIGINT, previous_interrupt));
+  static_cast<void>(std::signal(SIGTERM, previous_terminate));
+
+  if (options.json) {
+    std::cout << "{\"exitCode\":" << result.exit_code << ",\"reason\":" << json_quote(result.reason)
+              << ",\"connectionState\":" << json_quote(result.connection_state)
+              << ",\"joinUrl\":" << json_quote(result.join_url)
+              << ",\"recordingError\":" << json_quote(result.recording_error)
+              << ",\"capturedFrames\":" << result.captured_frames
+              << ",\"encodedAccessUnits\":" << result.encoded_access_units
+              << ",\"transportedAccessUnits\":" << result.transported_access_units << "}\n";
+  } else if (result.exit_code != 0) {
+    std::cerr << "share failed: " << result.reason << '\n';
   }
   return result.exit_code;
 }
@@ -225,6 +344,9 @@ int main(int argc, char **argv) {
   }
   if (argc >= 2 && std::string_view(argv[1]) == "record") {
     return run_record(argc, argv);
+  }
+  if (argc >= 2 && std::string_view(argv[1]) == "share") {
+    return run_share(argc, argv);
   }
   if (argc >= 2 && std::string_view(argv[1]) == "inspect") {
     return run_inspect(argc, argv);

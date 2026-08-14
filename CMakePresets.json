@@ -35,7 +35,9 @@
       "cacheVariables": {
         "BUILD_TESTING": "ON",
         "CMAKE_BUILD_TYPE": "Debug",
-        "GLYPHRELAY_ENABLE_CUDA": "OFF"
+        "GLYPHRELAY_ENABLE_CUDA": "OFF",
+        "GLYPHRELAY_ENABLE_WEBRTC_CONTRACTS": "ON",
+        "GLYPHRELAY_LIBDATACHANNEL_ROOT": "${sourceDir}/.deps/libdatachannel-v0.24.1"
       }
     },
     {

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repository_root="$(git rev-parse --show-toplevel)"
+repository_root="${GLYPHRELAY_REPOSITORY_ROOT:-$(git rev-parse --show-toplevel)}"
 dependency_root="${repository_root}/.deps/libdatachannel-v0.24.1"
 bootstrap_marker="${dependency_root}.bootstrap-incomplete"
 patch_file="${repository_root}/patches/libdatachannel-v0.24.1/glyphrelay-final-egress.patch"

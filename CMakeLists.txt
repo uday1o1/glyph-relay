@@ -75,6 +75,7 @@ add_library(glyphrelay_core
   src/app/doctor.cpp
   src/app/doctor_probes.cpp
   src/app/record_command.cpp
+  src/app/share_command.cpp
   src/capture/capture.cpp
   src/core/benchmark_gate.cpp
   src/core/color_conversion.cpp
@@ -109,6 +110,9 @@ else()
   target_sources(glyphrelay_core PRIVATE
     src/app/record_command_stub.cpp
     src/capture/linux_capture_stub.cpp)
+endif()
+if(NOT GLYPHRELAY_ENABLE_WEBRTC_CONTRACTS)
+  target_sources(glyphrelay_core PRIVATE src/app/share_command_stub.cpp)
 endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_sources(glyphrelay_core PRIVATE src/recording/recording_linux.cpp)
@@ -204,6 +208,7 @@ if(GLYPHRELAY_ENABLE_WEBRTC_CONTRACTS)
   endif()
 
   add_library(glyphrelay_libdatachannel_contract
+    src/app/share_command_webrtc.cpp
     src/transport/control_protocol.cpp
     src/transport/owner_signaling.cpp
     src/transport/peer_sender.cpp
@@ -260,7 +265,11 @@ if(GLYPHRELAY_ENABLE_WEBRTC_CONTRACTS)
 endif()
 
 add_executable(glyphrelay src/app/main.cpp)
-target_link_libraries(glyphrelay PRIVATE glyphrelay_core)
+if(GLYPHRELAY_ENABLE_WEBRTC_CONTRACTS)
+  target_link_libraries(glyphrelay PRIVATE glyphrelay_libdatachannel_contract)
+else()
+  target_link_libraries(glyphrelay PRIVATE glyphrelay_core)
+endif()
 
 add_executable(glyphrelay_hash_m0_browser_source tools/hash_m0_browser_source.cpp)
 target_link_libraries(glyphrelay_hash_m0_browser_source PRIVATE glyphrelay_core)
@@ -277,6 +286,10 @@ if(BUILD_TESTING)
       -DGLYPHRELAY_PROGRAM=$<TARGET_FILE:glyphrelay>
       -DGLYPHRELAY_OUTPUT=${CMAKE_CURRENT_BINARY_DIR}/forbidden-record.h264
       -P "${CMAKE_SOURCE_DIR}/tests/cmake/assert_record_source_rejected.cmake")
+  add_test(NAME cli.share_unconfigured_and_rejects_origin_override
+    COMMAND "${CMAKE_COMMAND}"
+      -DGLYPHRELAY_PROGRAM=$<TARGET_FILE:glyphrelay>
+      -P "${CMAKE_SOURCE_DIR}/tests/cmake/assert_share_configuration.cmake")
 
   add_executable(glyphrelay_m0_protocol_tests tests/native/test_m0_protocol.cpp)
   target_link_libraries(glyphrelay_m0_protocol_tests PRIVATE glyphrelay_core)
@@ -358,6 +371,25 @@ if(BUILD_TESTING)
   add_executable(glyphrelay_encoded_fanout_tests tests/native/test_encoded_fanout.cpp)
   target_link_libraries(glyphrelay_encoded_fanout_tests PRIVATE glyphrelay_core)
   add_test(NAME native.encoded_fanout COMMAND glyphrelay_encoded_fanout_tests)
+
+  add_executable(glyphrelay_share_command_tests tests/native/test_share_command.cpp)
+  target_link_libraries(glyphrelay_share_command_tests PRIVATE glyphrelay_core)
+  if(GLYPHRELAY_HAS_DURABLE_RECORDING AND GLYPHRELAY_HAS_OPENH264)
+    set(GLYPHRELAY_SHARE_COMMAND_TEST_STREAM
+        "${CMAKE_CURRENT_BINARY_DIR}/share-command.h264")
+    add_test(NAME integration.share_command
+      COMMAND glyphrelay_share_command_tests "${GLYPHRELAY_SHARE_COMMAND_TEST_STREAM}")
+    add_test(NAME integration.ffmpeg_decodes_share_command
+      COMMAND "${GLYPHRELAY_RECORDING_FFMPEG_EXECUTABLE}" -v error -f h264
+              -i "${GLYPHRELAY_SHARE_COMMAND_TEST_STREAM}" -f null -)
+    set_tests_properties(integration.share_command PROPERTIES
+      FIXTURES_SETUP share_command_stream)
+    set_tests_properties(integration.ffmpeg_decodes_share_command PROPERTIES
+      DEPENDS integration.share_command
+      FIXTURES_REQUIRED share_command_stream)
+  else()
+    add_test(NAME native.share_command COMMAND glyphrelay_share_command_tests)
+  endif()
 
   if(GLYPHRELAY_ENABLE_WEBRTC_CONTRACTS)
     add_executable(glyphrelay_libdatachannel_contract_tests

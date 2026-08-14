@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -28,6 +29,8 @@ public:
   virtual CapturePoolDiagnostics diagnostics() const = 0;
   virtual void stop(CaptureState terminal_state) = 0;
 };
+
+std::unique_ptr<RecordFrameSource> make_interactive_frame_source();
 
 struct RecordCommandOptions {
   std::filesystem::path output_path;

@@ -77,6 +77,29 @@ The accepted bitrate profiles are `500k`, `1m`, `2m`, and `4m`.
 
 This CPU path currently uses the unfrozen recording-profile candidate, so its final profile claim remains deferred with the Milestone 0 browser and NVENC qualification gates.
 
+The Linux CPU preset also builds the exact patched WebRTC transport required by the public share path.
+
+Configure the single-tenant signaling origin outside the command line, then start sharing through the portal-owned source selector:
+
+```bash
+export GLYPHRELAY_SIGNALING_ORIGIN=https://share.example.invalid
+build/linux-cpu/glyphrelay share --bitrate 2m
+```
+
+A private development certificate authority can be supplied with `GLYPHRELAY_SIGNALING_CA_PATH`.
+
+The command never accepts a source identifier or signaling-origin override.
+
+It prints the URL-fragment join link only after the signaling service creates the single-use join capability.
+
+Add `--record recording.h264` to start the durable 720p live-profile recording before a receiver joins.
+
+Live-only sharing defers capture and CPU encoder initialization until a compatible receiver is ready.
+
+The pinned Linux verification exercises portal selection ordering, system OpenH264 Level 3.1 output, immutable recorder and transport fanout, bounded queues, the native owner WSS client, real loopback DTLS-SRTP transport, durable publication, sanitizer cleanup, and independent FFmpeg decode.
+
+The real portal-selected browser presentation remains a designated-target acceptance gate and is not inferred from those local integrations.
+
 Exercise the static loopback receiver in the exact pinned Chromium build with:
 
 ```bash

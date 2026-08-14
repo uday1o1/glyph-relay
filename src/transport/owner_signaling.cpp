@@ -317,7 +317,7 @@ OwnerSignalingOutput OwnerSignalingProtocol::receive(std::string_view message) {
     server_sequence_ += 1U;
     phase_ = OwnerSignalingPhase::join_reserved;
     reason_ = "OWNER_SIGNAL_RECEIVER_RESERVED";
-    output.events.push_back({.kind = OwnerSignalingEventKind::receiver_reserved});
+    output.events.push_back({.kind = OwnerSignalingEventKind::receiver_reserved, .value = {}});
     return output;
   }
 

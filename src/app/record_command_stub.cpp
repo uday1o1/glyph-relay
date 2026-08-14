@@ -2,6 +2,8 @@
 
 namespace glyphrelay {
 
+std::unique_ptr<RecordFrameSource> make_interactive_frame_source() { return {}; }
+
 RecordRunResult run_interactive_record(const RecordCommandOptions &, RecordStopPredicate,
                                        WindowSelectedCallback) {
   return {.exit_code = 3,

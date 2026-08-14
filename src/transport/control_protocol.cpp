@@ -222,7 +222,13 @@ SenderControlOutput SenderControlProtocol::protocol_error(std::string_view code)
     phase_ = SenderControlPhase::failed;
     reason_ = std::string(code);
     clear_pending();
-    output.events.push_back({.kind = ReceiverControlEventKind::terminal, .reason = reason_});
+    output.events.push_back({.kind = ReceiverControlEventKind::terminal,
+                             .request_sequence = 0U,
+                             .sender_send_time_ms = 0.0,
+                             .receiver_receive_time_ms = 0.0,
+                             .receiver_send_time_ms = 0.0,
+                             .stats = {},
+                             .reason = reason_});
   }
   return output;
 }
@@ -274,7 +280,9 @@ SenderControlOutput SenderControlProtocol::receive(std::string_view encoded,
          .request_sequence = request_sequence,
          .sender_send_time_ms = request->second,
          .receiver_receive_time_ms = decoded.at("receiverReceiveTimeMs").get<double>(),
-         .receiver_send_time_ms = decoded.at("receiverSendTimeMs").get<double>()});
+         .receiver_send_time_ms = decoded.at("receiverSendTimeMs").get<double>(),
+         .stats = {},
+         .reason = {}});
     outstanding_clock_requests_.erase(request);
   } else if (type == "RECEIVER_STATS") {
     if (phase_ != SenderControlPhase::connected ||
@@ -309,7 +317,13 @@ SenderControlOutput SenderControlProtocol::receive(std::string_view encoded,
       return fail("CONTROL_RECEIVER_STATS_REGRESSED");
     }
     last_stats_ = stats;
-    output.events.push_back({.kind = ReceiverControlEventKind::receiver_stats, .stats = stats});
+    output.events.push_back({.kind = ReceiverControlEventKind::receiver_stats,
+                             .request_sequence = 0U,
+                             .sender_send_time_ms = 0.0,
+                             .receiver_receive_time_ms = 0.0,
+                             .receiver_send_time_ms = 0.0,
+                             .stats = stats,
+                             .reason = {}});
   } else if (type == "SESSION_PAUSED_ACK" || type == "SESSION_RESUMED_ACK" ||
              type == "SESSION_ENDED_ACK") {
     if (!exact_keys(decoded,
@@ -337,7 +351,13 @@ SenderControlOutput SenderControlProtocol::receive(std::string_view encoded,
     } else {
       return fail("CONTROL_ACK_STATE_INVALID");
     }
-    output.events.push_back({.kind = kind, .request_sequence = *pending_transition_sequence_});
+    output.events.push_back({.kind = kind,
+                             .request_sequence = *pending_transition_sequence_,
+                             .sender_send_time_ms = 0.0,
+                             .receiver_receive_time_ms = 0.0,
+                             .receiver_send_time_ms = 0.0,
+                             .stats = {},
+                             .reason = {}});
     pending_transition_sequence_.reset();
   } else if (type == "PROTOCOL_ERROR") {
     if (!exact_keys(decoded, {"code", "protocolVersion", "sequence", "sessionId", "type"}) ||
@@ -348,7 +368,13 @@ SenderControlOutput SenderControlProtocol::receive(std::string_view encoded,
     phase_ = SenderControlPhase::failed;
     output.close_channel = true;
     clear_pending();
-    output.events.push_back({.kind = ReceiverControlEventKind::protocol_error, .reason = reason_});
+    output.events.push_back({.kind = ReceiverControlEventKind::protocol_error,
+                             .request_sequence = 0U,
+                             .sender_send_time_ms = 0.0,
+                             .receiver_receive_time_ms = 0.0,
+                             .receiver_send_time_ms = 0.0,
+                             .stats = {},
+                             .reason = reason_});
   } else {
     return fail("CONTROL_TYPE_INVALID");
   }
@@ -388,7 +414,13 @@ SenderControlOutput SenderControlProtocol::fail(std::string reason) {
   reason_ = std::move(reason);
   clear_pending();
   output.close_channel = true;
-  output.events.push_back({.kind = ReceiverControlEventKind::terminal, .reason = reason_});
+  output.events.push_back({.kind = ReceiverControlEventKind::terminal,
+                           .request_sequence = 0U,
+                           .sender_send_time_ms = 0.0,
+                           .receiver_receive_time_ms = 0.0,
+                           .receiver_send_time_ms = 0.0,
+                           .stats = {},
+                           .reason = reason_});
   return output;
 }
 

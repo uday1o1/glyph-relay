@@ -181,6 +181,34 @@ Stop closes the media egress gate first, clears the retransmission cache, sends 
 
 The browser detaches its last displayed stream on pause, rejects a second data channel, reattaches only the existing authenticated stream on resume, and stops every retained track on terminal cleanup.
 
+## Public share orchestration
+
+The stable `glyphrelay share` command reads its signaling origin from `GLYPHRELAY_SIGNALING_ORIGIN` and never accepts an origin or capture-source override.
+
+An empty or invalid configuration fails before portal selection, capture, encoder initialization, or owner-session creation.
+
+The optional `GLYPHRELAY_SIGNALING_CA_PATH` provides a private certificate authority file to the certificate-verifying WSS client.
+
+The production transport composes the owner-signaling client and one `PeerSender` behind a bounded 32-event application queue.
+
+It forwards the exact answer and trickle candidates through the owner-authenticated signaling connection and declares the receiver ready only after the peer, media track, and reliable control channel are all open.
+
+The application creates no more than one three-access-unit, 8 MiB, 100-millisecond encoded transport queue.
+
+Live-only sharing waits for receiver readiness before capture and OpenH264 initialization.
+
+Combined sharing and recording starts the 720p30 Level 3.1 encoder, durable recorder preparation barrier, and portal capture before creating a remote join link.
+
+The recording and transport branches receive the same immutable encoded access unit after the receiver joins.
+
+Receiver admission, geometry change, queue purge, NACK, and PLI recovery advance the dependency epoch and require an IDR carrying SPS and PPS before transport resumes.
+
+Signaling or peer failure revokes the remote transport immediately, while an explicitly selected healthy recording may continue under its independent durability contract.
+
+Recorder failure remains visible, disables only that branch, and preserves an active remote share.
+
+Stop drains no stale encoded work, closes transport before capture teardown, finalizes an opted-in recorder, and reports capture, recorder, transport, and queue diagnostics without exposing the owner capability.
+
 ## Verification
 
 Run `make transport-check` to clone every exact submodule commit, verify and apply the locked patch, build libdatachannel with the frozen flags, compile the real transport fixtures, run the native owner, control, peer, strict packetization, and bounded-recovery integration tests, exercise WS and certificate-verified WSS, and run the patched libjuice loopback test.

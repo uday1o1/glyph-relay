@@ -47,7 +47,7 @@ bool valid_config(const OpenH264EncoderConfig &config) {
          config.target_bitrate_bps > 0U &&
          config.maximum_bitrate_bps <= static_cast<unsigned int>(std::numeric_limits<int>::max()) &&
          config.maximum_bitrate_bps >= config.target_bitrate_bps && config.gop_frames > 0U &&
-         config.gop_frames <= 600U && config.level_idc == 40U;
+         config.gop_frames <= 600U && (config.level_idc == 31U || config.level_idc == 40U);
 }
 
 #if GLYPHRELAY_HAS_OPENH264
@@ -115,7 +115,7 @@ bool configure_encoder(auto &implementation) {
   layer.iSpatialBitrate = parameters.iTargetBitrate;
   layer.iMaxSpatialBitrate = parameters.iMaxBitrate;
   layer.uiProfileIdc = PRO_BASELINE;
-  layer.uiLevelIdc = LEVEL_4_0;
+  layer.uiLevelIdc = implementation.config.level_idc == 31U ? LEVEL_3_1 : LEVEL_4_0;
   layer.sSliceArgument.uiSliceMode = SM_SINGLE_SLICE;
   layer.bVideoSignalTypePresent = true;
   layer.uiVideoFormat = 5U;

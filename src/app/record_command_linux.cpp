@@ -102,10 +102,18 @@ private:
 
 } // namespace
 
+std::unique_ptr<RecordFrameSource> make_interactive_frame_source() {
+  if (!linux_capture_backend_available() || !durable_recording_available()) {
+    return {};
+  }
+  return std::make_unique<LinuxRecordFrameSource>();
+}
+
 RecordRunResult run_interactive_record(const RecordCommandOptions &options,
                                        RecordStopPredicate stop_requested,
                                        WindowSelectedCallback window_selected) {
-  if (!linux_capture_backend_available() || !durable_recording_available()) {
+  auto source = make_interactive_frame_source();
+  if (!source) {
     return {.exit_code = 3,
             .reason = "recording_backend_unavailable",
             .captured_frames = 0U,
@@ -114,8 +122,7 @@ RecordRunResult run_interactive_record(const RecordCommandOptions &options,
             .capture = {},
             .recorder = {}};
   }
-  LinuxRecordFrameSource source;
-  return run_record_pipeline(options, source, std::move(stop_requested),
+  return run_record_pipeline(options, *source, std::move(stop_requested),
                              std::move(window_selected));
 }
 
