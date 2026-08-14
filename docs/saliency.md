@@ -81,6 +81,49 @@ The measured interval extends when needed to span at least ten seconds so the pe
 
 The target runs memcheck, initcheck, racecheck, and synccheck before the performance gate.
 
+## Frozen development selection
+
+The committed `saliency_v1` development grid contains exactly 2,511 configurations.
+
+It is the product of 31 valid four-weight tuples, three entry thresholds, three exit thresholds, three previous-score coefficients, and three dilation radii.
+
+Every trial must be preserved as either `PASSED` with complete aggregate, per-stratum, sequence-P95, and processing-P95 measurements or `INVALID` with a nonempty reason.
+
+The evidence binds the source bundle, automatic-map implementation, processing platform, corpus protocol, development manifest, development render index, and frozen grid by SHA-256.
+
+The selector rejects evidence unless all 2,511 configurations appear exactly once.
+
+It first removes every configuration that misses any development map threshold.
+
+It then maximizes small-glyph recall and minimizes false-protected fraction, protected fraction, static map-change fraction, and P95 processing time in that order.
+
+An exact canonical JSON byte serialization supplies the final lexicographic tie-break.
+
+The public selector refuses to run if validation or final-test renderer output exists and refuses to overwrite an existing selection.
+
+The protocol identity is `fdfd6df595b4bd58e62d9e631a5346c7ecd82c16595d03615ba83942ae486812`.
+
+Verify the frozen grid and selector without opening either held-out split with:
+
+```bash
+make protocol-check
+```
+
+Once real designated-target development evidence exists, freeze and independently reproduce the one selected configuration with:
+
+```bash
+uv run python tools/corpus/saliency_selector.py \
+  --development-evidence artifacts/private/saliency-development-evidence.json \
+  --output protocols/saliency_v1/selected-configuration.json
+uv run python tools/validate_saliency_selection.py \
+  --development-evidence artifacts/private/saliency-development-evidence.json \
+  --selection protocols/saliency_v1/selected-configuration.json
+```
+
+No selected configuration is currently committed because the local macOS host cannot produce the required CUDA development-map and processing-time evidence.
+
+That target dependency is a deferred acceptance gate, not a passing result.
+
 ## Local verification
 
 Build and run the scalar goldens, randomized determinism checks, boundary cases, ownership checks, and the real preview command with:

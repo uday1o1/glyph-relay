@@ -135,6 +135,16 @@ The command writes a local protected-region overlay without overwriting an exist
 
 See [the protected-region saliency contract](docs/saliency.md) for feature semantics, ownership transitions, verification, and current claim boundaries.
 
+The exact 2,511-candidate development grid, strict evidence contract, and deterministic selector are frozen under `saliency_v1`.
+
+Verify their content-addressed protocol without opening validation or final-test renderer output with:
+
+```bash
+make protocol-check
+```
+
+The selected configuration remains honestly uncommitted until the designated GPU target produces the required development measurements.
+
 Compile the CUDA implementation without making a runtime claim by using the digest-pinned official CUDA 13.3.1 build image:
 
 ```bash

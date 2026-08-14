@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "protocol": "saliency_v1",
+  "files": [
+    {
+      "path": "corpus/saliency-grid-v1.json",
+      "sha256": "ab3a0b13e40cf5006e75f70bf76b530ebd5cf40f4cb79ddbb2b63b3f7764f8fb"
+    },
+    {
+      "path": "schemas/saliency-development-evidence-v1.schema.json",
+      "sha256": "42b18d915d3d0c46eaad7778048842eff2b4d5860c1a9fce410a87b13d14ef33"
+    },
+    {
+      "path": "schemas/saliency-selection-v1.schema.json",
+      "sha256": "cf21b76df46739a1ebbc851780e0242de0ba72258602de25f04b143aa1915aad"
+    },
+    {
+      "path": "tools/check_saliency_protocol.py",
+      "sha256": "0f96d91b57b792c760216f63978dd1daea21271d24266b466192696e3fa7bc24"
+    },
+    {
+      "path": "tools/corpus/saliency_selector.py",
+      "sha256": "de570aa28246c553e682199f0a64c2074ce03c81a21c7d7db9a404cd13857780"
+    },
+    {
+      "path": "tools/validate_saliency_selection.py",
+      "sha256": "8f31bf4b9d70bc99c2130d198d2e66452f2f08181e7fb6763db01cfd7134ce4e"
+    }
+  ],
+  "protocol_sha256": "fdfd6df595b4bd58e62d9e631a5346c7ecd82c16595d03615ba83942ae486812"
+}

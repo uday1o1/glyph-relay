@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "protocol": "saliency_v1",
+  "corpusProtocol": "corpus_protocol_v1",
+  "corpusProtocolSha256": "81f95f221b3a9671e8547dfc3352a0766902e4a0a719baf5c50583049e6125dc",
+  "developmentManifestSha256": "e207224520b7a45857ea4cc9f5f3636ea2326b47585a5d183143527642c2cca2",
+  "developmentRenderIndexSha256": "fff675307ba713ad83f366ec2c19c9eb60b208b2883349ffd603d707c70d845e",
+  "samplingFrameIds": [0, 60, 120, 180],
+  "staticWarmupFrames": 5,
+  "parameters": {
+    "featureWeights": [0.15, 0.25, 0.35, 0.45],
+    "featureWeightSum": 1,
+    "entryThresholds": [0.5, 0.55, 0.6],
+    "exitThresholds": [0.3, 0.35, 0.4],
+    "previousScoreCoefficients": [0.4, 0.6, 0.8],
+    "dilationRadiusTiles": [0, 1, 2]
+  },
+  "constraints": {
+    "featureWeightsNonnegative": true,
+    "exitStrictlyBelowEntry": true
+  },
+  "expectedCandidateCount": 2511,
+  "developmentThresholds": {
+    "overallGlyphRecallMinimum": 0.9,
+    "smallGlyphRecallMinimum": 0.8,
+    "protectedFractionMaximum": 0.35,
+    "falseProtectedFractionMaximum": 0.15,
+    "staticMapChangeFractionMaximum": 0.02
+  },
+  "aggregation": {
+    "corpus": "equal_weight_per_declared_stratum_after_unweighted_sequence_mean",
+    "sequenceP95": "nearest_rank_across_sequence_values",
+    "staticMapChange": "adjacent_declared_samples_after_five_identical_first-frame_warmup_steps"
+  },
+  "selectorObjective": [
+    "discard_candidates_missing_any_development_threshold",
+    "highest_small_glyph_recall",
+    "lowest_false_protected_fraction",
+    "lowest_protected_fraction",
+    "lowest_static_map_change_fraction",
+    "lowest_p95_processing_time_ns",
+    "lexicographic_configuration"
+  ],
+  "lexicographicConfigurationSerialization": "canonical_json_sorted_keys_utf8"
+}

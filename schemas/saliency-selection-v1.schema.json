@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.dev/schemas/saliency-selection-v1.schema.json",
+  "title": "GlyphRelay saliency_v1 selected configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "protocol",
+    "split",
+    "status",
+    "sourceBundleId",
+    "automaticMapImplementationSha256",
+    "processingPlatformSha256",
+    "corpusProtocolSha256",
+    "developmentManifestSha256",
+    "developmentRenderIndexSha256",
+    "gridSha256",
+    "selectorSha256",
+    "evidenceSha256",
+    "candidateCount",
+    "eligibleCandidateCount",
+    "configuration",
+    "configurationSha256",
+    "metrics",
+    "thresholds",
+    "selectionObjective"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "protocol": { "const": "saliency_v1" },
+    "split": { "const": "development" },
+    "status": { "const": "SELECTED" },
+    "sourceBundleId": { "$ref": "#/$defs/sha256" },
+    "automaticMapImplementationSha256": { "$ref": "#/$defs/sha256" },
+    "processingPlatformSha256": { "$ref": "#/$defs/sha256" },
+    "corpusProtocolSha256": { "$ref": "#/$defs/sha256" },
+    "developmentManifestSha256": { "$ref": "#/$defs/sha256" },
+    "developmentRenderIndexSha256": { "$ref": "#/$defs/sha256" },
+    "gridSha256": { "$ref": "#/$defs/sha256" },
+    "selectorSha256": { "$ref": "#/$defs/sha256" },
+    "evidenceSha256": { "$ref": "#/$defs/sha256" },
+    "candidateCount": { "const": 2511 },
+    "eligibleCandidateCount": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2511
+    },
+    "configuration": { "$ref": "#/$defs/configuration" },
+    "configurationSha256": { "$ref": "#/$defs/sha256" },
+    "metrics": { "$ref": "#/$defs/metrics" },
+    "thresholds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "overallGlyphRecallMinimum",
+        "smallGlyphRecallMinimum",
+        "protectedFractionMaximum",
+        "falseProtectedFractionMaximum",
+        "staticMapChangeFractionMaximum"
+      ],
+      "properties": {
+        "overallGlyphRecallMinimum": { "const": 0.9 },
+        "smallGlyphRecallMinimum": { "const": 0.8 },
+        "protectedFractionMaximum": { "const": 0.35 },
+        "falseProtectedFractionMaximum": { "const": 0.15 },
+        "staticMapChangeFractionMaximum": { "const": 0.02 }
+      }
+    },
+    "selectionObjective": {
+      "type": "array",
+      "prefixItems": [
+        { "const": "discard_candidates_missing_any_development_threshold" },
+        { "const": "highest_small_glyph_recall" },
+        { "const": "lowest_false_protected_fraction" },
+        { "const": "lowest_protected_fraction" },
+        { "const": "lowest_static_map_change_fraction" },
+        { "const": "lowest_p95_processing_time_ns" },
+        { "const": "lexicographic_configuration" }
+      ],
+      "items": false,
+      "minItems": 7,
+      "maxItems": 7
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "unitMetric": { "type": "number", "minimum": 0, "maximum": 1 },
+    "mapMetrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "overallGlyphRecall",
+        "smallGlyphRecall",
+        "protectedFraction",
+        "falseProtectedFraction",
+        "staticMapChangeFraction"
+      ],
+      "properties": {
+        "overallGlyphRecall": { "$ref": "#/$defs/unitMetric" },
+        "smallGlyphRecall": { "$ref": "#/$defs/unitMetric" },
+        "protectedFraction": { "$ref": "#/$defs/unitMetric" },
+        "falseProtectedFraction": { "$ref": "#/$defs/unitMetric" },
+        "staticMapChangeFraction": { "$ref": "#/$defs/unitMetric" }
+      }
+    },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contrastWeight",
+        "dilationRadiusTiles",
+        "edgePairWeight",
+        "entryThreshold",
+        "exitThreshold",
+        "gradientWeight",
+        "previousScoreCoefficient",
+        "smallStructureWeight"
+      ],
+      "properties": {
+        "contrastWeight": { "type": "number" },
+        "dilationRadiusTiles": { "type": "integer" },
+        "edgePairWeight": { "type": "number" },
+        "entryThreshold": { "type": "number" },
+        "exitThreshold": { "type": "number" },
+        "gradientWeight": { "type": "number" },
+        "previousScoreCoefficient": { "type": "number" },
+        "smallStructureWeight": { "type": "number" }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "overallGlyphRecall",
+        "smallGlyphRecall",
+        "protectedFraction",
+        "falseProtectedFraction",
+        "staticMapChangeFraction",
+        "processingP95Ns",
+        "perStratum",
+        "p95Sequence"
+      ],
+      "properties": {
+        "overallGlyphRecall": { "$ref": "#/$defs/unitMetric" },
+        "smallGlyphRecall": { "$ref": "#/$defs/unitMetric" },
+        "protectedFraction": { "$ref": "#/$defs/unitMetric" },
+        "falseProtectedFraction": { "$ref": "#/$defs/unitMetric" },
+        "staticMapChangeFraction": { "$ref": "#/$defs/unitMetric" },
+        "processingP95Ns": { "type": "integer", "minimum": 1 },
+        "perStratum": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "animated_typing_scrolling",
+            "browser_documentation",
+            "code_editor",
+            "mixed_video_text",
+            "slide_diagram",
+            "spreadsheet_table",
+            "terminal"
+          ],
+          "properties": {
+            "animated_typing_scrolling": { "$ref": "#/$defs/mapMetrics" },
+            "browser_documentation": { "$ref": "#/$defs/mapMetrics" },
+            "code_editor": { "$ref": "#/$defs/mapMetrics" },
+            "mixed_video_text": { "$ref": "#/$defs/mapMetrics" },
+            "slide_diagram": { "$ref": "#/$defs/mapMetrics" },
+            "spreadsheet_table": { "$ref": "#/$defs/mapMetrics" },
+            "terminal": { "$ref": "#/$defs/mapMetrics" }
+          }
+        },
+        "p95Sequence": { "$ref": "#/$defs/mapMetrics" }
+      }
+    }
+  }
+}

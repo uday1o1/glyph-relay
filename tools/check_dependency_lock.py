@@ -285,6 +285,65 @@ def validate_lock(lock: dict[str, Any], root: Path = ROOT) -> list[str]:
         "corpus protocol manifest lock SHA-256",
     )
 
+    saliency = lock.get("saliency_protocol", {})
+    _expect_equal(errors, saliency.get("name"), "saliency_v1", "saliency protocol name")
+    _expect_pattern(
+        errors,
+        saliency.get("protocol_sha256"),
+        HEX64,
+        "saliency protocol SHA-256",
+    )
+    _expect_pattern(
+        errors,
+        saliency.get("manifest_lock_sha256"),
+        HEX64,
+        "saliency manifest lock SHA-256",
+    )
+    saliency_manifest_path = root / "protocols/saliency_v1/manifest.lock"
+    saliency_manifest = load_json(saliency_manifest_path)
+    _expect_equal(
+        errors,
+        saliency_manifest.get("protocol_sha256"),
+        saliency.get("protocol_sha256"),
+        "saliency protocol aggregate SHA-256",
+    )
+    _expect_equal(
+        errors,
+        hashlib.sha256(saliency_manifest_path.read_bytes()).hexdigest(),
+        saliency.get("manifest_lock_sha256"),
+        "saliency protocol manifest lock SHA-256",
+    )
+    saliency_grid_path = root / "corpus/saliency-grid-v1.json"
+    saliency_grid = load_json(saliency_grid_path)
+    _expect_equal(
+        errors,
+        hashlib.sha256(saliency_grid_path.read_bytes()).hexdigest(),
+        saliency.get("grid_sha256"),
+        "saliency grid SHA-256",
+    )
+    _expect_equal(
+        errors,
+        saliency_grid.get("expectedCandidateCount"),
+        saliency.get("candidate_count"),
+        "saliency candidate count",
+    )
+    _expect_equal(
+        errors,
+        saliency_grid.get("developmentRenderIndexSha256"),
+        saliency.get("development_render_index_sha256"),
+        "saliency development render index SHA-256",
+    )
+    selection_path = root / "protocols/saliency_v1/selected-configuration.json"
+    expected_selection_status = (
+        "selected" if selection_path.exists() else "pending_target_development_evidence"
+    )
+    _expect_equal(
+        errors,
+        saliency.get("selection_status"),
+        expected_selection_status,
+        "saliency selection status",
+    )
+
     renderer_lock = load_json(root / "corpus/renderer.lock.json")
     expected_renderer = {
         "image_digest": renderer_lock.get("imageDigest"),

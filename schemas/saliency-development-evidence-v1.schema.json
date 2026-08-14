@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.dev/schemas/saliency-development-evidence-v1.schema.json",
+  "title": "GlyphRelay saliency_v1 development evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "protocol",
+    "split",
+    "sourceBundleId",
+    "automaticMapImplementationSha256",
+    "processingPlatformSha256",
+    "corpusProtocolSha256",
+    "developmentManifestSha256",
+    "developmentRenderIndexSha256",
+    "gridSha256",
+    "candidates"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "protocol": { "const": "saliency_v1" },
+    "split": { "const": "development" },
+    "sourceBundleId": { "$ref": "#/$defs/sha256" },
+    "automaticMapImplementationSha256": { "$ref": "#/$defs/sha256" },
+    "processingPlatformSha256": { "$ref": "#/$defs/sha256" },
+    "corpusProtocolSha256": { "$ref": "#/$defs/sha256" },
+    "developmentManifestSha256": { "$ref": "#/$defs/sha256" },
+    "developmentRenderIndexSha256": { "$ref": "#/$defs/sha256" },
+    "gridSha256": { "$ref": "#/$defs/sha256" },
+    "candidates": {
+      "type": "array",
+      "minItems": 2511,
+      "maxItems": 2511,
+      "items": { "$ref": "#/$defs/candidate" }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "unitMetric": { "type": "number", "minimum": 0, "maximum": 1 },
+    "mapMetrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "overallGlyphRecall",
+        "smallGlyphRecall",
+        "protectedFraction",
+        "falseProtectedFraction",
+        "staticMapChangeFraction"
+      ],
+      "properties": {
+        "overallGlyphRecall": { "$ref": "#/$defs/unitMetric" },
+        "smallGlyphRecall": { "$ref": "#/$defs/unitMetric" },
+        "protectedFraction": { "$ref": "#/$defs/unitMetric" },
+        "falseProtectedFraction": { "$ref": "#/$defs/unitMetric" },
+        "staticMapChangeFraction": { "$ref": "#/$defs/unitMetric" }
+      }
+    },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contrastWeight",
+        "dilationRadiusTiles",
+        "edgePairWeight",
+        "entryThreshold",
+        "exitThreshold",
+        "gradientWeight",
+        "previousScoreCoefficient",
+        "smallStructureWeight"
+      ],
+      "properties": {
+        "contrastWeight": { "type": "number" },
+        "dilationRadiusTiles": { "type": "integer" },
+        "edgePairWeight": { "type": "number" },
+        "entryThreshold": { "type": "number" },
+        "exitThreshold": { "type": "number" },
+        "gradientWeight": { "type": "number" },
+        "previousScoreCoefficient": { "type": "number" },
+        "smallStructureWeight": { "type": "number" }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "overallGlyphRecall",
+        "smallGlyphRecall",
+        "protectedFraction",
+        "falseProtectedFraction",
+        "staticMapChangeFraction",
+        "processingP95Ns",
+        "perStratum",
+        "p95Sequence"
+      ],
+      "properties": {
+        "overallGlyphRecall": { "$ref": "#/$defs/unitMetric" },
+        "smallGlyphRecall": { "$ref": "#/$defs/unitMetric" },
+        "protectedFraction": { "$ref": "#/$defs/unitMetric" },
+        "falseProtectedFraction": { "$ref": "#/$defs/unitMetric" },
+        "staticMapChangeFraction": { "$ref": "#/$defs/unitMetric" },
+        "processingP95Ns": { "type": "integer", "minimum": 1 },
+        "perStratum": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "animated_typing_scrolling",
+            "browser_documentation",
+            "code_editor",
+            "mixed_video_text",
+            "slide_diagram",
+            "spreadsheet_table",
+            "terminal"
+          ],
+          "properties": {
+            "animated_typing_scrolling": { "$ref": "#/$defs/mapMetrics" },
+            "browser_documentation": { "$ref": "#/$defs/mapMetrics" },
+            "code_editor": { "$ref": "#/$defs/mapMetrics" },
+            "mixed_video_text": { "$ref": "#/$defs/mapMetrics" },
+            "slide_diagram": { "$ref": "#/$defs/mapMetrics" },
+            "spreadsheet_table": { "$ref": "#/$defs/mapMetrics" },
+            "terminal": { "$ref": "#/$defs/mapMetrics" }
+          }
+        },
+        "p95Sequence": { "$ref": "#/$defs/mapMetrics" }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["configuration", "status", "invalidReason", "metrics"],
+      "properties": {
+        "configuration": { "$ref": "#/$defs/configuration" },
+        "status": { "enum": ["PASSED", "INVALID"] },
+        "invalidReason": { "type": ["string", "null"] },
+        "metrics": {
+          "oneOf": [{ "$ref": "#/$defs/metrics" }, { "type": "null" }]
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "PASSED" } } },
+          "then": {
+            "properties": {
+              "invalidReason": { "type": "null" },
+              "metrics": { "$ref": "#/$defs/metrics" }
+            }
+          },
+          "else": {
+            "properties": {
+              "invalidReason": { "type": "string", "minLength": 1 },
+              "metrics": { "type": "null" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -193,6 +193,15 @@
       }
     }
   },
+  "saliency_protocol": {
+    "name": "saliency_v1",
+    "protocol_sha256": "fdfd6df595b4bd58e62d9e631a5346c7ecd82c16595d03615ba83942ae486812",
+    "manifest_lock_sha256": "d97141d6dd3786c5fdf8902cf7a4658ab847ac2e7b47539b0b325aa115875fff",
+    "grid_sha256": "ab3a0b13e40cf5006e75f70bf76b530ebd5cf40f4cb79ddbb2b63b3f7764f8fb",
+    "candidate_count": 2511,
+    "development_render_index_sha256": "fff675307ba713ad83f366ec2c19c9eb60b208b2883349ffd603d707c70d845e",
+    "selection_status": "pending_target_development_evidence"
+  },
   "coturn": {
     "image": "coturn/coturn:4.15.0-r0",
     "linux_amd64_digest": "sha256:b0e616a8fc46c0e8d29546c8271fda2e691c9ef912812757786ea586f73f414f",
