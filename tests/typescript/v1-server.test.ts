@@ -183,6 +183,10 @@ test("serves a self-contained receiver without exposing fragments or session sta
     assert.doesNotMatch(source, /analytics|telemetry/i);
     if (file === "v1-receiver.js") {
       assert.match(source, /history\.replaceState/);
+      assert.match(source, /createDataChannel\(CONTROL_PROTOCOL/);
+      assert.match(source, /second_control_channel_rejected/);
+      assert.match(source, /video\.srcObject = null/);
+      assert.match(source, /video\.srcObject = remoteStream/);
       assert.doesNotMatch(source, /const\s+fragment\s*=/);
     }
   }

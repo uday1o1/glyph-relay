@@ -157,11 +157,37 @@ The pinned libsrtp outbound policy enables repeated transmission of an existing 
 
 Byte-identical protected UDP replay, SRTP rollover, and browser recovery remain empirical target qualification gates and are not inferred from the local plaintext test.
 
+## Native peer service
+
+The native `PeerSender` accepts one compatible 720p30 H.264 receiver offer under the frozen Constrained Baseline Level 3.1 and packetization-mode 1 predicate.
+
+It creates one send-only video track from that offer, retains the selected browser payload type, and rejects extra tracks or incompatible directions.
+
+The browser creates one ordered and reliable `glyphrelay-control-v1` data channel in its offer.
+
+The sender rejects a second channel, an incorrect label or protocol, an unreliable channel, binary control input, and an unexpected control close.
+
+Trickle ICE candidates use a bounded exact JSON envelope, reject duplicate or unknown fields, and are admitted only after the offer installs the remote description.
+
+ICE TCP, UDP mux, TURN TCP, and TURN TLS remain disabled because they cannot enter the verified final-UDP accounting path.
+
+Each access unit retains its source frame, media epoch, dependency epoch, access-unit identity, and extended RTP timestamp through the strict packetizer.
+
+A new dependency epoch is admitted only by an IDR carrying SPS and PPS.
+
+The service chains the existing sender report, bounded NACK and PLI recovery, and REMB handlers on the same track.
+
+Stop closes the media egress gate first, clears the retransmission cache, sends the bounded session-end control message, waits at most two seconds for its exact acknowledgment, and then clears channel, track, peer, and handler ownership.
+
+The browser detaches its last displayed stream on pause, rejects a second data channel, reattaches only the existing authenticated stream on resume, and stops every retained track on terminal cleanup.
+
 ## Verification
 
-Run `make transport-check` to clone every exact submodule commit, verify and apply the locked patch, build libdatachannel with the frozen flags, compile the real transport fixture, run the strict packetization and bounded-recovery integration test, and run the patched libjuice loopback test.
+Run `make transport-check` to clone every exact submodule commit, verify and apply the locked patch, build libdatachannel with the frozen flags, compile the real transport fixtures, run the native owner, control, peer, strict packetization, and bounded-recovery integration tests, exercise WS and certificate-verified WSS, and run the patched libjuice loopback test.
 
 The loopback test proves the hook-enabled mux rejection, control classification for generated ICE traffic, direct IPv4 metadata, classified media delivery, and exactly one media hook event.
+
+The peer test negotiates two real loopback DTLS-SRTP peers, exchanges trickle ICE and control traffic, sends one recovery access unit through the final UDP hook, and proves bounded-resource cleanup after the acknowledged session end.
 
 Run `make check` for the portable packetization, rollover, cache, feedback, classifier, accounting, failure, epoch, control-bypass, and deterministic boundary-race tests.
 

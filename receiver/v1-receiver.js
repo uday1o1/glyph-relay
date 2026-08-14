@@ -28,6 +28,7 @@ if (
 let signalSocket;
 let peerConnection;
 let controlChannel;
+let remoteStream;
 let sessionId;
 let joinCapability;
 let clientSequence = 0;
@@ -222,10 +223,17 @@ function handleControlMessage(event) {
       });
       return;
     case "SESSION_PAUSED":
+      video.srcObject = null;
+      shell.classList.remove("has-video");
       updateStatus("PAUSED", "The sender paused this share.");
       sendControl("SESSION_PAUSED_ACK", { requestSequence: message.sequence });
       return;
     case "SESSION_RESUMED":
+      video.srcObject = remoteStream ?? null;
+      if (remoteStream) {
+        shell.classList.add("has-video");
+        video.requestVideoFrameCallback(capturePresentedFrame);
+      }
       updateStatus("RUNNING", "Receiving the shared screen.");
       sendControl("SESSION_RESUMED_ACK", { requestSequence: message.sequence });
       return;
@@ -276,8 +284,12 @@ async function createReceiverOffer() {
   });
   transceiver.setCodecPreferences(codecs);
   peerConnection.addEventListener("datachannel", (event) => {
-    acceptControlChannel(event.channel);
+    event.channel.close();
+    clearReceiver("second_control_channel_rejected");
   });
+  acceptControlChannel(
+    peerConnection.createDataChannel(CONTROL_PROTOCOL, { ordered: true }),
+  );
   peerConnection.addEventListener("icecandidate", (event) => {
     if (!event.candidate) {
       return;
@@ -296,7 +308,8 @@ async function createReceiverOffer() {
   peerConnection.addEventListener("iceconnectionstatechange", signalIceState);
   peerConnection.addEventListener("track", (event) => {
     const [stream] = event.streams;
-    video.srcObject = stream ?? new MediaStream([event.track]);
+    remoteStream = stream ?? new MediaStream([event.track]);
+    video.srcObject = remoteStream;
     shell.classList.add("has-video");
     updateStatus("RUNNING", "Receiving the shared screen.");
     video.requestVideoFrameCallback(capturePresentedFrame);
@@ -376,11 +389,12 @@ function clearReceiver(reason) {
     return;
   }
   ended = true;
-  if (video.srcObject instanceof MediaStream) {
-    for (const track of video.srcObject.getTracks()) {
+  if (remoteStream instanceof MediaStream) {
+    for (const track of remoteStream.getTracks()) {
       track.stop();
     }
   }
+  remoteStream = undefined;
   video.srcObject = null;
   shell.classList.remove("has-video");
   controlChannel?.close();

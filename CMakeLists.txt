@@ -206,6 +206,7 @@ if(GLYPHRELAY_ENABLE_WEBRTC_CONTRACTS)
   add_library(glyphrelay_libdatachannel_contract
     src/transport/control_protocol.cpp
     src/transport/owner_signaling.cpp
+    src/transport/peer_sender.cpp
     vendor/libdatachannel-v0.24.1/glyphrelay_media_handlers.cpp)
   target_include_directories(glyphrelay_libdatachannel_contract PUBLIC
     vendor/libdatachannel-v0.24.1)
@@ -384,6 +385,15 @@ if(BUILD_TESTING)
       glyphrelay_libdatachannel_contract)
     add_test(NAME integration.control_protocol
       COMMAND glyphrelay_control_protocol_tests)
+    add_executable(glyphrelay_peer_sender_tests
+      tests/native/test_peer_sender.cpp)
+    target_include_directories(glyphrelay_peer_sender_tests SYSTEM PRIVATE
+      "${GLYPHRELAY_LIBDATACHANNEL_ROOT}/include"
+      "${GLYPHRELAY_LIBDATACHANNEL_ROOT}/deps/json/single_include")
+    target_link_libraries(glyphrelay_peer_sender_tests PRIVATE
+      glyphrelay_libdatachannel_contract)
+    add_test(NAME integration.peer_sender
+      COMMAND glyphrelay_peer_sender_tests)
     add_test(NAME cli.m0_webrtc_sender_help COMMAND glyphrelay_m0_webrtc_sender --help)
     add_test(NAME cli.m0_transport_fixture_help COMMAND glyphrelay_m0_transport_fixture --help)
     add_test(NAME cli.owner_signaling_fixture_help
