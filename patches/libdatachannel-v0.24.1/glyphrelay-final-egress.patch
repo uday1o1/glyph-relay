@@ -40,6 +40,14 @@ index f2cb135..da9c213 100644
  
  	// Port range
  	uint16_t portRangeBegin = 1024;
+@@ -101,6 +125,7 @@ struct WebSocketConfiguration {
+ 	bool disableTlsVerification = false; // if true, don't verify the TLS certificate
+ 	optional<ProxyServer> proxyServer;   // only non-authenticated http supported for now
+ 	std::vector<string> protocols;
++	optional<string> origin; // exact Origin header value for clients
+ 	optional<std::chrono::milliseconds> connectionTimeout; // zero to disable
+ 	optional<std::chrono::milliseconds> pingInterval;      // zero to disable
+ 	optional<int> maxOutstandingPings;
 diff --git a/include/rtc/message.hpp b/include/rtc/message.hpp
 index 52a7dbe..b700023 100644
 --- a/include/rtc/message.hpp
@@ -48,8 +56,7 @@ index 52a7dbe..b700023 100644
  
  namespace rtc {
  
--struct RTC_CPP_EXPORT Message : binary {
-+	struct RTC_CPP_EXPORT Message : binary {
+ struct RTC_CPP_EXPORT Message : binary {
  	enum Type { Binary, String, Control, Reset };
 +	enum class EgressClass { Control, Media };
 +	enum class EgressProtocol { UnknownControl, Srtp, Srtcp, Dtls };
@@ -1042,3 +1049,76 @@ index 223a42e..1276bde 100644
  bool Track::isOpen(void) const { return impl()->isOpen(); }
  
  bool Track::isClosed(void) const { return impl()->isClosed(); }
+diff --git a/src/impl/websocket.cpp b/src/impl/websocket.cpp
+index 93dfe49..33c02a3 100644
+--- a/src/impl/websocket.cpp
++++ b/src/impl/websocket.cpp
+@@ -126,7 +126,8 @@ void WebSocket::open(const string &url) {
+ 
+ 	mHostname = hostname; // for TLS SNI and Proxy
+ 	mService = service;   // For proxy
+-	std::atomic_store(&mWsHandshake, std::make_shared<WsHandshake>(host, path, config.protocols));
++	std::atomic_store(&mWsHandshake,
++	                  std::make_shared<WsHandshake>(host, path, config.protocols, config.origin));
+ 
+ 	changeState(State::Connecting);
+ 
+diff --git a/src/impl/wshandshake.cpp b/src/impl/wshandshake.cpp
+index 19de939..e7f719e 100644
+--- a/src/impl/wshandshake.cpp
++++ b/src/impl/wshandshake.cpp
+@@ -30,14 +30,21 @@ using std::chrono::system_clock;
+ 
+ WsHandshake::WsHandshake() {}
+ 
+-WsHandshake::WsHandshake(string host, string path, std::vector<string> protocols)
+-    : mHost(std::move(host)), mPath(std::move(path)), mProtocols(std::move(protocols)) {
++WsHandshake::WsHandshake(string host, string path, std::vector<string> protocols,
++                         optional<string> origin)
++    : mHost(std::move(host)), mPath(std::move(path)), mProtocols(std::move(protocols)),
++      mOrigin(std::move(origin)) {
+ 
+ 	if (mHost.empty())
+ 		throw std::invalid_argument("WebSocket HTTP host cannot be empty");
+ 
+ 	if (mPath.empty())
+ 		throw std::invalid_argument("WebSocket HTTP path cannot be empty");
++
++	if (mOrigin &&
++	    (mOrigin->empty() || mOrigin->find('\r') != string::npos ||
++	     mOrigin->find('\n') != string::npos))
++		throw std::invalid_argument("WebSocket Origin header is invalid");
+ }
+ 
+ string WsHandshake::host() const {
+@@ -72,6 +79,8 @@ string WsHandshake::generateHttpRequest() {
+ 
+ 	if (!mProtocols.empty())
+ 		out += "Sec-WebSocket-Protocol: " + utils::implode(mProtocols, ',') + "\r\n";
++	if (mOrigin)
++		out += "Origin: " + *mOrigin + "\r\n";
+ 
+ 	out += "\r\n";
+ 
+diff --git a/src/impl/wshandshake.hpp b/src/impl/wshandshake.hpp
+index d592374..e216a26 100644
+--- a/src/impl/wshandshake.hpp
++++ b/src/impl/wshandshake.hpp
+@@ -23,7 +23,8 @@ namespace rtc::impl {
+ class WsHandshake final {
+ public:
+ 	WsHandshake();
+-	WsHandshake(string host, string path = "/", std::vector<string> protocols = {});
++	WsHandshake(string host, string path = "/", std::vector<string> protocols = {},
++	            optional<string> origin = nullopt);
+ 
+ 	string host() const;
+ 	string path() const;
+@@ -57,6 +58,7 @@ private:
+ 	string mHost;
+ 	string mPath;
+ 	std::vector<string> mProtocols;
++	optional<string> mOrigin;
+ 	string mKey;
+ 	mutable std::mutex mMutex;
+ };

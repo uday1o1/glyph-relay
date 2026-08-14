@@ -347,6 +347,9 @@ if(BUILD_TESTING)
       tests/native/test_libdatachannel_contract.cpp)
     target_link_libraries(glyphrelay_libdatachannel_contract_tests PRIVATE
       glyphrelay_libdatachannel_contract)
+    target_include_directories(glyphrelay_libdatachannel_contract_tests SYSTEM PRIVATE
+      "${GLYPHRELAY_LIBDATACHANNEL_ROOT}/include/rtc"
+      "${GLYPHRELAY_LIBDATACHANNEL_ROOT}/src")
     add_test(NAME integration.libdatachannel_contract
       COMMAND glyphrelay_libdatachannel_contract_tests)
     add_test(NAME cli.m0_webrtc_sender_help COMMAND glyphrelay_m0_webrtc_sender --help)

@@ -26,7 +26,7 @@ The bundled libjuice dependency is also MPL-2.0.
 
 GlyphRelay keeps required transport modifications isolated to MPL-covered source files so those modified files can be published with notices and corresponding source as required.
 
-The corresponding modified source is retained as `patches/libdatachannel-v0.24.1/glyphrelay-final-egress.patch`, including the patch-owned loopback test.
+The corresponding modified source is retained as `patches/libdatachannel-v0.24.1/glyphrelay-final-egress.patch`, including the patch-owned loopback test and strict WebSocket Origin support.
 
 The bounded packetization and NACK media handlers in `vendor/libdatachannel-v0.24.1` are separately published under MPL-2.0.
 

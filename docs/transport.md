@@ -6,9 +6,13 @@ The selected libdatachannel revision is v0.24.1 at commit `a02b751917ac8afc8c58d
 
 The selected libjuice submodule is commit `5948a4162d37bc213d6051b67ee2876ccc5a99a6`.
 
-The repository applies `patches/libdatachannel-v0.24.1/glyphrelay-final-egress.patch`, whose SHA-256 is `e77a84eb81b8c99287dd41b6e1604cbfb705708ee114a21b43a3d9432708caa3` and is locked in `dependencies.lock.json`.
+The repository applies `patches/libdatachannel-v0.24.1/glyphrelay-final-egress.patch`, whose SHA-256 is `252f2e30d8cbd62c0bc60620d5621d9e43f3ae7f2e11354b1613c44e9a99117a` and is locked in `dependencies.lock.json`.
 
 The patch is isolated to MPL-2.0-covered libdatachannel and libjuice files and includes its loopback contract test as corresponding source.
+
+The same isolated patch adds an optional exact client `Origin` header to the pinned libdatachannel WebSocket configuration so the native sender can satisfy the signaling server's strict upgrade policy.
+
+An empty Origin or any value containing a carriage return or line feed is rejected before the client handshake is generated.
 
 ## Final datagram boundary
 

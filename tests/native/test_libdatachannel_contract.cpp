@@ -1,5 +1,8 @@
 #include "glyphrelay_media_handlers.hpp"
 
+#include "impl/wshandshake.hpp"
+
+#include <rtc/configuration.hpp>
 #include <rtc/message.hpp>
 #include <rtc/rtp.hpp>
 #include <rtc/track.hpp>
@@ -11,6 +14,8 @@
 #include <iostream>
 #include <memory>
 #include <span>
+#include <stdexcept>
+#include <string>
 #include <type_traits>
 #include <vector>
 
@@ -218,10 +223,42 @@ void test_bounded_responder_replays_original_plaintext_rtp() {
           "responder stop must immediately erase cached RTP without a false termination");
 }
 
+void test_websocket_origin_header_is_exact_and_injection_safe() {
+  rtc::WebSocketConfiguration configuration;
+  configuration.origin = "https://share.example.test:8443";
+  require(configuration.origin.has_value(),
+          "the pinned public WebSocket configuration must expose the exact Origin value");
+
+  rtc::impl::WsHandshake handshake("share.example.test:8443", "/v1/signal", {},
+                                   configuration.origin);
+  const auto request = handshake.generateHttpRequest();
+  const std::string expected = "\r\nOrigin: https://share.example.test:8443\r\n";
+  require(request.find(expected) != std::string::npos &&
+              request.find(expected, request.find(expected) + expected.size()) == std::string::npos,
+          "the client handshake must emit the configured Origin exactly once");
+
+  rtc::impl::WsHandshake absent("127.0.0.1:8443", "/v1/signal");
+  require(absent.generateHttpRequest().find("\r\nOrigin:") == std::string::npos,
+          "an unconfigured generic WebSocket must not synthesize an Origin");
+
+  for (const std::string invalid :
+       {"", "https://safe.test\r\nX-Forged: yes", "https://safe.test\nX-Forged: yes"}) {
+    bool rejected = false;
+    try {
+      rtc::impl::WsHandshake unsafe("safe.test", "/", {}, invalid);
+      static_cast<void>(unsafe);
+    } catch (const std::invalid_argument &) {
+      rejected = true;
+    }
+    require(rejected, "empty or line-breaking WebSocket Origin values must fail closed");
+  }
+}
+
 } // namespace
 
 int main() {
   test_pinned_packetizer_is_the_sole_sequence_owner();
   test_bounded_responder_replays_original_plaintext_rtp();
+  test_websocket_origin_header_is_exact_and_injection_safe();
   return 0;
 }

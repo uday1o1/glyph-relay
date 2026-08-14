@@ -8,7 +8,7 @@ patch_file="${repository_root}/patches/libdatachannel-v0.24.1/glyphrelay-final-e
 test_source_file="${repository_root}/patches/libdatachannel-v0.24.1/glyphrelay_final_egress.c"
 test_source_target="${dependency_root}/deps/libjuice/test/glyphrelay_final_egress.c"
 expected_commit="a02b751917ac8afc8c58dc6f4461d25ff9465d48"
-expected_patch_sha256="e77a84eb81b8c99287dd41b6e1604cbfb705708ee114a21b43a3d9432708caa3"
+expected_patch_sha256="252f2e30d8cbd62c0bc60620d5621d9e43f3ae7f2e11354b1613c44e9a99117a"
 expected_test_source_sha256="46c42874a6d6affca8780b16498e784bdd1ed013d5af6be15d31564214898f27"
 
 sha256_file() {
