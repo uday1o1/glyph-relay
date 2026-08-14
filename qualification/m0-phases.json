@@ -514,6 +514,46 @@
       "environment_names": [],
       "timeout_seconds": 1800,
       "resource_policy": "cuda-performance-v1"
+    },
+    {
+      "id": "saliency-development-selection",
+      "title": "Complete frozen saliency development grid and repository freeze",
+      "kind": "command",
+      "required": true,
+      "dependencies": [
+        "language-dependencies",
+        "cuda-saliency-correctness",
+        "cuda-saliency-compute-sanitizer",
+        "cuda-saliency-performance"
+      ],
+      "commands": [
+        [
+          "uv",
+          "run",
+          "python",
+          "tools/run_saliency_development.py",
+          "--native",
+          "build/linux-gpu/glyphrelay_saliency_development",
+          "--renderer-directory",
+          "{phase_dir}/render",
+          "--checkpoint-root",
+          "{phase_root}/checkpoint",
+          "--phase-output",
+          "{phase_dir}",
+          "--source-bundle-id",
+          "{source_bundle_id}",
+          "--processing-platform-sha256",
+          "{environment_fingerprint}"
+        ]
+      ],
+      "environment_names": [
+        "HTTPS_PROXY",
+        "HTTP_PROXY",
+        "NO_PROXY",
+        "UV_CACHE_DIR"
+      ],
+      "timeout_seconds": 86400,
+      "resource_policy": "cuda-performance-v1"
     }
   ]
 }

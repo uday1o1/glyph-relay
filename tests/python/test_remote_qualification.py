@@ -121,6 +121,24 @@ def extracted_source(tmp_path: Path) -> tuple[Path, Path, str]:
                         "commands": [["python3", "-c", "print('still ran')"]],
                         "environment_names": [],
                     },
+                    {
+                        "id": "saliency-development-selection",
+                        "title": "Repository freeze handoff",
+                        "kind": "command",
+                        "required": True,
+                        "dependencies": [],
+                        "commands": [["python3", "-c", "raise SystemExit(75)"]],
+                        "environment_names": [],
+                    },
+                    {
+                        "id": "unrelated-tempfail",
+                        "title": "Unrelated exit 75",
+                        "kind": "command",
+                        "required": True,
+                        "dependencies": [],
+                        "commands": [["python3", "-c", "raise SystemExit(75)"]],
+                        "environment_names": [],
+                    },
                 ],
             }
         )
@@ -169,10 +187,28 @@ def test_runner_continues_independent_phases_and_exports_complete_failure(
         "independent": "PASSED",
         "passing": "PASSED",
         "runner-integrity": "PASSED",
+        "saliency-development-selection": "BLOCKED",
+        "unrelated-tempfail": "FAILED",
     }
     assert (context.run_root / "REPORT.md").is_file()
     assert (context.run_root / "commands.jsonl").is_file()
     assert (context.run_root / "junit.xml").is_file()
+    freeze_state = json.loads(
+        (context.run_root / "phases/saliency-development-selection/state.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    freeze_result = json.loads(
+        (context.run_root / freeze_state["result_path"]).read_text(encoding="utf-8")
+    )
+    assert freeze_result["reason"] == "repository_freeze_required"
+    unrelated_state = json.loads(
+        (context.run_root / "phases/unrelated-tempfail/state.json").read_text(encoding="utf-8")
+    )
+    unrelated_result = json.loads(
+        (context.run_root / unrelated_state["result_path"]).read_text(encoding="utf-8")
+    )
+    assert unrelated_result["reason"] == "command_exit_75"
     passing_logs = list(context.run_root.glob("phases/passing/*/stdout.log"))
     assert len(passing_logs) == 1
     redacted_log = passing_logs[0].read_text(encoding="utf-8")
@@ -187,6 +223,8 @@ def test_runner_continues_independent_phases_and_exports_complete_failure(
     ]
     identity = phase_input_identity(passing_phase, context, stable_commands)
     assert reusable_phase(passing_phase, context, identity) is not None
+    assert expand_argument("{source_bundle_id}", context, None) == bundle_id
+    assert expand_argument("{phase_root}", context, None) == "<PHASE_ROOT>"
     state = json.loads((context.run_root / "phases/passing/state.json").read_text(encoding="utf-8"))
     result_path = context.run_root / state["result_path"]
     original_result = result_path.read_bytes()

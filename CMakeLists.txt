@@ -95,6 +95,7 @@ add_library(glyphrelay_core
   src/gpu/nvenc_probe.cpp
   src/gpu/preprocess_pool.cpp
   src/gpu/saliency.cpp
+  src/gpu/saliency_development.cpp
   src/media/annex_b.cpp
   src/media/h264_sps.cpp
   src/media/i420.cpp
@@ -293,10 +294,15 @@ target_link_libraries(glyphrelay_saliency_preview PRIVATE glyphrelay_core)
 if(GLYPHRELAY_HAS_CUDA_COMPILER)
   add_executable(glyphrelay_cuda_saliency_qualify tools/qualify_cuda_saliency.cpp)
   target_link_libraries(glyphrelay_cuda_saliency_qualify PRIVATE glyphrelay_core)
+  add_executable(glyphrelay_saliency_development tools/evaluate_saliency_development.cpp)
+  target_link_libraries(glyphrelay_saliency_development PRIVATE glyphrelay_core)
   if(MSVC)
     target_compile_options(glyphrelay_cuda_saliency_qualify PRIVATE /W4 /WX /permissive-)
+    target_compile_options(glyphrelay_saliency_development PRIVATE /W4 /WX /permissive-)
   else()
     target_compile_options(glyphrelay_cuda_saliency_qualify PRIVATE
+      -Wall -Wconversion -Werror -Wextra -Wpedantic -Wshadow)
+    target_compile_options(glyphrelay_saliency_development PRIVATE
       -Wall -Wconversion -Werror -Wextra -Wpedantic -Wshadow)
   endif()
 endif()

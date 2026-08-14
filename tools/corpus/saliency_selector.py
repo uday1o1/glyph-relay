@@ -5,6 +5,7 @@ import hashlib
 import itertools
 import json
 import math
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -220,6 +221,7 @@ def verify_metric_detail(metrics: dict[str, Any]) -> None:
         "smallGlyphRecall",
         "protectedFraction",
         "falseProtectedFraction",
+        "falseDiscoveryFraction",
         "staticMapChangeFraction",
     )
     for stratum in CORE_STRATA:
@@ -315,6 +317,7 @@ def select_development_evidence(
             "smallGlyphRecall",
             "protectedFraction",
             "falseProtectedFraction",
+            "falseDiscoveryFraction",
             "staticMapChangeFraction",
         ):
             metric_number(metrics, name)
@@ -377,6 +380,13 @@ def run_selection(evidence_path: Path, output_path: Path) -> dict[str, Any]:
     with output_path.open("x", encoding="utf-8") as sink:
         json.dump(selection, sink, sort_keys=True, separators=(",", ":"), allow_nan=False)
         sink.write("\n")
+        sink.flush()
+        os.fsync(sink.fileno())
+    directory = os.open(output_path.parent, os.O_RDONLY)
+    try:
+        os.fsync(directory)
+    finally:
+        os.close(directory)
     return selection
 
 

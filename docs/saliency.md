@@ -89,7 +89,17 @@ It is the product of 31 valid four-weight tuples, three entry thresholds, three 
 
 Every trial must be preserved as either `PASSED` with complete aggregate, per-stratum, sequence-P95, and processing-P95 measurements or `INVALID` with a nonempty reason.
 
+False-discovery fraction is retained alongside the selection metrics so downstream analysis can distinguish excess protected area from low precision.
+
 The evidence binds the source bundle, automatic-map implementation, processing platform, corpus protocol, development manifest, development render index, and frozen grid by SHA-256.
+
+The target evaluator renders only the pinned development split in the locked corpus container and rasterizes exact glyph, small-glyph, and typed UI macroblock truth from all 256 rendered frames.
+
+Each configuration runs through the production CUDA preprocessing pipeline.
+
+Every sequence contributes the fifth repeated initial frame plus source frames 60, 120, and 180, with gaps above 200 milliseconds and CUDA-event total-pipeline measurements attached to the same completed outputs.
+
+Candidate checkpoints are checksum-protected, durably published, and bound to the complete evaluation identity so an interrupted 2,511-candidate run resumes without accepting stale work.
 
 The selector rejects evidence unless all 2,511 configurations appear exactly once.
 
@@ -101,7 +111,7 @@ An exact canonical JSON byte serialization supplies the final lexicographic tie-
 
 The public selector refuses to run if validation or final-test renderer output exists and refuses to overwrite an existing selection.
 
-The protocol identity is `fdfd6df595b4bd58e62d9e631a5346c7ecd82c16595d03615ba83942ae486812`.
+The protocol identity is `08b2d4fd9af71292b890b26c0c1fdb8fb664e09e7b7337927fcb29e049ddabe7`.
 
 Verify the frozen grid and selector without opening either held-out split with:
 
@@ -123,6 +133,10 @@ uv run python tools/validate_saliency_selection.py \
 No selected configuration is currently committed because the local macOS host cannot produce the required CUDA development-map and processing-time evidence.
 
 That target dependency is a deferred acceptance gate, not a passing result.
+
+The consolidated target phase runs the full grid and returns a preserved `BLOCKED` freeze handoff after independently reproducing the selected configuration.
+
+The selected artifact must then be committed before any held-out renderer output may be opened, after which the same consolidated command verifies the committed freeze and proceeds.
 
 ## Local verification
 

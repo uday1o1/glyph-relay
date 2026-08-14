@@ -50,6 +50,7 @@ def map_metrics(
         "smallGlyphRecall": small,
         "protectedFraction": protected,
         "falseProtectedFraction": false_protected,
+        "falseDiscoveryFraction": false_protected / max(protected, 1e-12),
         "staticMapChangeFraction": change,
     }
 

@@ -195,8 +195,8 @@
   },
   "saliency_protocol": {
     "name": "saliency_v1",
-    "protocol_sha256": "fdfd6df595b4bd58e62d9e631a5346c7ecd82c16595d03615ba83942ae486812",
-    "manifest_lock_sha256": "d97141d6dd3786c5fdf8902cf7a4658ab847ac2e7b47539b0b325aa115875fff",
+    "protocol_sha256": "08b2d4fd9af71292b890b26c0c1fdb8fb664e09e7b7337927fcb29e049ddabe7",
+    "manifest_lock_sha256": "d9a075ac29c8b58cf99ed24ae3e075b320b3a6d6395507a99d7270687fb077b1",
     "grid_sha256": "ab3a0b13e40cf5006e75f70bf76b530ebd5cf40f4cb79ddbb2b63b3f7764f8fb",
     "candidate_count": 2511,
     "development_render_index_sha256": "fff675307ba713ad83f366ec2c19c9eb60b208b2883349ffd603d707c70d845e",

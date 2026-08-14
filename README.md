@@ -197,6 +197,10 @@ It exits nonzero for `BLOCKED` or `FAILED` evidence and does not turn either sta
 
 The workflow, security boundaries, resume behavior, artifacts, and exit codes are documented in [docs/qualification.md](docs/qualification.md).
 
+The same workflow renders only the pinned saliency development split, evaluates all 2,511 frozen configurations through CUDA, and resumes from durable per-candidate checkpoints.
+
+Its first complete selection run deliberately returns a `BLOCKED` repository-freeze handoff so the selected configuration can be reviewed and committed before any held-out renderer output is opened.
+
 ## License
 
 Original GlyphRelay source is available under the MIT License.

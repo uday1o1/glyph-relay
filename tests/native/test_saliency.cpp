@@ -1,4 +1,5 @@
 #include "glyphrelay/saliency.hpp"
+#include "glyphrelay/saliency_development.hpp"
 
 #include <array>
 #include <cmath>
@@ -297,6 +298,40 @@ void test_boundaries_determinism_and_timing_window() {
           "total P95 must rank sample totals instead of summing non-coincident stage percentiles");
 }
 
+void test_development_map_metric_formulas() {
+  glyphrelay::SaliencySequenceMetrics metrics(4U, true);
+  const std::array<std::uint8_t, 4U> glyph = {1U, 1U, 0U, 0U};
+  const std::array<std::uint8_t, 4U> small = {1U, 0U, 0U, 0U};
+  const std::array<std::uint8_t, 4U> ui = {0U, 0U, 1U, 0U};
+  const std::array<std::int8_t, 4U> first = {1, 0, 2, 0};
+  const std::array<std::int8_t, 4U> second = {0, 0, 2, 3};
+  require(metrics.observe({first, glyph, small, ui}).passed &&
+              metrics.observe({second, glyph, small, ui}).passed,
+          "valid development maps must be observed");
+  const auto result = metrics.finalize();
+  require_near(result.overall_glyph_recall, 0.25, 1e-12,
+               "sequence glyph recall must use total protected glyph macroblocks");
+  require_near(result.small_glyph_recall, 0.5, 1e-12,
+               "small-glyph recall must use only the frozen small subset");
+  require_near(result.protected_fraction, 0.5, 1e-12,
+               "protected fraction must average sampled-frame fractions");
+  require_near(result.false_protected_fraction, 0.125, 1e-12,
+               "false protection must exclude glyph and declared UI truth");
+  require_near(result.false_discovery_fraction, 0.25, 1e-12,
+               "false discovery must divide by protected macroblocks per frame");
+  require(result.static_map_change_observed,
+          "a static sequence with two samples must report map change");
+  require_near(result.static_map_change_fraction, 0.5, 1e-12,
+               "static map change must compare exact adjacent emphasis levels");
+
+  glyphrelay::SaliencySequenceMetrics invalid(1U, false);
+  const std::array<std::int8_t, 1U> level = {1};
+  const std::array<std::uint8_t, 1U> absent = {0U};
+  const std::array<std::uint8_t, 1U> present = {1U};
+  require(!invalid.observe({level, absent, present, absent}).passed,
+          "small-glyph truth outside glyph truth must fail closed");
+}
+
 } // namespace
 
 int main() {
@@ -305,5 +340,6 @@ int main() {
   test_temporal_hysteresis_dropped_frame_and_geometry_reset();
   test_morphology_reduction_overrides_and_preview();
   test_boundaries_determinism_and_timing_window();
+  test_development_map_metric_formulas();
   return 0;
 }

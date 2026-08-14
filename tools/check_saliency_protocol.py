@@ -15,10 +15,15 @@ GRID_PATH = ROOT / "corpus" / "saliency-grid-v1.json"
 SELECTION_PATH = ROOT / "protocols" / "saliency_v1" / "selected-configuration.json"
 EXPECTED_FILES = {
     "corpus/saliency-grid-v1.json",
+    "include/glyphrelay/saliency_development.hpp",
     "schemas/saliency-development-evidence-v1.schema.json",
     "schemas/saliency-selection-v1.schema.json",
+    "src/gpu/saliency_development.cpp",
     "tools/check_saliency_protocol.py",
+    "tools/corpus/prepare_saliency_development.py",
     "tools/corpus/saliency_selector.py",
+    "tools/evaluate_saliency_development.cpp",
+    "tools/run_saliency_development.py",
     "tools/validate_saliency_selection.py",
 }
 EXPECTED_PARAMETERS = {
@@ -147,7 +152,7 @@ def validate_grid(root: Path = ROOT) -> list[str]:
     corpus_lock = load_object(root / "protocols" / "corpus_protocol_v1" / "manifest.lock")
     if grid.get("corpusProtocolSha256") != corpus_lock.get("protocol_sha256"):
         errors.append("saliency grid corpus protocol identity changed")
-    render_index = root / "corpus" / "generated" / "development" / "index.json"
+    render_index = root / "corpus" / "generated" / "development" / "render" / "render-index.json"
     if render_index.exists() and sha256_bytes(render_index.read_bytes()) != grid.get(
         "developmentRenderIndexSha256"
     ):

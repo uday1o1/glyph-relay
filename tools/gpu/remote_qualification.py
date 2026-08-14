@@ -787,7 +787,10 @@ def expand_argument(argument: str, context: RunContext, attempt: Path | None) ->
         "{source_root}": str(context.source_root),
         "{run_root}": str(context.run_root),
         "{phase_dir}": str(attempt) if attempt else "<PHASE_DIR>",
+        "{phase_root}": str(attempt.parent) if attempt else "<PHASE_ROOT>",
         "{selected_gpu_uuid}": selected_uuid,
+        "{source_bundle_id}": context.bundle_id,
+        "{environment_fingerprint}": context.environment_fingerprint,
     }
     value = argument
     for token, replacement in replacements.items():
@@ -996,9 +999,15 @@ def run_command_phase(
             raise QualificationError("performance_sampler_disappeared")
         performance_samples = context.sampler.end_performance_phase(phase.identifier)
     duration = time.monotonic() - started
+    freeze_required = (
+        phase.identifier == "saliency-development-selection"
+        and bool(returncodes)
+        and returncodes[-1] == 75
+        and not timed_out
+    )
     status = (
         "BLOCKED"
-        if timed_out
+        if timed_out or freeze_required
         else "PASSED"
         if returncodes and all(code == 0 for code in returncodes)
         else "FAILED"
@@ -1006,6 +1015,8 @@ def run_command_phase(
     reason = (
         "phase_timeout"
         if timed_out
+        else "repository_freeze_required"
+        if freeze_required
         else "commands_passed"
         if status == "PASSED"
         else f"command_exit_{returncodes[-1] if returncodes else 127}"

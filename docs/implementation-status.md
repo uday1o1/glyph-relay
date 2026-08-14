@@ -38,7 +38,7 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 | --- | --- | --- |
 | 0 | `WAITING_HARDWARE` | M0-L01 through M0-L10 are locally implemented and all target gates are deferred |
 | 1 | `WAITING_HARDWARE` | M1-L01A through M1-L04 are locally implemented and all remaining acceptance items require the designated target |
-| 2 | `IN_PROGRESS` | M2-L01 through M2-L03A are locally implemented, while the target development-grid evaluator and CUDA runtime gates remain pending |
+| 2 | `WAITING_HARDWARE` | M2-L01 through M2-L03B are locally implemented, while the real development-grid selection and CUDA runtime gates require the designated target |
 | 3 | `IN_PROGRESS` | Local work packages remain pending |
 | 4 | `IN_PROGRESS` | Local work packages and irreversible freezes remain pending |
 | 5 | `IN_PROGRESS` | Local work packages remain pending |
@@ -137,15 +137,15 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 | --- | --- | --- | --- |
 | M2-L01 | `IMPLEMENTED_LOCAL` | Scalar `saliency_v1`, separate bounded packed-source and NV12-surface ownership rings, deterministic map reduction, protected-region preview, and timing oracle | Hand-calculated uniform, edge, opposite-edge, isolated-pixel, border, partial-tile, dropped-frame, and geometry-reset fixtures; one twenty-frame seeded randomized sequence; ownership, alias, exhaustion, stale-token, and shutdown tests; real no-clobber preview CLI inspection |
 | M2-L02 | `IMPLEMENTED_LOCAL` | CUDA conversion and saliency kernels, asynchronous map copy, CUDA event fencing, NVTX ranges, differential harness, and target qualification phases | `make cuda-compile-check` builds the complete Linux CUDA target with NVCC 13.3.73 in the digest-pinned official CUDA 13.3.1 image; portable unsupported-adapter test; independent evidence schema and seeded validator controls; runtime gates remain deferred |
-| M2-L03A | `IMPLEMENTED_LOCAL` | Frozen development grid, exact evidence schemas, leak-proof deterministic selector, immutable protocol identity, and independent selection reproduction | Exact 2,511-candidate enumeration from 31 valid feature-weight tuples; all threshold and tie-break controls; complete-grid, duplicate, missing-stratum, split-identity, validation-access, no-clobber, and seeded-selection-defect tests; protocol aggregate `fdfd6df595b4bd58e62d9e631a5346c7ecd82c16595d03615ba83942ae486812` |
-| M2-L03B | `PENDING_LOCAL` | Designated-target development-grid evaluator, measurement provenance, resumable evidence emission, and consolidated qualification integration | None |
+| M2-L03A | `IMPLEMENTED_LOCAL` | Frozen development grid, exact evidence schemas, leak-proof deterministic selector, immutable protocol identity, and independent selection reproduction | Exact 2,511-candidate enumeration from 31 valid feature-weight tuples; all threshold and tie-break controls; complete-grid, duplicate, missing-stratum, split-identity, validation-access, no-clobber, and seeded-selection-defect tests; protocol aggregate `08b2d4fd9af71292b890b26c0c1fdb8fb664e09e7b7337927fcb29e049ddabe7` |
+| M2-L03B | `IMPLEMENTED_LOCAL` | Designated-target development-grid evaluator, exact glyph and UI truth rasterization, CUDA-event timing provenance, durable per-candidate resume, and consolidated qualification freeze handoff | Pinned Linux CUDA image builds the 47-target graph including `glyphrelay_saliency_development`; portable map-formula goldens cover recall, protection, false protection, false discovery, and static level change; all 256 frozen truth frames rasterize completely; source, platform, renderer, corpus, implementation, and grid hashes bind every result; exit 75 becomes a preserved `BLOCKED` repository-freeze handoff rather than acceptance |
 
 | State | Acceptance item | Evidence |
 | --- | --- | --- |
 | `IMPLEMENTED_LOCAL` | Scalar goldens and portable boundary tests pass | `native.saliency`; exact frozen feature vectors and partial 1-by-1, 17-by-17, and 23-by-17 geometry fixtures |
 | `DEFERRED_HARDWARE` | CUDA goldens, differential tests, boundary tests, and compute-sanitizer pass | None |
 | `IMPLEMENTED_LOCAL` | Saliency output is deterministic for the same frame sequence | Twenty seeded randomized frames produce exact feature, hysteresis, level, and macroblock-map equality across independent instances |
-| `DEFERRED_HARDWARE` | The complete frozen development grid selects one configuration before validation access | The selector and immutable protocol are locally verified, but no selected configuration is committed because processing-time evidence and CUDA map results require the designated target |
+| `DEFERRED_HARDWARE` | The complete frozen development grid selects one configuration before validation access | The exact evaluator and selector are locally verified, but no selected configuration is committed because the CUDA maps and CUDA-event processing P95 values require the designated target |
 | `DEFERRED_HARDWARE` | Complete CUDA preprocessing and map copy is at most 5 ms P95 at 1080p30 | None |
 
 ## Milestone 3 acceptance gates

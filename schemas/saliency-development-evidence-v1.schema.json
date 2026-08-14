@@ -46,6 +46,7 @@
         "smallGlyphRecall",
         "protectedFraction",
         "falseProtectedFraction",
+        "falseDiscoveryFraction",
         "staticMapChangeFraction"
       ],
       "properties": {
@@ -53,6 +54,7 @@
         "smallGlyphRecall": { "$ref": "#/$defs/unitMetric" },
         "protectedFraction": { "$ref": "#/$defs/unitMetric" },
         "falseProtectedFraction": { "$ref": "#/$defs/unitMetric" },
+        "falseDiscoveryFraction": { "$ref": "#/$defs/unitMetric" },
         "staticMapChangeFraction": { "$ref": "#/$defs/unitMetric" }
       }
     },
@@ -88,6 +90,7 @@
         "smallGlyphRecall",
         "protectedFraction",
         "falseProtectedFraction",
+        "falseDiscoveryFraction",
         "staticMapChangeFraction",
         "processingP95Ns",
         "perStratum",
@@ -98,6 +101,7 @@
         "smallGlyphRecall": { "$ref": "#/$defs/unitMetric" },
         "protectedFraction": { "$ref": "#/$defs/unitMetric" },
         "falseProtectedFraction": { "$ref": "#/$defs/unitMetric" },
+        "falseDiscoveryFraction": { "$ref": "#/$defs/unitMetric" },
         "staticMapChangeFraction": { "$ref": "#/$defs/unitMetric" },
         "processingP95Ns": { "type": "integer", "minimum": 1 },
         "perStratum": {

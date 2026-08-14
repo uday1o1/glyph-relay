@@ -30,7 +30,7 @@ The phase retains raw captures privately and exports only the safe reduced valid
 
 ### Qualification phase coverage
 
-The committed graph contains 18 required Milestone 0 phases and three required Milestone 2 CUDA saliency phases.
+The committed graph contains 18 required Milestone 0 phases and four required Milestone 2 CUDA saliency phases.
 
 The graph validates the source and exact dependencies, runs the complete portable and sanitizer suites, builds the Linux GPU targets, selects a device, validates doctor output, probes H.264, NV12, and emphasis-map support, and repeats the pre-submit and ownership contracts ten times with CTest `until-fail` semantics.
 
@@ -56,6 +56,13 @@ The target-only acceptance mapping is:
 | M2-H01 | `cuda-saliency-correctness` |
 | M2-H02 | `cuda-saliency-performance` |
 | M2-H03 | `cuda-saliency-compute-sanitizer` |
+| M2-H04 | `saliency-development-selection` |
+
+The final Milestone 2 phase renders only the frozen development split, prepares hash-bound macroblock truth, evaluates all 2,511 configurations through the actual CUDA pipeline, and durably checkpoints each candidate.
+
+Its first complete run returns `BLOCKED` with a repository-freeze artifact rather than opening validation data or treating an uncommitted configuration as accepted.
+
+After that selected artifact is reviewed and committed, the same phase independently reproduces the selection and verifies the immutable fields before it can pass.
 
 ## Designated GPU workflow
 

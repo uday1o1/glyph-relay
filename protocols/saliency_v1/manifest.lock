@@ -7,25 +7,45 @@
       "sha256": "ab3a0b13e40cf5006e75f70bf76b530ebd5cf40f4cb79ddbb2b63b3f7764f8fb"
     },
     {
+      "path": "include/glyphrelay/saliency_development.hpp",
+      "sha256": "b0ec46a26ebc4c920adb4083ba68181807bae895d0783d852befd4598a843df4"
+    },
+    {
       "path": "schemas/saliency-development-evidence-v1.schema.json",
-      "sha256": "42b18d915d3d0c46eaad7778048842eff2b4d5860c1a9fce410a87b13d14ef33"
+      "sha256": "e12652a4788468530a32ccfe69db5e120f0fd39228a99612f048f9152ad37106"
     },
     {
       "path": "schemas/saliency-selection-v1.schema.json",
-      "sha256": "cf21b76df46739a1ebbc851780e0242de0ba72258602de25f04b143aa1915aad"
+      "sha256": "a68dd7a6227a3764c364ff18a4c8280f82bef25594e2b8e1e9df6571c28df291"
+    },
+    {
+      "path": "src/gpu/saliency_development.cpp",
+      "sha256": "eab952ec43680521bd195501fde6c8e1918b370681911a3b368c1b32a136fe06"
     },
     {
       "path": "tools/check_saliency_protocol.py",
-      "sha256": "0f96d91b57b792c760216f63978dd1daea21271d24266b466192696e3fa7bc24"
+      "sha256": "e97fa9c93e57571f1b66bf7eff9b75e729440e9010ada9f4f668466254960160"
+    },
+    {
+      "path": "tools/corpus/prepare_saliency_development.py",
+      "sha256": "b9e5047bcf04eb99d88e506bbc9cd9f0cb64a430d20637d503b3a0574d215bba"
     },
     {
       "path": "tools/corpus/saliency_selector.py",
-      "sha256": "de570aa28246c553e682199f0a64c2074ce03c81a21c7d7db9a404cd13857780"
+      "sha256": "a500db9c2703e6768e183683f820e51d8dc127afbdf81399c51070e5c4c2c525"
+    },
+    {
+      "path": "tools/evaluate_saliency_development.cpp",
+      "sha256": "a2f3907a00b99f7aada45f40710a058c0970bf25430dd601bee2384dda9b39b4"
+    },
+    {
+      "path": "tools/run_saliency_development.py",
+      "sha256": "4079d0d98bc7ed366c0b3d462776ea8530c92571ec197f505e9da2cf3fe4c36c"
     },
     {
       "path": "tools/validate_saliency_selection.py",
       "sha256": "8f31bf4b9d70bc99c2130d198d2e66452f2f08181e7fb6763db01cfd7134ce4e"
     }
   ],
-  "protocol_sha256": "fdfd6df595b4bd58e62d9e631a5346c7ecd82c16595d03615ba83942ae486812"
+  "protocol_sha256": "08b2d4fd9af71292b890b26c0c1fdb8fb664e09e7b7337927fcb29e049ddabe7"
 }
