@@ -18,9 +18,10 @@ cmake \
 cmake --build build/linux-capture-sanitizers \
   --target \
     glyphrelay_linux_capture_contract_tests \
+    glyphrelay_record_command_tests \
     glyphrelay_recording_contract_tests \
   --parallel
 ctest \
   --test-dir build/linux-capture-sanitizers \
   --output-on-failure \
-  -R '^integration\.(linux_capture_contracts|durable_recording)$'
+  -R '^integration\.(linux_capture_contracts|durable_recording|record_command)$'

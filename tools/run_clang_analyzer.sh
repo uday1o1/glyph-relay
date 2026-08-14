@@ -14,9 +14,12 @@ for source in \
   src/app/doctor.cpp \
   src/app/doctor_probes.cpp \
   src/app/main.cpp \
+  src/app/record_command.cpp \
+  src/app/record_command_stub.cpp \
   src/capture/capture.cpp \
   src/capture/linux_capture_stub.cpp \
   src/core/m0_protocol.cpp \
+  src/core/nv12_scaler.cpp \
   src/core/color_conversion.cpp \
   src/core/quality_metrics.cpp \
   src/core/sha256.cpp \

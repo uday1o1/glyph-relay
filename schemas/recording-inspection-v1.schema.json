@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.invalid/schemas/recording-inspection-v1.schema.json",
+  "title": "GlyphRelay recording inspection v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "passed",
+    "state",
+    "reason",
+    "sessionId",
+    "recordingId",
+    "mediaPath",
+    "sidecarPath",
+    "markerPath",
+    "committedAccessUnits",
+    "committedMediaBytes"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "passed": {
+      "type": "boolean"
+    },
+    "state": {
+      "enum": [
+        "ABSENT",
+        "PREPARED_INCOMPLETE",
+        "INCOMPLETE",
+        "COMPLETE",
+        "CORRUPT"
+      ]
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "sessionId": {
+      "type": "string",
+      "maxLength": 64
+    },
+    "recordingId": {
+      "type": "string",
+      "maxLength": 64
+    },
+    "mediaPath": {
+      "type": "string",
+      "maxLength": 4096
+    },
+    "sidecarPath": {
+      "type": "string",
+      "maxLength": 4096
+    },
+    "markerPath": {
+      "type": "string",
+      "maxLength": 4096
+    },
+    "committedAccessUnits": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "committedMediaBytes": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

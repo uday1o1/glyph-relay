@@ -53,6 +53,28 @@ Run the pinned Linux x86-64 portable compile and test path with:
 make linux-cpu-check
 ```
 
+On a supported Linux desktop, start the portal-owned record-only path with:
+
+```bash
+build/linux-cpu/glyphrelay record --output recording.h264 --bitrate 2m
+```
+
+The portal dialog is the only source selector.
+
+Press Ctrl-C to stop and durably publish the elementary stream, JSON sidecar, and completion marker.
+
+Inspect either a completed or interrupted recording with:
+
+```bash
+build/linux-cpu/glyphrelay inspect --recording recording.h264 --json
+```
+
+The optional `--window-label` is displayed locally only after portal selection and is never written to the recording metadata.
+
+The accepted bitrate profiles are `500k`, `1m`, `2m`, and `4m`.
+
+This CPU path currently uses the unfrozen recording-profile candidate, so its final profile claim remains deferred with the Milestone 0 browser and NVENC qualification gates.
+
 Exercise the static loopback receiver in the exact pinned Chromium build with:
 
 ```bash

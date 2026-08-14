@@ -22,6 +22,7 @@ COPY CMakeLists.txt CMakePresets.json ./
 COPY include ./include
 COPY protocols ./protocols
 COPY src ./src
+COPY tests/cmake ./tests/cmake
 COPY tests/native ./tests/native
 COPY tools/freeze_m0_protocol.cpp ./tools/freeze_m0_protocol.cpp
 COPY tools/hash_m0_browser_source.cpp ./tools/hash_m0_browser_source.cpp

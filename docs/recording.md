@@ -6,6 +6,45 @@ The recorder is available only on Linux because its safety contract requires `op
 
 Other platforms fail closed instead of emulating weaker publication semantics.
 
+## Record-only workflow
+
+The Linux CLI opens the XDG ScreenCast portal and accepts only the window selected in that dialog.
+
+It does not accept a window identifier, title, process, restore token, or other caller-selected source reference.
+
+After selection, it prepares the durable recorder before starting PipeWire capture.
+
+The bounded latest-frame capture pool owns three frames and promptly returns every PipeWire shared-memory buffer after copying it.
+
+Captured BGRA or RGBA is converted to limited-range BT.709 NV12, aspect-fit into the 1920x1080 presentation with deterministic black letterboxing, planarized to I420, and encoded by the mandatory system OpenH264 adapter at 30 frames per second.
+
+The capture scheduler drops superseded or over-rate frames instead of building a queue.
+
+A source geometry-epoch change requests a new IDR and advances the recording dependency epoch while the fixed presentation dimensions remain stable.
+
+The accepted bitrate profiles are `500k`, `1m`, `2m`, and `4m`, with `2m` as the default.
+
+The current implementation uses `recording_profile_candidate_v1` until the target-only browser and NVENC gates can freeze `recording_profile_v1`.
+
+Start and stop a recording with:
+
+```bash
+glyphrelay record --output recording.h264 --bitrate 2m
+# Press Ctrl-C after the portal-selected capture has run.
+```
+
+Inspect its durable state with:
+
+```bash
+glyphrelay inspect --recording recording.h264 --json
+```
+
+The inspection JSON conforms to `schemas/recording-inspection-v1.schema.json`.
+
+An optional `--window-label` value is bounded and displayed only through the local post-selection callback.
+
+It is not passed into capture selection, signaling, recording metadata, or remote output.
+
 ## Output set
 
 A requested `example.h264` recording owns these deterministic final names:
@@ -70,6 +109,10 @@ Long incomplete recordings therefore do not require loading the journal or sidec
 ## Verification
 
 The Linux contract test records real system-OpenH264 access units, exercises every declared persistence event in a child process, validates complete and incomplete states, checks no-clobber behavior, and independently decodes the completed stream with FFmpeg.
+
+The record-command integration drives the same capture, conversion, scaling, encoder, recorder, and inspector services used by the CLI through a deterministic injected frame source.
+
+It proves the output decodes independently, the ephemeral label is absent from metadata, and the capture and recorder queues retain their asserted bounds.
 
 The independent filesystem model discards unsynchronized file contents and directory entries after every protocol operation.
 

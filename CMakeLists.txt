@@ -74,11 +74,13 @@ endif()
 add_library(glyphrelay_core
   src/app/doctor.cpp
   src/app/doctor_probes.cpp
+  src/app/record_command.cpp
   src/capture/capture.cpp
   src/core/benchmark_gate.cpp
   src/core/color_conversion.cpp
   src/core/m0_browser_source.cpp
   src/core/m0_protocol.cpp
+  src/core/nv12_scaler.cpp
   src/core/quality_metrics.cpp
   src/core/sha256.cpp
   src/core/synthetic_source.cpp
@@ -98,11 +100,14 @@ add_library(glyphrelay_core
 )
 if(GLYPHRELAY_HAS_LINUX_CAPTURE)
   target_sources(glyphrelay_core PRIVATE
+    src/app/record_command_linux.cpp
     src/capture/linux_capture_gdbus.cpp
     src/capture/linux_capture_pipewire.cpp
   )
 else()
-  target_sources(glyphrelay_core PRIVATE src/capture/linux_capture_stub.cpp)
+  target_sources(glyphrelay_core PRIVATE
+    src/app/record_command_stub.cpp
+    src/capture/linux_capture_stub.cpp)
 endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_sources(glyphrelay_core PRIVATE src/recording/recording_linux.cpp)
@@ -249,6 +254,11 @@ if(BUILD_TESTING)
   add_test(NAME native.doctor COMMAND glyphrelay_native_tests)
   add_test(NAME cli.help COMMAND glyphrelay --help)
   add_test(NAME cli.doctor_json COMMAND glyphrelay doctor --json)
+  add_test(NAME cli.record_rejects_source_override
+    COMMAND "${CMAKE_COMMAND}"
+      -DGLYPHRELAY_PROGRAM=$<TARGET_FILE:glyphrelay>
+      -DGLYPHRELAY_OUTPUT=${CMAKE_CURRENT_BINARY_DIR}/forbidden-record.h264
+      -P "${CMAKE_SOURCE_DIR}/tests/cmake/assert_record_source_rejected.cmake")
 
   add_executable(glyphrelay_m0_protocol_tests tests/native/test_m0_protocol.cpp)
   target_link_libraries(glyphrelay_m0_protocol_tests PRIVATE glyphrelay_core)
@@ -299,6 +309,24 @@ if(BUILD_TESTING)
     set_tests_properties(integration.ffmpeg_decodes_durable_recording PROPERTIES
       DEPENDS integration.durable_recording
       FIXTURES_REQUIRED durable_recording_stream)
+
+    add_executable(glyphrelay_record_command_tests tests/native/test_record_command.cpp)
+    target_link_libraries(glyphrelay_record_command_tests PRIVATE glyphrelay_core)
+    set(GLYPHRELAY_RECORD_COMMAND_TEST_STREAM
+        "${CMAKE_CURRENT_BINARY_DIR}/record-command.h264")
+    add_test(NAME integration.record_command
+      COMMAND glyphrelay_record_command_tests "${GLYPHRELAY_RECORD_COMMAND_TEST_STREAM}")
+    add_test(NAME cli.inspect_recording_json
+      COMMAND glyphrelay inspect --recording "${GLYPHRELAY_RECORD_COMMAND_TEST_STREAM}" --json)
+    add_test(NAME integration.ffmpeg_decodes_record_command
+      COMMAND "${GLYPHRELAY_RECORDING_FFMPEG_EXECUTABLE}" -v error -f h264
+              -i "${GLYPHRELAY_RECORD_COMMAND_TEST_STREAM}" -f null -)
+    set_tests_properties(integration.record_command PROPERTIES
+      FIXTURES_SETUP record_command_stream)
+    set_tests_properties(cli.inspect_recording_json
+      integration.ffmpeg_decodes_record_command PROPERTIES
+      DEPENDS integration.record_command
+      FIXTURES_REQUIRED record_command_stream)
   endif()
 
   add_executable(glyphrelay_egress_contract_tests tests/native/test_media_egress.cpp)

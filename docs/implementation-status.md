@@ -104,14 +104,15 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 | M1-L01A | `IMPLEMENTED_LOCAL` | Portable portal lifecycle, shared-memory ownership, bounded latest-frame capture pool, cursor composition, orientation transforms, geometry epochs, and scalar plus available SIMD BT.709 conversion | `native.capture_contracts`; hand-calculated limited- and full-range goldens; BGRA and RGBA; pitch, odd-edge, and all eight SPA orientation cases; 100 deterministic randomized scalar-to-SIMD comparisons; prompt-requeue and starvation controls |
 | M1-L01B | `IMPLEMENTED_LOCAL` | Real Linux GDBus ScreenCast portal and PipeWire shared-memory adapter | Locked Ubuntu GLib/GIO/PipeWire/SPA build; `integration.linux_capture_contracts`; real SPA crop, damage, reflected transform, inline cursor, prompt-requeue, and DMA-BUF-fallback fixtures; Linux capture analyzer and sanitizer lanes; interactive portal gate remains deferred |
 | M1-L02A | `IMPLEMENTED_LOCAL` | Bounded nonblocking recorder branch, crash-safe journal, durable publication, streaming inspection, and independent filesystem crash model | Real system-OpenH264 access units; independent FFmpeg decode; all 27 recorder persistence-event process crashes; 28-operation filesystem crash model; three seeded ordering defects; Linux analyzer; ASAN and UBSAN; no-clobber and corruption fixtures |
-| M1-L02B | `PENDING_LOCAL` | Public CPU record-only and share paths, remaining media queues, drops, and user-facing recording inspection | None |
+| M1-L02B | `IMPLEMENTED_LOCAL` | Public CPU record-only and inspect paths, three-frame latest capture pool, frame-rate drops, fixed-profile conversion, and user-facing durable recording | Exact CLI source-override rejection; injected full record service; six real OpenH264 access units; public JSON inspection; independent FFmpeg decode; label non-disclosure; Linux analyzer; ASAN and UBSAN |
+| M1-L02C | `PENDING_LOCAL` | Public share path, bounded transport queues, recorder and transport branch ownership, and disconnect cleanup | None |
 | M1-L03 | `PENDING_LOCAL` | Self-hosted HTTPS and WSS signaling bundle, capabilities, state machine, timers, control protocol, and adversarial security tests | None |
 | M1-L04 | `PENDING_LOCAL` | Frozen corpus protocol, renderer inputs, manifests, OCR evaluator, metrics, and lossless development gates | None |
 
 | State | Acceptance item | Evidence |
 | --- | --- | --- |
 | `DEFERRED_HARDWARE` | A real portal-selected window streams to Chromium and Firefox | None |
-| `PENDING_LOCAL` | Record-only produces an independently decoded profile stream without signaling or a browser offer | None |
+| `DEFERRED_HARDWARE` | Record-only produces an independently decoded profile stream without signaling or a browser offer | The complete local CLI service produces and independently decodes `recording_profile_candidate_v1`; final acceptance waits for target-only `recording_profile_v1` freeze evidence |
 | `DEFERRED_HARDWARE` | Capture cancel, close, revoke, and shutdown paths pass | None |
 | `PENDING_LOCAL` | Every queue has an asserted bound and disconnects leak no session or frame resource | None |
 | `PENDING_LOCAL` | Token replay, hostile Origin and Host, oversized messages, control floods, and insecure non-loopback binds fail closed | None |
