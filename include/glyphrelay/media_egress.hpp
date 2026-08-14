@@ -33,6 +33,7 @@ enum class DatagramProvenance {
 };
 
 enum class DatagramProtocol {
+  unknown_control,
   srtp,
   srtcp,
   dtls,

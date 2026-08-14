@@ -6,7 +6,7 @@ dependency_root="${repository_root}/.deps/libdatachannel-v0.24.1"
 bootstrap_marker="${dependency_root}.bootstrap-incomplete"
 patch_file="${repository_root}/patches/libdatachannel-v0.24.1/glyphrelay-final-egress.patch"
 expected_commit="a02b751917ac8afc8c58dc6f4461d25ff9465d48"
-expected_patch_sha256="5679ddf6757fa58c1d4850c97a15349ec5e1dd5b9560138e70fe26c7d7af4731"
+expected_patch_sha256="6ec83ca09299a124035f581408e392d65203b900817d61b329b9d8223e3bdb47"
 
 sha256_file() {
   if command -v sha256sum >/dev/null 2>&1; then

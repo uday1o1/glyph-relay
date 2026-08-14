@@ -2,6 +2,7 @@
 
 #include <rtc/message.hpp>
 #include <rtc/rtp.hpp>
+#include <rtc/track.hpp>
 
 #include <algorithm>
 #include <cstddef>
@@ -10,7 +11,11 @@
 #include <iostream>
 #include <memory>
 #include <span>
+#include <type_traits>
 #include <vector>
+
+static_assert(
+    std::is_same_v<decltype(&rtc::Track::sendMessage), bool (rtc::Track::*)(rtc::message_ptr)>);
 
 namespace {
 

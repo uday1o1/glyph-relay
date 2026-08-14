@@ -36,7 +36,9 @@ fi
   -DUSE_SYSTEM_USRSCTP=OFF \
   -DWARNINGS_AS_ERRORS=ON
 "${cmake_command[@]}" --build "${build_root}" \
-  --target glyphrelay_libdatachannel_contract_tests glyphrelay-juice-egress-tests --parallel
+  --target glyphrelay_m0_webrtc_sender glyphrelay_libdatachannel_contract_tests \
+           glyphrelay-juice-egress-tests --parallel
+"${build_root}/glyphrelay_m0_webrtc_sender" --help
 "${build_root}/glyphrelay_libdatachannel_contract_tests"
 "${build_root}/libdatachannel-v0.24.1/deps/libjuice/glyphrelay-juice-egress-tests"
 

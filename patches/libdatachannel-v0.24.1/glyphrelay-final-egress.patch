@@ -939,3 +939,29 @@ index 074823c..3ac2be9 100644
  	if(ret >= 0)
  		return JUICE_ERR_SUCCESS;
  	if(ret == -SEAGAIN || ret == -SEWOULDBLOCK)
+diff --git a/include/rtc/track.hpp b/include/rtc/track.hpp
+index dad8b7e..e2603bb 100644
+--- a/include/rtc/track.hpp
++++ b/include/rtc/track.hpp
+@@ -36,6 +36,8 @@ public:
+ 	void close(void) override;
+ 	bool send(message_variant data) override;
+ 	bool send(const byte *data, size_t size) override;
++	// Sends a media message while preserving application-visible RTP identity metadata.
++	bool sendMessage(message_ptr message);
+ 
+ 	bool isOpen(void) const override;
+ 	bool isClosed(void) const override;
+diff --git a/src/track.cpp b/src/track.cpp
+index 223a42e..1276bde 100644
+--- a/src/track.cpp
++++ b/src/track.cpp
+@@ -34,6 +34,8 @@ bool Track::send(message_variant data) { return impl()->outgoing(make_message(st
+ 
+ bool Track::send(const byte *data, size_t size) { return send(binary(data, data + size)); }
+ 
++bool Track::sendMessage(message_ptr message) { return impl()->outgoing(std::move(message)); }
++
+ bool Track::isOpen(void) const { return impl()->isOpen(); }
+ 
+ bool Track::isClosed(void) const { return impl()->isClosed(); }

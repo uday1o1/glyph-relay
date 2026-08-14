@@ -38,7 +38,58 @@ window.__glyphrelayReceiver = {
   state: "READY",
   error: null,
   oracleFrames,
+  snapshot: receiverSnapshot,
 };
+
+async function receiverSnapshot() {
+  const inboundVideo = [];
+  if (peerConnection) {
+    const stats = await peerConnection.getStats();
+    for (const report of stats.values()) {
+      if (report.type === "inbound-rtp" && report.kind === "video") {
+        inboundVideo.push({
+          framesDecoded: report.framesDecoded ?? null,
+          framesDropped: report.framesDropped ?? null,
+          keyFramesDecoded: report.keyFramesDecoded ?? null,
+          nackCount: report.nackCount ?? null,
+          packetsLost: report.packetsLost ?? null,
+          pliCount: report.pliCount ?? null,
+        });
+      }
+    }
+  }
+  const oracle = [];
+  for (const frame of oracleFrames.slice(-4)) {
+    const digest = await crypto.subtle.digest("SHA-256", frame.rgba);
+    oracle.push({
+      expectedDisplayTime: frame.expectedDisplayTime,
+      height: frame.height,
+      presentationTime: frame.presentationTime,
+      rgbaSha256: Array.from(new Uint8Array(digest), (value) =>
+        value.toString(16).padStart(2, "0"),
+      ).join(""),
+      rtpTimestamp: frame.rtpTimestamp,
+      width: frame.width,
+    });
+  }
+  return {
+    inboundVideo,
+    oracle,
+    playbackQuality: video.getVideoPlaybackQuality
+      ? {
+          corruptedVideoFrames:
+            video.getVideoPlaybackQuality().corruptedVideoFrames,
+          droppedVideoFrames:
+            video.getVideoPlaybackQuality().droppedVideoFrames,
+          totalVideoFrames: video.getVideoPlaybackQuality().totalVideoFrames,
+        }
+      : null,
+    presentedFrames,
+    state: window.__glyphrelayReceiver.state,
+    videoHeight: video.videoHeight,
+    videoWidth: video.videoWidth,
+  };
+}
 
 function updateStatus(state, message, error = null) {
   window.__glyphrelayReceiver.state = state;

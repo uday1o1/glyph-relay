@@ -170,6 +170,18 @@ if(GLYPHRELAY_ENABLE_WEBRTC_CONTRACTS)
     target_compile_options(glyphrelay_libdatachannel_contract PRIVATE
       -Wall -Wconversion -Werror -Wextra -Wpedantic -Wshadow)
   endif()
+
+  add_executable(glyphrelay_m0_webrtc_sender tools/m0_webrtc_sender.cpp)
+  target_include_directories(glyphrelay_m0_webrtc_sender SYSTEM PRIVATE
+    "${GLYPHRELAY_LIBDATACHANNEL_ROOT}/include")
+  target_link_libraries(glyphrelay_m0_webrtc_sender PRIVATE
+    glyphrelay_libdatachannel_contract)
+  if(MSVC)
+    target_compile_options(glyphrelay_m0_webrtc_sender PRIVATE /W4 /WX /permissive-)
+  else()
+    target_compile_options(glyphrelay_m0_webrtc_sender PRIVATE
+      -Wall -Wconversion -Werror -Wextra -Wpedantic -Wshadow)
+  endif()
 endif()
 
 add_executable(glyphrelay src/app/main.cpp)
@@ -213,6 +225,7 @@ if(BUILD_TESTING)
       glyphrelay_libdatachannel_contract)
     add_test(NAME integration.libdatachannel_contract
       COMMAND glyphrelay_libdatachannel_contract_tests)
+    add_test(NAME cli.m0_webrtc_sender_help COMMAND glyphrelay_m0_webrtc_sender --help)
   endif()
 
   if(GLYPHRELAY_HAS_OPENH264)

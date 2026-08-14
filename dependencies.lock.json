@@ -74,7 +74,7 @@
       "final_send_syscall": "sendto",
       "final_datagram_patch_required": true,
       "final_datagram_patch": "patches/libdatachannel-v0.24.1/glyphrelay-final-egress.patch",
-      "final_datagram_patch_sha256": "5679ddf6757fa58c1d4850c97a15349ec5e1dd5b9560138e70fe26c7d7af4731",
+      "final_datagram_patch_sha256": "6ec83ca09299a124035f581408e392d65203b900817d61b329b9d8223e3bdb47",
       "builtin_nack_responder_allowed": false
     }
   },

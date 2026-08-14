@@ -10,6 +10,7 @@
   },
   "scripts": {
     "browser:harness": "node tooling/m0/verify-loopback-receiver.ts",
+    "browser:playback": "node tooling/m0/qualify-browser-playback.ts",
     "browser:oracle:freeze": "node tooling/m0/freeze-browser-oracle.ts",
     "browser:probe": "node tooling/m0/capture-browser-offers.ts --output build/m0-browser-offers.json",
     "test": "node --test tests/typescript/*.test.ts",

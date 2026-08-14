@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.local/schemas/m0-browser-playback-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "protocol",
+    "status",
+    "browser",
+    "browserVersion",
+    "browserExecutableSha256",
+    "diagnostics",
+    "minimumPresentedFrames",
+    "receiver",
+    "sender",
+    "streamSha256"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "protocol": { "const": "glyphrelay-m0-browser-playback-v1" },
+    "status": { "const": "PASSED" },
+    "browser": { "enum": ["chromium", "firefox"] },
+    "browserVersion": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "browserExecutableSha256": { "$ref": "#/$defs/sha256" },
+    "streamSha256": { "$ref": "#/$defs/sha256" },
+    "diagnostics": {
+      "type": "array",
+      "maxItems": 100,
+      "items": { "type": "string", "maxLength": 2048 }
+    },
+    "minimumPresentedFrames": { "type": "integer", "minimum": 1 },
+    "receiver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inboundVideo",
+        "oracle",
+        "playbackQuality",
+        "presentedFrames",
+        "state",
+        "videoHeight",
+        "videoWidth"
+      ],
+      "properties": {
+        "inboundVideo": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "framesDecoded",
+              "framesDropped",
+              "keyFramesDecoded",
+              "nackCount",
+              "packetsLost",
+              "pliCount"
+            ],
+            "properties": {
+              "framesDecoded": { "$ref": "#/$defs/nullableCount" },
+              "framesDropped": { "$ref": "#/$defs/nullableCount" },
+              "keyFramesDecoded": { "$ref": "#/$defs/nullableCount" },
+              "nackCount": { "$ref": "#/$defs/nullableCount" },
+              "packetsLost": { "$ref": "#/$defs/nullableCount" },
+              "pliCount": { "$ref": "#/$defs/nullableCount" }
+            }
+          }
+        },
+        "oracle": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "expectedDisplayTime",
+              "height",
+              "presentationTime",
+              "rgbaSha256",
+              "rtpTimestamp",
+              "width"
+            ],
+            "properties": {
+              "expectedDisplayTime": { "type": "number", "minimum": 0 },
+              "height": { "const": 720 },
+              "presentationTime": { "type": "number", "minimum": 0 },
+              "rgbaSha256": { "$ref": "#/$defs/sha256" },
+              "rtpTimestamp": {
+                "type": ["integer", "null"],
+                "minimum": 0,
+                "maximum": 4294967295
+              },
+              "width": { "const": 1280 }
+            }
+          }
+        },
+        "playbackQuality": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "corruptedVideoFrames",
+            "droppedVideoFrames",
+            "totalVideoFrames"
+          ],
+          "properties": {
+            "corruptedVideoFrames": { "$ref": "#/$defs/count" },
+            "droppedVideoFrames": { "$ref": "#/$defs/count" },
+            "totalVideoFrames": { "$ref": "#/$defs/count" }
+          }
+        },
+        "presentedFrames": { "$ref": "#/$defs/count" },
+        "state": { "const": "RUNNING" },
+        "videoHeight": { "const": 720 },
+        "videoWidth": { "const": 1280 }
+      }
+    },
+    "sender": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "protocol",
+        "status",
+        "presentation",
+        "start_frame",
+        "requested_frames",
+        "sent_frames",
+        "recovery_frames",
+        "initial_extended_sequence",
+        "next_extended_sequence",
+        "last_extended_timestamp",
+        "wire_datagrams",
+        "wire_ip_total_bytes",
+        "wire_media_ip_total_bytes",
+        "wire_control_ip_total_bytes",
+        "wire_direct_ip_total_bytes",
+        "wire_turn_ip_total_bytes",
+        "rejected_datagrams",
+        "failed_datagrams",
+        "short_datagrams",
+        "accounting_overflowed",
+        "feedback_messages",
+        "distinct_nack_identifiers",
+        "idr_requests",
+        "cache_retransmissions",
+        "inject_pli_after_frame",
+        "fault_loss_extended_sequence",
+        "fault_datagram_suppressed",
+        "protected_retransmission_observed",
+        "protected_retransmission_identical"
+      ],
+      "properties": {
+        "schema_version": { "const": 1 },
+        "protocol": { "const": "glyphrelay-m0-webrtc-sender-v1" },
+        "status": { "const": "PASSED" },
+        "presentation": { "const": "720p30" },
+        "start_frame": { "$ref": "#/$defs/count" },
+        "requested_frames": { "type": "integer", "minimum": 1 },
+        "sent_frames": { "type": "integer", "minimum": 1 },
+        "recovery_frames": { "$ref": "#/$defs/count" },
+        "initial_extended_sequence": { "const": 65534 },
+        "next_extended_sequence": { "type": "integer", "minimum": 65537 },
+        "last_extended_timestamp": { "type": "integer", "minimum": 4294967296 },
+        "wire_datagrams": { "type": "integer", "minimum": 1 },
+        "wire_ip_total_bytes": { "type": "integer", "minimum": 1 },
+        "wire_media_ip_total_bytes": { "type": "integer", "minimum": 1 },
+        "wire_control_ip_total_bytes": { "type": "integer", "minimum": 1 },
+        "wire_direct_ip_total_bytes": { "$ref": "#/$defs/count" },
+        "wire_turn_ip_total_bytes": { "$ref": "#/$defs/count" },
+        "rejected_datagrams": { "$ref": "#/$defs/count" },
+        "failed_datagrams": { "$ref": "#/$defs/count" },
+        "short_datagrams": { "$ref": "#/$defs/count" },
+        "accounting_overflowed": { "type": "boolean" },
+        "feedback_messages": { "$ref": "#/$defs/count" },
+        "distinct_nack_identifiers": { "$ref": "#/$defs/count" },
+        "idr_requests": { "$ref": "#/$defs/count" },
+        "cache_retransmissions": { "$ref": "#/$defs/count" },
+        "inject_pli_after_frame": { "type": ["integer", "null"], "minimum": 1 },
+        "fault_loss_extended_sequence": {
+          "type": ["integer", "null"],
+          "minimum": 65534,
+          "maximum": 65536
+        },
+        "fault_datagram_suppressed": { "type": "boolean" },
+        "protected_retransmission_observed": { "type": "boolean" },
+        "protected_retransmission_identical": { "type": "boolean" }
+      }
+    }
+  },
+  "$defs": {
+    "count": { "type": "integer", "minimum": 0 },
+    "nullableCount": { "type": ["integer", "null"], "minimum": 0 },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}
