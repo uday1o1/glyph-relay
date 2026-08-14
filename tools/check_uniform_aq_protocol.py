@@ -17,7 +17,7 @@ from tools.corpus.uniform_aq_selector import AqFields, expected_aq_fields  # noq
 LOCK_PATH = ROOT / "protocols" / "uniform_aq_v1" / "manifest.lock"
 SELECTION_PATH = ROOT / "protocols" / "uniform_aq_v1" / "selected-configuration.json"
 EXPECTED_FILES = {
-    "CMakeLists.txt",
+    "cmake/FrozenEvaluationTargets.cmake",
     "corpus/uniform-aq-v1.json",
     "include/glyphrelay/nvenc_encoder.hpp",
     "protocols/uniform_aq_v1/execution-contract.json",

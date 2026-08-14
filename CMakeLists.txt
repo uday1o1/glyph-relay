@@ -105,6 +105,8 @@ add_library(glyphrelay_core
   src/media/recording_profile.cpp
   src/recording/recording_common.cpp
   src/transport/media_egress.cpp
+  src/transport/controller.cpp
+  src/transport/media_pacer.cpp
   src/transport/encoded_fanout.cpp
   src/transport/rtp_transport.cpp
 )
@@ -164,6 +166,7 @@ endif()
 
 if(MSVC)
   target_compile_options(glyphrelay_core PRIVATE /W4 /WX /permissive-)
+  set_source_files_properties(src/transport/controller.cpp PROPERTIES COMPILE_OPTIONS "/fp:strict")
 else()
   target_compile_options(glyphrelay_core PRIVATE
     $<$<COMPILE_LANGUAGE:CXX>:-Wall>
@@ -183,6 +186,8 @@ else()
       PROPERTIES COMPILE_OPTIONS "-O3"
     )
   endif()
+  set_source_files_properties(src/transport/controller.cpp PROPERTIES
+    COMPILE_OPTIONS "-ffp-contract=off")
 endif()
 
 if(GLYPHRELAY_ENABLE_SANITIZERS AND NOT MSVC)
@@ -293,17 +298,14 @@ target_link_libraries(glyphrelay_hash_m0_browser_source PRIVATE glyphrelay_core)
 add_executable(glyphrelay_saliency_preview tools/render_saliency_preview.cpp)
 target_link_libraries(glyphrelay_saliency_preview PRIVATE glyphrelay_core)
 
-add_executable(glyphrelay_uniform_aq_evaluate tools/evaluate_uniform_aq.cpp)
-target_link_libraries(glyphrelay_uniform_aq_evaluate PRIVATE glyphrelay_core)
-add_executable(glyphrelay_saliency_validation tools/evaluate_saliency_validation.cpp)
-target_link_libraries(glyphrelay_saliency_validation PRIVATE glyphrelay_core)
+include(cmake/FrozenEvaluationTargets.cmake)
+
+add_executable(glyphrelay_controller_trace_fixture tools/controller_trace_fixture.cpp)
+target_link_libraries(glyphrelay_controller_trace_fixture PRIVATE glyphrelay_core)
 if(MSVC)
-  target_compile_options(glyphrelay_uniform_aq_evaluate PRIVATE /W4 /WX /permissive-)
-  target_compile_options(glyphrelay_saliency_validation PRIVATE /W4 /WX /permissive-)
+  target_compile_options(glyphrelay_controller_trace_fixture PRIVATE /W4 /WX /permissive-)
 else()
-  target_compile_options(glyphrelay_uniform_aq_evaluate PRIVATE
-    -Wall -Wconversion -Werror -Wextra -Wpedantic -Wshadow)
-  target_compile_options(glyphrelay_saliency_validation PRIVATE
+  target_compile_options(glyphrelay_controller_trace_fixture PRIVATE
     -Wall -Wconversion -Werror -Wextra -Wpedantic -Wshadow)
 endif()
 
@@ -330,6 +332,7 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
+  find_package(Python3 REQUIRED COMPONENTS Interpreter)
   add_executable(glyphrelay_native_tests tests/native/test_doctor.cpp)
   target_link_libraries(glyphrelay_native_tests PRIVATE glyphrelay_core)
   add_test(NAME native.doctor COMMAND glyphrelay_native_tests)
@@ -391,6 +394,12 @@ if(BUILD_TESTING)
     COMMAND glyphrelay_uniform_aq_evaluate --help)
   add_test(NAME cli.saliency_validation_help
     COMMAND glyphrelay_saliency_validation --help)
+  add_test(NAME cli.controller_trace_fixture_help
+    COMMAND glyphrelay_controller_trace_fixture --help)
+  add_test(NAME integration.controller_trace_replay
+    COMMAND "${Python3_EXECUTABLE}"
+      "${CMAKE_SOURCE_DIR}/tools/run_controller_trace_matrix.py"
+      --fixture-executable $<TARGET_FILE:glyphrelay_controller_trace_fixture>)
   add_test(NAME cli.saliency_validation_rejects_missing_arguments
     COMMAND glyphrelay_saliency_validation)
   set_tests_properties(cli.saliency_validation_rejects_missing_arguments
@@ -462,6 +471,14 @@ if(BUILD_TESTING)
   add_executable(glyphrelay_egress_contract_tests tests/native/test_media_egress.cpp)
   target_link_libraries(glyphrelay_egress_contract_tests PRIVATE glyphrelay_core)
   add_test(NAME native.media_egress COMMAND glyphrelay_egress_contract_tests)
+
+  add_executable(glyphrelay_controller_tests tests/native/test_controller.cpp)
+  target_link_libraries(glyphrelay_controller_tests PRIVATE glyphrelay_core)
+  add_test(NAME native.controller COMMAND glyphrelay_controller_tests)
+
+  add_executable(glyphrelay_media_pacer_tests tests/native/test_media_pacer.cpp)
+  target_link_libraries(glyphrelay_media_pacer_tests PRIVATE glyphrelay_core)
+  add_test(NAME native.media_pacer COMMAND glyphrelay_media_pacer_tests)
 
   add_executable(glyphrelay_rtp_transport_tests tests/native/test_rtp_transport.cpp)
   target_link_libraries(glyphrelay_rtp_transport_tests PRIVATE glyphrelay_core)

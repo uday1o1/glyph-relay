@@ -26,6 +26,18 @@ A profile transition starts new geometry and dependency epochs and requires an I
 User-pinned and cursor minima are never weakened by automatic control.
 If those minima prevent cap compliance, the product must display the violation rather than claim compliance.
 
+The native `ProtectedRegionController` consumes cumulative counters and causally ordered feedback, and it emits one canonical JSON decision record for every tick.
+The native `MediaPacerQueue` applies the controller's payload budget with a monotonic token bucket whose burst is exactly 100 milliseconds of target bytes.
+It admits every access unit atomically and purges the complete dependency epoch plus retransmission cache when the 100-millisecond age bound or hard byte bound is reached.
+
+## Deterministic replay
+
+Run `glyphrelay_controller_trace_fixture --fixture stable_link --output trace.jsonl` to exercise the production controller path without target hardware.
+Run `python tools/replay_controller_trace.py --trace trace.jsonl` to replay the trace from raw cumulative counters and causally consumed feedback.
+The replay reconstructs estimator values, state transitions, ordered knob actions, profile epochs, and rounding results before comparing the canonical decision stream byte-for-byte.
+The repository integration matrix covers `stable_link`, `emphasis_overshoot`, `stale_remb`, `missing_remb`, `sudden_collapse`, `high_rtt_without_loss`, `recovery`, and `unusable`.
+It also proves that action tampering and future-feedback consumption fail rather than producing a passing replay.
+
 ## Network qualification
 
 The frozen stable-link matrix uses 0.5, 1, 2, and 4 Mbps caps with 50 milliseconds of round-trip delay and zero configured loss.

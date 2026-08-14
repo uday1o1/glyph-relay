@@ -2,7 +2,7 @@
   "schema_version": 1,
   "protocol": "saliency_validation_v1",
   "files": [
-    { "path": "CMakeLists.txt", "sha256": "ba05844e9a4e8b22ebdd733a46a1b7cf34aef5acd605747d8fde763a140d3aca" },
+    { "path": "cmake/FrozenEvaluationTargets.cmake", "sha256": "0689d1a08791c5ff572877f406b26b653e96188be10dc9f60394efa7316ced96" },
     { "path": "corpus/manifests/validation.json", "sha256": "418a7d53214d12d8393774b69e94392c81564bb754932378a7eb8f0d822c3c0e" },
     { "path": "include/glyphrelay/cuda_preprocess.hpp", "sha256": "d12904517f95fb4e4d1cef12f031725553ff53d83b664d3f5a43593af39440e0" },
     { "path": "include/glyphrelay/saliency.hpp", "sha256": "42f135f5f2b9d32967c7056a8926ea088526c83cfac9db8916dbdab169ee712b" },
@@ -17,7 +17,7 @@
     { "path": "src/gpu/saliency_development.cpp", "sha256": "eab952ec43680521bd195501fde6c8e1918b370681911a3b368c1b32a136fe06" },
     { "path": "tooling/corpus/corpus-model.ts", "sha256": "900cbf2664dd34ff9e196b0970d3043634fdaabd8f4cfdcac781d27bdc5de6d9" },
     { "path": "tooling/corpus/render-validation.ts", "sha256": "96e2a96ed094bd6d102dd6e482718065fe40f63f77236d40fcd3798087596850" },
-    { "path": "tools/check_saliency_validation_protocol.py", "sha256": "f610272e55ef1884bb5f9d358aa0a5f419ec7b5b785c316785bfc2277abe039d" },
+    { "path": "tools/check_saliency_validation_protocol.py", "sha256": "55e54d81d61a0af91cebc1b5cd3fb81080c11fe7e8a4697a159381d8d5bfa0a4" },
     { "path": "tools/corpus/evaluate_ocr.py", "sha256": "2bde2f91ba8ef675ba65e449287109f194a1d439309eb2590e12f538df15d2ca" },
     { "path": "tools/corpus/evaluate_validation_ocr.py", "sha256": "658db297084bf9dc4ad12e06ef2ad89eb3d070885592accd137a7c6a3108403a" },
     { "path": "tools/corpus/prepare_saliency_development.py", "sha256": "7f2fd39c18562a07127b3179d8d88ffbdc3e326fd328b2f3bbcbd30e057ed3cc" },
@@ -25,5 +25,5 @@
     { "path": "tools/evaluate_saliency_validation.cpp", "sha256": "5f853739d0a7776485b87dc527ea01fd89422c9ad7ed6f35d703a4149e272a4e" },
     { "path": "tools/run_saliency_validation.py", "sha256": "e098213a6e20ccdba4bc0a2f510f7d46841de428dbaab67f40af999c32bb88a7" }
   ],
-  "protocol_sha256": "38e03148303c2085ca1dc987a16da9ad6b8818cdae0d8be03c03742827542b00"
+  "protocol_sha256": "df5df92b343772a4fa84763824df527805c1925bbedf5cbe6698ce23f6f4360e"
 }

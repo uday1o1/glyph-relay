@@ -8,7 +8,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 LOCK_PATH = ROOT / "protocols" / "saliency_validation_v1" / "manifest.lock"
 EXPECTED_FILES = {
-    "CMakeLists.txt",
+    "cmake/FrozenEvaluationTargets.cmake",
     "corpus/manifests/validation.json",
     "include/glyphrelay/cuda_preprocess.hpp",
     "include/glyphrelay/saliency.hpp",

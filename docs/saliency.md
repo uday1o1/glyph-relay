@@ -152,7 +152,7 @@ The selected artifact must then be committed before any held-out renderer output
 
 `saliency_validation_v1` is a validation-only execution package and is not a tuning path.
 
-Its protocol identity is `38e03148303c2085ca1dc987a16da9ad6b8818cdae0d8be03c03742827542b00`.
+Its protocol identity is `df5df92b343772a4fa84763824df527805c1925bbedf5cbe6698ce23f6f4360e`.
 
 It refuses to start until the selected `saliency_v1` configuration and selected `uniform_aq_v1` comparator artifact both exist byte-for-byte in the current Git commit.
 

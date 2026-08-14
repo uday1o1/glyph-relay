@@ -175,7 +175,7 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 | --- | --- | --- | --- |
 | M4-L01 | `IMPLEMENTED_LOCAL` | Bounded source-visible pins and exclusions with stable identifiers, optimistic revisions, geometry reset, cursor composition, conflict visualization, and loopback dashboard controls | `native.saliency_corrections`; public preview CLI; hostile dashboard command tests; exact Chromium correction, conflict, pause, and resume workflow |
 | M4-L02 | `IMPLEMENTED_LOCAL` | Exact production NVENC uniform-AQ configuration surface and emphasis-map incompatibility guard | `native.nvenc_encoder`; canonical disabled fields; temporal-only AQ; spatial strengths 1, 4, 8, 12, and 15 with temporal AQ on and off; invalid strength and emphasis-map controls |
-| M4-L03 | `IMPLEMENTED_LOCAL` | Frozen 11-candidate `uniform_aq_v1` schema, lock, deterministic PAV selector, comparator selection, and no-validation-access guard | `make protocol-check`; AQ selector, retry, orchestration, and interpolation tests; exact five-target coverage, two-percent rate matching, seven-stratum arithmetic, systems margins, unestimable crossing, and tie-break controls; protocol SHA-256 `fabcba7efe362d2f4c8359441527b9b728e165b56d7f933cfc89950a2e766a3c` |
+| M4-L03 | `IMPLEMENTED_LOCAL` | Frozen 11-candidate `uniform_aq_v1` schema, lock, deterministic PAV selector, comparator selection, and no-validation-access guard | `make protocol-check`; AQ selector, retry, orchestration, and interpolation tests; exact five-target coverage, two-percent rate matching, seven-stratum arithmetic, systems margins, unestimable crossing, and tie-break controls; protocol SHA-256 `128bf7456275259cac0739d33cd7395128d6d1bc8ac789dd896686aec27df593` |
 | M4-L04 | `IMPLEMENTED_LOCAL` | Resumable target corpus encoder, independent decoder, pinned OCR, exact-browser verifier, evidence assembler, and freeze handoff | Portable native build and public help test; canonical native-to-Python encoder identity parity; AQ orchestration and resume tests; strict schema and protocol checks; pinned-browser TypeScript checks; consolidated `uniform-aq-development-selection` phase; runtime remains deferred |
 | M4-L05 | `IMPLEMENTED_LOCAL` | One-shot validation renderer, pre-access durable ledger, exact-resume and reproduction controls, lossless OCR gate, selected-map CUDA evaluator, strict evidence schema, failure-scene report, and consolidated target phase | Portable native build and help path; frozen OCR reuse test; preopened-render, mismatched-ledger, ordinary-rerun, and exact-resume controls; seven seeded threshold defects and boundary controls; exact validation theme, scrolling, caret, embedded-video, and 5,120-small-glyph coverage; runtime remains deferred |
 
@@ -198,19 +198,21 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 | ID | State | Deliverable | Evidence |
 | --- | --- | --- | --- |
 | M5-L01A | `IMPLEMENTED_LOCAL` | Frozen `controller_v1` arithmetic, timing, complete degradation and restoration stack, profiles, transport eligibility, trace contract, qualification matrix, and network fixture | JSON Schema validation; semantic mutation controls; content-addressed protocol lock `0088578978411a9f1705880ca6122e0896037b0f115a298f48376e2caca96701`; `make protocol-check` |
+| M5-L01B | `IMPLEMENTED_LOCAL` | Production cumulative-counter controller, feedback freshness and causality, ordered degradation and restoration, profile epochs, pin-violation visibility, bounded media pacer, and offline replay | `native.controller`; `native.media_pacer`; `integration.controller_trace_replay`; all eight frozen fixtures reproduce byte-for-byte; seeded action and future-feedback defects fail |
+| M5-L01C | `IMPLEMENTED_LOCAL` | Verified-cap transport eligibility and exact final-success IP-layer accounting for direct IPv4, direct IPv6, and TURN over UDP | `native.media_egress`; patched final libjuice send-boundary test; untrusted provenance, non-UDP, IPv4 options, IPv6 extensions, fragmentation, failed send, and short send controls |
 
 | State | Acceptance item | Evidence |
 | --- | --- | --- |
 | `DEFERRED_HARDWARE` | P95 one-second wire egress remains within 110 percent of cap on the frozen primary matrix | None |
 | `DEFERRED_HARDWARE` | Production egress count matches deterministic capture exactly and every steady run within one percent | None |
-| `PENDING_LOCAL` | Unsupported IP headers, fragmentation, bypass sockets, and TURN TCP or TLS cannot enter verified-cap state | None |
+| `IMPLEMENTED_LOCAL` | Unsupported IP headers, fragmentation, bypass sockets, and TURN TCP or TLS cannot enter verified-cap state | Final-send metadata rejects non-UDP transport, IP options or extensions, fragmentation, and untrusted provenance before native send; exact native contract tests assert no counted byte |
 | `DEFERRED_HARDWARE` | Stable link sustains at least 24 compositor fps, 95 percent delivery, 1080p, and at most 250 ms P95 latency | None |
-| `PENDING_LOCAL` | Queues remain within hard bounds under sustained collapse | None |
+| `IMPLEMENTED_LOCAL` | Queues remain within hard bounds under sustained collapse | Atomic pacer admission; exact 100-millisecond age and 4 MiB hard byte bounds; whole-dependency-epoch purge; abandoned-epoch fence; recovery batch and retransmission-cache reset tests |
 | `DEFERRED_HARDWARE` | Recovery IDR and frame-age recovery complete within two seconds | None |
 | `DEFERRED_HARDWARE` | Frame rate and resolution recover within `2 + 2 * N` and at most eight seconds | None |
-| `PENDING_LOCAL` | Every production controller trace replays byte-for-byte without future feedback | None |
+| `IMPLEMENTED_LOCAL` | Every production controller trace replays byte-for-byte without future feedback | Eight production fixtures generated twice; independent simulator reconstructs estimator and decision bytes; seeded future-feedback and action defects fail |
 | `DEFERRED_HARDWARE` | Dependency reset produces no corruption or post-IDR freeze longer than one second | None |
-| `PENDING_LOCAL` | Pin preservation and rate violations are surfaced truthfully | None |
+| `IMPLEMENTED_LOCAL` | Pin preservation and rate violations are surfaced truthfully | Controller never mutates user-pinned minima and serializes `pinnedRegionViolationVisible` through pressure, degradation, and replay tests |
 
 ## Milestone 6 acceptance gates
 

@@ -204,8 +204,8 @@
   },
   "saliency_validation_protocol": {
     "name": "saliency_validation_v1",
-    "protocol_sha256": "38e03148303c2085ca1dc987a16da9ad6b8818cdae0d8be03c03742827542b00",
-    "manifest_lock_sha256": "f3155baafa2168164bdce36c12d1aedb47c911c4d224c7a0e66e83f1ff531afc",
+    "protocol_sha256": "df5df92b343772a4fa84763824df527805c1925bbedf5cbe6698ce23f6f4360e",
+    "manifest_lock_sha256": "8c91fd775a7b809291cc6a6f506a6095e0058280a08449e32dfde2b64706068d",
     "access_status": "sealed_pending_target_selections"
   },
   "coturn": {
