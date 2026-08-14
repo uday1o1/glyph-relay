@@ -1091,6 +1091,7 @@ def run_preflight_phase(
         "corepack",
         "ctest",
         "c++",
+        "docker",
         "ffmpeg",
         "git",
         "journalctl",
@@ -1104,17 +1105,58 @@ def run_preflight_phase(
         "uv",
     ]
     missing = [command for command in required_commands if shutil.which(command) is None]
+    docker_accessible = False
+    tshark_loopback_accessible = False
+    if "docker" not in missing:
+        try:
+            docker_probe = subprocess.run(
+                ["docker", "info", "--format", "{{.ServerVersion}}"],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=15,
+                env={"PATH": os.environ.get("PATH", "")},
+                check=False,
+            )
+            docker_accessible = docker_probe.returncode == 0
+        except (OSError, subprocess.SubprocessError):
+            docker_accessible = False
+    if "tshark" not in missing:
+        try:
+            tshark_probe = subprocess.run(
+                ["tshark", "-D"],
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                timeout=15,
+                env={"PATH": os.environ.get("PATH", "")},
+                check=False,
+            )
+            interfaces = tshark_probe.stdout.decode("utf-8", "replace").splitlines()
+            tshark_loopback_accessible = tshark_probe.returncode == 0 and any(
+                line.split(". ", 1)[-1].split(" ", 1)[0] == "lo" for line in interfaces
+            )
+        except (OSError, subprocess.SubprocessError):
+            tshark_loopback_accessible = False
     facts = {
         "schema_version": 1,
         "required_commands": required_commands,
         "missing_commands": missing,
+        "docker_accessible": docker_accessible,
+        "tshark_loopback_accessible": tshark_loopback_accessible,
         "linux": sys.platform.startswith("linux"),
         "x86_64": platform.machine() == "x86_64",
         "python": list(sys.version_info[:3]),
     }
     artifact = attempt / "preflight.json"
     atomic_json(artifact, facts)
-    passed = not missing and facts["linux"] and facts["x86_64"] and sys.version_info >= (3, 12)
+    passed = (
+        not missing
+        and docker_accessible
+        and tshark_loopback_accessible
+        and facts["linux"]
+        and facts["x86_64"]
+        and sys.version_info >= (3, 12)
+    )
     return {
         "schema_version": 1,
         "phase": phase.identifier,

@@ -24,6 +24,10 @@ The full clean-source check also exercises this path:
 make clean-tree-check
 ```
 
+The production phase graph includes an exact final-datagram packet-capture phase.
+It requires an accessible local Docker daemon, tshark access to the Linux loopback interface, the locked coturn image, and the built DTLS-SRTP fixture.
+The phase retains raw captures privately and exports only the safe reduced validation summary after exact per-payload and aggregate byte agreement.
+
 ## Designated GPU workflow
 
 After every locally executable milestone package is ready, run one command from the repository root:

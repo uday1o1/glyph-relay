@@ -74,7 +74,12 @@
       "final_send_syscall": "sendto",
       "final_datagram_patch_required": true,
       "final_datagram_patch": "patches/libdatachannel-v0.24.1/glyphrelay-final-egress.patch",
-      "final_datagram_patch_sha256": "6ec83ca09299a124035f581408e392d65203b900817d61b329b9d8223e3bdb47",
+      "final_datagram_patch_sha256": "e77a84eb81b8c99287dd41b6e1604cbfb705708ee114a21b43a3d9432708caa3",
+      "final_datagram_test_source": "patches/libdatachannel-v0.24.1/glyphrelay_final_egress.c",
+      "final_datagram_test_source_sha256": "46c42874a6d6affca8780b16498e784bdd1ed013d5af6be15d31564214898f27",
+      "relay_policy_enforced_in_libjuice": true,
+      "numeric_candidate_resolution_ignores_ai_addrconfig": true,
+      "vendor_deprecated_declarations_as_errors": false,
       "builtin_nack_responder_allowed": false
     }
   },

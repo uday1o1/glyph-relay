@@ -70,10 +70,19 @@ void test_exact_accounting_and_failure_rules() {
   require(turn_result.sent() && turn_result.ip_total_bytes == 148U,
           "TURN accounting must count the final wrapped UDP payload exactly once");
 
+  const auto interrupt = bytes(0U);
+  auto interrupt_metadata = direct_control();
+  interrupt_metadata.ip_family = glyphrelay::DatagramIpFamily::ipv4;
+  interrupt_metadata.provenance = glyphrelay::DatagramProvenance::libjuice_generated_control;
+  interrupt_metadata.protocol = glyphrelay::DatagramProtocol::unknown_control;
+  const auto interrupt_result = gate.send_final(interrupt, interrupt_metadata, []() { return 0; });
+  require(interrupt_result.sent() && interrupt_result.ip_total_bytes == 28U,
+          "authenticated zero-payload socket interrupt must count its IPv4 headers");
+
   const auto snapshot = gate.snapshot();
-  require(snapshot.datagrams == 3U && snapshot.udp_payload_bytes == 270U &&
-              snapshot.ip_total_bytes == 374U && snapshot.media_ip_total_bytes == 276U &&
-              snapshot.control_ip_total_bytes == 98U && snapshot.direct_ip_total_bytes == 226U &&
+  require(snapshot.datagrams == 4U && snapshot.udp_payload_bytes == 270U &&
+              snapshot.ip_total_bytes == 402U && snapshot.media_ip_total_bytes == 276U &&
+              snapshot.control_ip_total_bytes == 126U && snapshot.direct_ip_total_bytes == 254U &&
               snapshot.turn_ip_total_bytes == 148U,
           "egress totals and class/path breakdowns must match exact IP lengths");
 
@@ -86,7 +95,7 @@ void test_exact_accounting_and_failure_rules() {
   require(failed.disposition == glyphrelay::FinalSendDisposition::failed &&
               short_send.disposition == glyphrelay::FinalSendDisposition::short_send &&
               threw.disposition == glyphrelay::FinalSendDisposition::failed &&
-              after_failures.datagrams == 3U && after_failures.failed_datagrams == 2U &&
+              after_failures.datagrams == 4U && after_failures.failed_datagrams == 2U &&
               after_failures.short_datagrams == 1U,
           "failed, thrown, and short native sends must add no wire egress");
 }
@@ -144,11 +153,20 @@ void test_classifier_and_verified_path_rejection() {
   require(attempt(metadata).reason == "media_epoch_not_admitted",
           "a stale media epoch must fail immediately before the native send");
 
+  const auto empty = bytes(0U);
+  require(gate.send_final(empty, direct_media(9U),
+                          [&native_calls]() {
+                            ++native_calls;
+                            return 0;
+                          })
+                  .reason == "datagram_udp_payload_size_invalid",
+          "zero-payload media must fail before the native send");
+
   auto generated = direct_control();
   generated.provenance = glyphrelay::DatagramProvenance::libjuice_generated_control;
   generated.protocol = glyphrelay::DatagramProtocol::stun;
   require(attempt(generated).sent(), "libjuice-generated STUN must remain authenticated control");
-  require(native_calls == 1U && gate.snapshot().rejected_datagrams == 7U,
+  require(native_calls == 1U && gate.snapshot().rejected_datagrams == 8U,
           "only the correctly classified control fixture may cross the native boundary");
 }
 

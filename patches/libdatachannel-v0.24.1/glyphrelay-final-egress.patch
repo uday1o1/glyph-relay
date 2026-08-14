@@ -133,6 +133,29 @@ index 4777e9a..14a01a9 100644
  	}
  }
 -
+diff --git a/src/candidate.cpp b/src/candidate.cpp
+index 8b1c804..e5546f2 100644
+--- a/src/candidate.cpp
++++ b/src/candidate.cpp
+@@ -156,7 +156,7 @@ bool Candidate::resolve(ResolveMode mode) {
+ 	// Try to resolve the node and service
+ 	struct addrinfo hints = {};
+ 	hints.ai_family = AF_UNSPEC;
+-	hints.ai_flags = AI_ADDRCONFIG;
++	hints.ai_flags = mode == ResolveMode::Simple ? AI_NUMERICHOST : AI_ADDRCONFIG;
+ 	if (mTransportType == TransportType::Udp) {
+ 		hints.ai_socktype = SOCK_DGRAM;
+ 		hints.ai_protocol = IPPROTO_UDP;
+@@ -165,9 +165,6 @@ bool Candidate::resolve(ResolveMode mode) {
+ 		hints.ai_protocol = IPPROTO_TCP;
+ 	}
+ 
+-	if (mode == ResolveMode::Simple)
+-		hints.ai_flags |= AI_NUMERICHOST;
+-
+ 	struct addrinfo *result = nullptr;
+ 	if (getaddrinfo(mNode.c_str(), mService.c_str(), &hints, &result) == 0) {
+ 		for (auto p = result; p; p = p->ai_next) {
 diff --git a/src/impl/dtlssrtptransport.cpp b/src/impl/dtlssrtptransport.cpp
 index 24f7383..3627c82 100644
 --- a/src/impl/dtlssrtptransport.cpp
@@ -198,7 +221,7 @@ index 7701d25..ae9e463 100644
        mAgent(nullptr, nullptr) {
  
  	PLOG_DEBUG << "Initializing ICE transport (libjuice)";
-@@ -82,17 +83,30 @@ IceTransport::IceTransport(const Configuration &config, candidate_callback candi
+@@ -82,17 +83,31 @@ IceTransport::IceTransport(const Configuration &config, candidate_callback candi
  	}
  	juice_set_log_handler(IceTransport::LogCallback);
  	juice_set_log_level(level);
@@ -212,6 +235,7 @@ index 7701d25..ae9e463 100644
 +		throw std::invalid_argument("The final UDP send hook supports TURN over UDP only");
  
  	juice_config_t jconfig = {};
++	jconfig.relay_only = config.iceTransportPolicy == TransportPolicy::Relay;
  	jconfig.cb_state_changed = IceTransport::StateChangeCallback;
  	jconfig.cb_candidate = IceTransport::CandidateCallback;
  	jconfig.cb_gathering_done = IceTransport::GatheringDoneCallback;
@@ -451,7 +475,7 @@ diff --git a/deps/libjuice/include/juice/juice.h b/deps/libjuice/include/juice/j
 index e43db6c..b97387d 100644
 --- a/deps/libjuice/include/juice/juice.h
 +++ b/deps/libjuice/include/juice/juice.h
-@@ -95,6 +95,42 @@ typedef enum juice_ice_tcp_mode {
+@@ -95,6 +95,43 @@ typedef enum juice_ice_tcp_mode {
  	JUICE_ICE_TCP_MODE_ACTIVE,   // ICE-TCP will operate as a client
  } juice_ice_tcp_mode_t;
  
@@ -493,8 +517,9 @@ index e43db6c..b97387d 100644
 +
  typedef struct juice_config {
  	juice_concurrency_mode_t concurrency_mode;
++	bool relay_only;
  
-@@ -113,6 +149,7 @@ typedef struct juice_config {
+@@ -113,6 +150,7 @@ typedef struct juice_config {
  	juice_cb_candidate_t cb_candidate;
  	juice_cb_gathering_done_t cb_gathering_done;
  	juice_cb_recv_t cb_recv;
@@ -502,7 +527,7 @@ index e43db6c..b97387d 100644
  
  	void *user_ptr;
  
-@@ -129,6 +166,9 @@ JUICE_EXPORT int juice_add_turn_server(juice_agent_t *agent, const juice_turn_se
+@@ -129,6 +167,9 @@ JUICE_EXPORT int juice_add_turn_server(juice_agent_t *agent, const juice_turn_se
  JUICE_EXPORT int juice_set_remote_gathering_done(juice_agent_t *agent);
  JUICE_EXPORT int juice_send(juice_agent_t *agent, const char *data, size_t size);
  JUICE_EXPORT int juice_send_diffserv(juice_agent_t *agent, const char *data, size_t size, int ds);
@@ -527,7 +552,14 @@ index 00bbecb..785ce5b 100644
  
  #ifdef _WIN32
  	WSADATA wsaData;
-@@ -103,6 +107,7 @@ juice_agent_t *agent_create(const juice_config_t *config) {
+@@ -94,5 +98,6 @@ juice_agent_t *agent_create(const juice_config_t *config) {
+ 	bool alloc_failed = false;
+ 	agent->ice_tcp_mode = JUICE_ICE_TCP_MODE_NONE;
+ 	agent->config.concurrency_mode = config->concurrency_mode;
++	agent->config.relay_only = config->relay_only;
+ 	agent->config.stun_server_host = alloc_string_copy(config->stun_server_host, &alloc_failed);
+ 	agent->config.stun_server_port = config->stun_server_port;
+@@ -103,6 +108,7 @@ juice_agent_t *agent_create(const juice_config_t *config) {
  	agent->config.cb_candidate = config->cb_candidate;
  	agent->config.cb_gathering_done = config->cb_gathering_done;
  	agent->config.cb_recv = config->cb_recv;
@@ -668,6 +700,14 @@ index 00bbecb..785ce5b 100644
  		JLOG_WARN("STUN message send failed");
  		return -1;
  	}
+@@ -2486,6 +2518,6 @@ int agent_add_candidate_pairs_for_remote(juice_agent_t *agent, ice_candidate_t *
+ 	// Here is the trick: local non-relayed candidates are undifferentiated for sending.
+ 	// Therefore, we don't need to match remote candidates with local ones.
+-	if (agent_add_candidate_pair(agent, NULL, remote))
++	if (!agent->config.relay_only && agent_add_candidate_pair(agent, NULL, remote))
+ 		return -1;
+ 
+ 	// However, we need still to differenciate local relayed candidates
 diff --git a/deps/libjuice/src/agent.h b/deps/libjuice/src/agent.h
 index 5429d89..aad6592 100644
 --- a/deps/libjuice/src/agent.h
@@ -694,6 +734,20 @@ index 5429d89..aad6592 100644
  juice_state_t agent_get_state(juice_agent_t *agent);
  int agent_get_selected_candidate_pair(juice_agent_t *agent, ice_candidate_t *local,
                                        ice_candidate_t *remote);
+diff --git a/deps/libjuice/src/ice.c b/deps/libjuice/src/ice.c
+index 61e134e..241da72 100644
+--- a/deps/libjuice/src/ice.c
++++ b/deps/libjuice/src/ice.c
+@@ -212,7 +212,8 @@ int ice_resolve_candidate(ice_candidate_t *candidate, ice_resolve_mode_t mode) {
+ 		hints.ai_protocol = IPPROTO_UDP;
+ 	}
+ #ifdef AI_ADDRCONFIG
+-	hints.ai_flags = AI_ADDRCONFIG;
++	if (mode == ICE_RESOLVE_MODE_LOOKUP)
++		hints.ai_flags = AI_ADDRCONFIG;
+ #endif
+ 	if (mode != ICE_RESOLVE_MODE_LOOKUP)
+ 		hints.ai_flags |= AI_NUMERICHOST | AI_NUMERICSERV;
 diff --git a/deps/libjuice/src/conn.c b/deps/libjuice/src/conn.c
 index 307d5b2..59bc2ed 100644
 --- a/deps/libjuice/src/conn.c
@@ -881,7 +935,30 @@ index 1b05458..f3dd5ef 100644
  int conn_thread_run(juice_agent_t *agent);
  int conn_thread_prepare(juice_agent_t *agent, struct pollfd *pfd, timestamp_t *next_timestamp);
  int conn_thread_process(juice_agent_t *agent, struct pollfd *pfd);
-@@ -243,7 +271,8 @@ int conn_thread_interrupt(juice_agent_t *agent) {
+@@ -231,9 +259,21 @@ int conn_thread_interrupt(juice_agent_t *agent) {
+ 	mutex_lock(&conn_impl->send_mutex);
+ 	char dummy = 0; // Some C libraries might error out on NULL pointers
+-	if (udp_sendto_self(conn_impl->sock, &dummy, 0) < 0) {
++	int result = -1;
++	if (agent->config.cb_final_udp_send) {
++		addr_record_t local;
++		if (udp_get_local_addr(conn_impl->sock, AF_UNSPEC, &local) == 0) {
++			result = final_udp_send(agent, conn_impl->sock, &local, &dummy, 0,
++			                        JUICE_EGRESS_CLASS_CONTROL,
++			                        JUICE_DATAGRAM_PATH_DIRECT_UDP,
++			                        JUICE_DATAGRAM_PROTOCOL_UNKNOWN_CONTROL);
++		}
++	} else {
++		result = udp_sendto_self(conn_impl->sock, &dummy, 0);
++	}
++	if (result < 0) {
+ 		if (sockerrno != SEAGAIN && sockerrno != SEWOULDBLOCK) {
+ 			JLOG_WARN("Failed to interrupt poll by triggering socket, errno=%d", sockerrno);
+ 		}
+ 		mutex_unlock(&conn_impl->send_mutex);
+ 		return -1;
+ 	}
+@@ -243,7 +283,8 @@ int conn_thread_interrupt(juice_agent_t *agent) {
  }
  
  int conn_thread_send(juice_agent_t *agent, const addr_record_t *dst, const char *data, size_t size,
@@ -891,7 +968,7 @@ index 1b05458..f3dd5ef 100644
  	conn_impl_t *conn_impl = agent->conn_impl;
  
  	mutex_lock(&conn_impl->send_mutex);
-@@ -258,7 +287,7 @@ int conn_thread_send(juice_agent_t *agent, const addr_record_t *dst, const char
+@@ -258,7 +299,7 @@ int conn_thread_send(juice_agent_t *agent, const addr_record_t *dst, const char
  
  	JLOG_VERBOSE("Sending datagram, size=%d", size);
  

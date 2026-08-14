@@ -6,7 +6,7 @@ The selected libdatachannel revision is v0.24.1 at commit `a02b751917ac8afc8c58d
 
 The selected libjuice submodule is commit `5948a4162d37bc213d6051b67ee2876ccc5a99a6`.
 
-The repository applies `patches/libdatachannel-v0.24.1/glyphrelay-final-egress.patch`, whose SHA-256 is `5679ddf6757fa58c1d4850c97a15349ec5e1dd5b9560138e70fe26c7d7af4731` and is locked in `dependencies.lock.json`.
+The repository applies `patches/libdatachannel-v0.24.1/glyphrelay-final-egress.patch`, whose SHA-256 is `e77a84eb81b8c99287dd41b6e1604cbfb705708ee114a21b43a3d9432708caa3` and is locked in `dependencies.lock.json`.
 
 The patch is isolated to MPL-2.0-covered libdatachannel and libjuice files and includes its loopback contract test as corresponding source.
 
@@ -30,6 +30,9 @@ The native-send callback rejects a second invocation so one hook event cannot em
 
 Generated ICE, STUN, and TURN maintenance messages are classified as control inside libjuice.
 
+Libjuice's zero-payload UDP self-interrupt also crosses the hook as direct authenticated unknown control.
+It is counted because it reaches the same final socket-send boundary, even though its destination is the session socket itself.
+
 SRTP and SRTCP classification is assigned only after libdatachannel's DTLS-SRTP transport selects and protects the packet.
 
 DTLS records are classified as control by the DTLS transport after record construction.
@@ -39,6 +42,12 @@ TURN ChannelData and Send Indication wrapping preserves the authenticated inner 
 The ordinary unclassified libjuice send API defaults to control, but GlyphRelay's patched libdatachannel path always calls the classified API.
 
 Hook-enabled sessions force `JUICE_CONCURRENCY_MODE_THREAD` so each media session owns one socket and one gate.
+
+The patch carries libdatachannel's relay-only policy into libjuice and prevents construction of direct local candidate pairs for that agent.
+This closes the upstream same-network behavior where filtering signaled candidates alone can still allow the internal host candidate to win.
+
+The patch also resolves numeric ICE candidates without `AI_ADDRCONFIG` in both libdatachannel and libjuice.
+That flag incorrectly rejects a literal `::1` candidate in an isolated Linux network namespace where IPv6 loopback is available but no non-loopback IPv6 address exists.
 
 The patched configuration rejects UDP mux, ICE TCP, TURN TCP, and TURN TLS when the final UDP hook is installed.
 
@@ -70,6 +79,9 @@ It proves the exclusive close cannot complete early and proves a stale sender ne
 
 The counter records a datagram only when the native send returns the complete UDP payload length.
 
+A zero-length UDP payload is accepted only for the authenticated libjuice self-interrupt classification.
+All zero-length media and every other zero-length control classification fail closed.
+
 A rejection, exception, negative result, or short send adds no wire-egress bytes.
 
 The verified IPv4 total is the final UDP payload length plus 8 UDP header bytes plus 20 base IPv4 header bytes.
@@ -80,9 +92,20 @@ The counter separates media and control totals and direct and TURN-over-UDP tota
 
 IPv4 options, IPv6 extension headers, fragmentation, non-UDP transport, missing provenance, inconsistent class, and invalid protocol metadata fail closed before the native send.
 
-The local tests validate deterministic direct IPv4, direct IPv6, and synthetic final TURN payload arithmetic.
+The portable tests validate deterministic direct IPv4, direct IPv6, and final TURN payload arithmetic.
 
-Packet-capture equality for direct IPv4, supported IPv6, and loopback coturn remains a target qualification gate and is not claimed by the local arithmetic tests.
+The `glyphrelay_m0_transport_fixture` executable creates two real libdatachannel peers on fixed loopback ports and sends one RTP packet through DTLS-SRTP.
+It records every successful final-hook payload hash, authenticated class, outer protocol, direct or TURN path, address family, native-send result, and computed IP-layer length.
+Direct IPv4 and direct IPv6 fixture runs pass locally on the supported macOS loopback stack.
+
+Target qualification runs the same fixture for direct IPv4, supported direct IPv6, and TURN over the exact digest-pinned coturn image.
+The TURN scenario uses the pinned upstream asymmetric topology: the first peer that sends media is relay-only, while the receiving peer is direct.
+The relay-only peer completes candidate gathering before its SDP is delivered so an early host candidate cannot win before the relayed candidate exists.
+The gate requires the first selected local candidate to be relayed, the second selected local candidate not to be relayed, and the protected media datagram to use final TURN framing.
+Tshark captures outbound agent datagrams from the two fixed source ports.
+The independent validator parses each UDP payload and IP length from the capture, compares the complete payload-identity multiset against the hook events, and requires both datagram counts and aggregate IP-layer byte totals to be exactly equal.
+IPv6 may be reported unsupported only when an actual `::1` UDP bind fails with an address-family or address-availability error.
+The raw packet captures remain private qualification artifacts, while the reduced `validation.json` contains only counts, totals, protocols, and support state.
 
 ## RTP identity and packetization
 
@@ -132,8 +155,16 @@ Byte-identical protected UDP replay, SRTP rollover, and browser recovery remain 
 
 ## Verification
 
-Run `make transport-check` to clone every exact submodule commit, verify and apply the locked patch, build libdatachannel with the frozen flags, run the strict packetization and bounded-recovery integration test, and run the patched libjuice loopback test.
+Run `make transport-check` to clone every exact submodule commit, verify and apply the locked patch, build libdatachannel with the frozen flags, compile the real transport fixture, run the strict packetization and bounded-recovery integration test, and run the patched libjuice loopback test.
 
 The loopback test proves the hook-enabled mux rejection, control classification for generated ICE traffic, direct IPv4 metadata, classified media delivery, and exactly one media hook event.
 
 Run `make check` for the portable packetization, rollover, cache, feedback, classifier, accounting, failure, epoch, control-bypass, and deterministic boundary-race tests.
+
+The consolidated designated-target workflow runs packet capture through the `transport-packet-capture` phase:
+
+```bash
+./scripts/gpu/qualify_cuda_pm.sh
+```
+
+An absent Docker daemon, inaccessible loopback capture interface, unavailable tshark permission, failed coturn start, or incomplete capture is a nonpassing prerequisite or phase result.

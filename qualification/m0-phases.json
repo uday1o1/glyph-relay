@@ -158,6 +158,45 @@
       "timeout_seconds": 3600
     },
     {
+      "id": "transport-packet-capture",
+      "title": "Direct IPv4, supported IPv6, and TURN final-hook packet-capture equality",
+      "kind": "command",
+      "required": true,
+      "dependencies": [
+        "gpu-build",
+        "language-dependencies",
+        "transport-contracts"
+      ],
+      "commands": [
+        [
+          "docker",
+          "pull",
+          "coturn/coturn:4.15.0-r0@sha256:b0e616a8fc46c0e8d29546c8271fda2e691c9ef912812757786ea586f73f414f"
+        ],
+        [
+          "uv",
+          "run",
+          "python",
+          "tools/run_m0_transport_capture.py",
+          "--fixture",
+          "build/linux-gpu/glyphrelay_m0_transport_fixture",
+          "--output",
+          "{phase_dir}/capture"
+        ],
+        [
+          "uv",
+          "run",
+          "python",
+          "tools/validate_m0_transport_capture.py",
+          "{phase_dir}/capture",
+          "--schemas",
+          "schemas"
+        ]
+      ],
+      "environment_names": [],
+      "timeout_seconds": 1800
+    },
+    {
       "id": "browser-install",
       "title": "Exact project-local Chromium and Firefox binaries",
       "kind": "command",

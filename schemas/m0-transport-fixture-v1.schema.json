@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.invalid/schemas/m0-transport-fixture-v1.schema.json",
+  "title": "GlyphRelay final UDP hook transport fixture",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "protocol",
+    "status",
+    "scenario",
+    "firstSourcePort",
+    "secondSourcePort",
+    "firstSelectedCandidateType",
+    "secondSelectedCandidateType",
+    "events"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "protocol": { "const": "glyphrelay-m0-transport-fixture-v1" },
+    "status": { "const": "PASSED" },
+    "scenario": { "enum": ["direct-ipv4", "direct-ipv6", "turn-udp"] },
+    "firstSourcePort": { "const": 41000 },
+    "secondSourcePort": { "const": 41001 },
+    "firstSelectedCandidateType": {
+      "enum": ["HOST", "SERVER_REFLEXIVE", "PEER_REFLEXIVE", "RELAYED"]
+    },
+    "secondSelectedCandidateType": {
+      "enum": ["HOST", "SERVER_REFLEXIVE", "PEER_REFLEXIVE", "RELAYED"]
+    },
+    "events": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 4096,
+      "items": { "$ref": "#/$defs/event" }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "agent",
+        "sourcePort",
+        "class",
+        "path",
+        "protocol",
+        "family",
+        "payloadBytes",
+        "ipTotalBytes",
+        "payloadSha256",
+        "nativeResult"
+      ],
+      "properties": {
+        "agent": { "enum": ["first", "second"] },
+        "sourcePort": { "enum": [41000, 41001] },
+        "class": { "enum": ["MEDIA", "CONTROL"] },
+        "path": { "enum": ["DIRECT_UDP", "TURN_UDP"] },
+        "protocol": {
+          "enum": [
+            "UNKNOWN_CONTROL",
+            "SRTP",
+            "SRTCP",
+            "DTLS",
+            "STUN",
+            "TURN_CHANNEL_DATA",
+            "TURN_SEND_INDICATION",
+            "TURN_CONTROL"
+          ]
+        },
+        "family": { "enum": ["IPV4", "IPV6"] },
+        "payloadBytes": { "type": "integer", "minimum": 0, "maximum": 65507 },
+        "ipTotalBytes": { "type": "integer", "minimum": 28, "maximum": 65555 },
+        "payloadSha256": { "$ref": "#/$defs/sha256" },
+        "nativeResult": { "type": "integer", "minimum": 0, "maximum": 65507 }
+      }
+    }
+  }
+}

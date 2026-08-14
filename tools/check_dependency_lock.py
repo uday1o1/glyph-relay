@@ -108,8 +108,41 @@ def validate_lock(lock: dict[str, Any], root: Path = ROOT) -> list[str]:
                 transport.get("final_datagram_patch_sha256"),
                 "final datagram patch SHA-256",
             )
+    test_source_path = transport.get("final_datagram_test_source")
+    if not isinstance(test_source_path, str):
+        errors.append("final datagram test source path is missing")
+    else:
+        test_source_file = root / test_source_path
+        if not test_source_file.is_file():
+            errors.append(f"final datagram test source is missing: {test_source_path}")
+        else:
+            actual_test_source_sha256 = hashlib.sha256(test_source_file.read_bytes()).hexdigest()
+            _expect_equal(
+                errors,
+                actual_test_source_sha256,
+                transport.get("final_datagram_test_source_sha256"),
+                "final datagram test source SHA-256",
+            )
+    _expect_equal(
+        errors,
+        transport.get("relay_policy_enforced_in_libjuice"),
+        True,
+        "libjuice relay-only policy enforcement",
+    )
+    _expect_equal(
+        errors,
+        transport.get("numeric_candidate_resolution_ignores_ai_addrconfig"),
+        True,
+        "numeric ICE candidate resolution",
+    )
     _expect_equal(
         errors, transport.get("builtin_nack_responder_allowed"), False, "built-in NACK responder"
+    )
+    _expect_equal(
+        errors,
+        transport.get("vendor_deprecated_declarations_as_errors"),
+        False,
+        "vendor deprecated declarations as errors",
     )
 
     openh264 = lock.get("openh264", {})

@@ -5,8 +5,11 @@ repository_root="$(git rev-parse --show-toplevel)"
 dependency_root="${repository_root}/.deps/libdatachannel-v0.24.1"
 bootstrap_marker="${dependency_root}.bootstrap-incomplete"
 patch_file="${repository_root}/patches/libdatachannel-v0.24.1/glyphrelay-final-egress.patch"
+test_source_file="${repository_root}/patches/libdatachannel-v0.24.1/glyphrelay_final_egress.c"
+test_source_target="${dependency_root}/deps/libjuice/test/glyphrelay_final_egress.c"
 expected_commit="a02b751917ac8afc8c58dc6f4461d25ff9465d48"
-expected_patch_sha256="6ec83ca09299a124035f581408e392d65203b900817d61b329b9d8223e3bdb47"
+expected_patch_sha256="e77a84eb81b8c99287dd41b6e1604cbfb705708ee114a21b43a3d9432708caa3"
+expected_test_source_sha256="46c42874a6d6affca8780b16498e784bdd1ed013d5af6be15d31564214898f27"
 
 sha256_file() {
   if command -v sha256sum >/dev/null 2>&1; then
@@ -24,6 +27,22 @@ if [[ "${actual_patch_sha256}" != "${expected_patch_sha256}" ]]; then
   echo "libdatachannel patch hash mismatch: ${actual_patch_sha256}" >&2
   exit 1
 fi
+actual_test_source_sha256="$(sha256_file "${test_source_file}")"
+if [[ "${actual_test_source_sha256}" != "${expected_test_source_sha256}" ]]; then
+  echo "libjuice final-egress test source hash mismatch: ${actual_test_source_sha256}" >&2
+  exit 1
+fi
+
+install_test_source() {
+  if [[ -f "${test_source_target}" ]]; then
+    if cmp -s "${test_source_file}" "${test_source_target}"; then
+      return
+    fi
+    echo "refusing to overwrite modified libjuice final-egress test source" >&2
+    return 1
+  fi
+  install -m 0644 "${test_source_file}" "${test_source_target}"
+}
 
 mkdir -p "${repository_root}/.deps"
 if [[ ! -d "${dependency_root}/.git" ]]; then
@@ -75,6 +94,7 @@ for submodule_lock in "${expected_submodules[@]}"; do
 done
 
 if git -C "${dependency_root}" apply --reverse --check "${patch_file}" >/dev/null 2>&1; then
+  install_test_source
   rm -f "${bootstrap_marker}"
   echo "libdatachannel v0.24.1 patch already verified"
   exit 0
@@ -95,5 +115,6 @@ done
 git -C "${dependency_root}" apply --check "${patch_file}"
 git -C "${dependency_root}" apply "${patch_file}"
 git -C "${dependency_root}" apply --reverse --check "${patch_file}"
+install_test_source
 rm -f "${bootstrap_marker}"
 echo "libdatachannel v0.24.1 final-egress patch verified: ${actual_commit}"

@@ -20,11 +20,14 @@ libdatachannel v0.24.1 is built statically with its locked bundled dependencies,
 
 Examples, GnuTLS, Mbed TLS, libnice, shared libraries, and system substitutions for bundled dependencies are disabled.
 
+Warnings remain errors for the project and pinned native stack, except that the libdatachannel target alone disables deprecation diagnostics because v0.24.1 uses `std::bind` paths that libstdc++ 13 marks deprecated under Clang 18.
+The exception does not suppress other vendor warnings and is recorded in the dependency lock.
+
 The selected ICE implementation is the pinned libjuice submodule in one-thread-per-session mode.
 
 Its final datagram boundary is `deps/libjuice/src/udp.c::udp_sendto`, which calls `sendto` in this revision.
 
-The exact MPL-2.0 source patch and its SHA-256 are locked in `dependencies.lock.json`.
+The exact MPL-2.0 source patch, its corresponding loopback test source, and both SHA-256 values are locked in `dependencies.lock.json`.
 
 `make transport-check` verifies the patch against a clean exact checkout, builds with the frozen flags, and runs the pinned packetization, bounded recovery, and loopback final-egress tests.
 

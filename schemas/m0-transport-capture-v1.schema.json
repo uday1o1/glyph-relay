@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.invalid/schemas/m0-transport-capture-v1.schema.json",
+  "title": "GlyphRelay final UDP hook packet-capture manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "protocol",
+    "status",
+    "coturnImage",
+    "scenarios"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "protocol": { "const": "glyphrelay-m0-transport-capture-v1" },
+    "status": { "const": "CAPTURED" },
+    "coturnImage": {
+      "type": "string",
+      "pattern": "^coturn/coturn:[0-9.]+-r[0-9]+@sha256:[0-9a-f]{64}$"
+    },
+    "scenarios": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": { "$ref": "#/$defs/scenario" }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "filename": { "type": "string", "pattern": "^[a-z0-9-]+\\.(json|pcapng)$" },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scenario",
+        "support",
+        "supportReason",
+        "fixtureFile",
+        "fixtureSha256",
+        "packetCaptureFile",
+        "packetCaptureSha256"
+      ],
+      "properties": {
+        "scenario": { "enum": ["direct-ipv4", "direct-ipv6", "turn-udp"] },
+        "support": { "enum": ["SUPPORTED", "UNSUPPORTED"] },
+        "supportReason": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "fixtureFile": {
+          "anyOf": [{ "$ref": "#/$defs/filename" }, { "type": "null" }]
+        },
+        "fixtureSha256": {
+          "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }]
+        },
+        "packetCaptureFile": {
+          "anyOf": [{ "$ref": "#/$defs/filename" }, { "type": "null" }]
+        },
+        "packetCaptureSha256": {
+          "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }]
+        }
+      }
+    }
+  }
+}

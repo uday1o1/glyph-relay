@@ -158,6 +158,11 @@ if(GLYPHRELAY_ENABLE_WEBRTC_CONTRACTS)
   set(WARNINGS_AS_ERRORS ON CACHE BOOL "" FORCE)
   add_subdirectory("${GLYPHRELAY_LIBDATACHANNEL_ROOT}"
                    "${CMAKE_CURRENT_BINARY_DIR}/libdatachannel-v0.24.1")
+  if(NOT MSVC)
+    # v0.24.1 uses std::bind paths that libstdc++ 13 marks deprecated.
+    # Keep vendor warnings fatal except for that pinned upstream diagnostic.
+    target_compile_options(datachannel PRIVATE -Wno-deprecated-declarations)
+  endif()
 
   add_library(glyphrelay_libdatachannel_contract
     vendor/libdatachannel-v0.24.1/glyphrelay_media_handlers.cpp)
@@ -182,6 +187,18 @@ if(GLYPHRELAY_ENABLE_WEBRTC_CONTRACTS)
     target_compile_options(glyphrelay_m0_webrtc_sender PRIVATE /W4 /WX /permissive-)
   else()
     target_compile_options(glyphrelay_m0_webrtc_sender PRIVATE
+      -Wall -Wconversion -Werror -Wextra -Wpedantic -Wshadow)
+  endif()
+
+  add_executable(glyphrelay_m0_transport_fixture tools/m0_transport_fixture.cpp)
+  target_include_directories(glyphrelay_m0_transport_fixture SYSTEM PRIVATE
+    "${GLYPHRELAY_LIBDATACHANNEL_ROOT}/include")
+  target_link_libraries(glyphrelay_m0_transport_fixture PRIVATE
+    glyphrelay_libdatachannel_contract)
+  if(MSVC)
+    target_compile_options(glyphrelay_m0_transport_fixture PRIVATE /W4 /WX /permissive-)
+  else()
+    target_compile_options(glyphrelay_m0_transport_fixture PRIVATE
       -Wall -Wconversion -Werror -Wextra -Wpedantic -Wshadow)
   endif()
 endif()
@@ -231,6 +248,7 @@ if(BUILD_TESTING)
     add_test(NAME integration.libdatachannel_contract
       COMMAND glyphrelay_libdatachannel_contract_tests)
     add_test(NAME cli.m0_webrtc_sender_help COMMAND glyphrelay_m0_webrtc_sender --help)
+    add_test(NAME cli.m0_transport_fixture_help COMMAND glyphrelay_m0_transport_fixture --help)
   endif()
 
   if(GLYPHRELAY_HAS_OPENH264)

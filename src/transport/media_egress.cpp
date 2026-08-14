@@ -23,7 +23,12 @@ std::uint64_t ip_total_bytes(DatagramIpFamily family, std::size_t payload_bytes)
 }
 
 std::string validate_metadata(const FinalDatagramMetadata &metadata, std::size_t payload_bytes) {
-  if (payload_bytes == 0U || payload_bytes > kMaximumUdpPayloadBytes) {
+  const bool zero_control_interrupt =
+      payload_bytes == 0U && metadata.classification == DatagramClass::control &&
+      metadata.path == DatagramPath::direct_udp &&
+      metadata.provenance == DatagramProvenance::libjuice_generated_control &&
+      metadata.protocol == DatagramProtocol::unknown_control;
+  if ((payload_bytes == 0U && !zero_control_interrupt) || payload_bytes > kMaximumUdpPayloadBytes) {
     return "datagram_udp_payload_size_invalid";
   }
   if (!metadata.udp_transport) {
