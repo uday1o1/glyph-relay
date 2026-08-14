@@ -38,12 +38,14 @@ fi
 "${cmake_command[@]}" --build "${build_root}" \
   --target glyphrelay_m0_webrtc_sender glyphrelay_m0_transport_fixture \
            glyphrelay_libdatachannel_contract_tests glyphrelay_owner_signaling_tests \
+           glyphrelay_control_protocol_tests \
            glyphrelay_owner_signaling_fixture \
            glyphrelay-juice-egress-tests --parallel
 "${build_root}/glyphrelay_m0_webrtc_sender" --help
 "${build_root}/glyphrelay_m0_transport_fixture" --help
 "${build_root}/glyphrelay_libdatachannel_contract_tests"
 "${build_root}/glyphrelay_owner_signaling_tests"
+"${build_root}/glyphrelay_control_protocol_tests"
 node "${repository_root}/tooling/signaling/verify-native-owner.ts" \
   --executable "${build_root}/glyphrelay_owner_signaling_fixture"
 node "${repository_root}/tooling/signaling/verify-native-owner.ts" \

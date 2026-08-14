@@ -107,6 +107,24 @@ It does not reconnect or rebind an owner session because the service binds the c
 
 After a receiver disconnects, the live owner must explicitly request a new single-use link.
 
+## Receiver control channel
+
+The peer connection uses one ordered and reliable data channel labeled `glyphrelay-control-v1`.
+
+Both directions use exact versioned JSON schemas, the signaling session identifier, and a strictly increasing per-direction sequence.
+
+Receiver-origin messages are limited to 4 KiB and ten messages per rolling second.
+
+The sender accepts only bounded clock responses, cumulative receiver statistics, matching lifecycle acknowledgments, and protocol errors.
+
+Keyboard, mouse, clipboard, file, command, arbitrary application, stale-sequence, wrong-session, duplicate-key, comment, oversized, flood, and regressing-telemetry inputs fail the control session closed.
+
+The clock protocol permits an initial five-sample burst and then no more than one sender request every five seconds.
+
+Pause, resume, and end acknowledgments must name the exact pending sender message sequence.
+
+Resume binds both a new media epoch and a new dependency epoch before media can be admitted.
+
 ## Local verification
 
 Loopback HTTP and WS are allowed only on the literal loopback bind addresses for automated tests and development.

@@ -35,8 +35,9 @@ function fieldsForType(type) {
   switch (type) {
     case "HELLO":
     case "SESSION_PAUSED":
-    case "SESSION_RESUMED":
       return [...base, "mediaEpoch"];
+    case "SESSION_RESUMED":
+      return [...base, "dependencyEpoch", "mediaEpoch"];
     case "CLOCK_REQUEST":
       return [...base, "senderSendTimeMs"];
     case "SESSION_ENDED":
@@ -83,12 +84,128 @@ export function decodeSenderControlMessage(
   if ("mediaEpoch" in value && !validEpoch(value.mediaEpoch)) {
     return undefined;
   }
+  if ("dependencyEpoch" in value && !validEpoch(value.dependencyEpoch)) {
+    return undefined;
+  }
+  if (
+    value.type === "SESSION_RESUMED" &&
+    (value.mediaEpoch < 1 || value.dependencyEpoch < 1)
+  ) {
+    return undefined;
+  }
   if ("senderSendTimeMs" in value && !validTime(value.senderSendTimeMs)) {
     return undefined;
   }
   if (
     "reason" in value &&
     (typeof value.reason !== "string" || !REASON_PATTERN.test(value.reason))
+  ) {
+    return undefined;
+  }
+  if (
+    "code" in value &&
+    (typeof value.code !== "string" || !REASON_PATTERN.test(value.code))
+  ) {
+    return undefined;
+  }
+  return value;
+}
+
+function receiverFieldsForType(type) {
+  const base = ["protocolVersion", "sequence", "sessionId", "type"];
+  switch (type) {
+    case "CLOCK_RESPONSE":
+      return [
+        ...base,
+        "receiverReceiveTimeMs",
+        "receiverSendTimeMs",
+        "requestSequence",
+        "senderSendTimeMs",
+      ];
+    case "RECEIVER_STATS":
+      return [
+        ...base,
+        "compositorFrames",
+        "decodedFrames",
+        "droppedFrames",
+        "latestPresentedRtpTimestamp",
+      ];
+    case "SESSION_PAUSED_ACK":
+    case "SESSION_RESUMED_ACK":
+    case "SESSION_ENDED_ACK":
+      return [...base, "requestSequence"];
+    case "PROTOCOL_ERROR":
+      return [...base, "code"];
+    default:
+      return undefined;
+  }
+}
+
+export function decodeReceiverControlMessage(
+  encoded,
+  expectedSessionId,
+  expectedSequence,
+) {
+  if (
+    typeof encoded !== "string" ||
+    new TextEncoder().encode(encoded).length > MAXIMUM_CONTROL_BYTES
+  ) {
+    return undefined;
+  }
+  let value;
+  try {
+    value = JSON.parse(encoded);
+  } catch {
+    return undefined;
+  }
+  if (!exactObject(value) || typeof value.type !== "string") {
+    return undefined;
+  }
+  const fields = receiverFieldsForType(value.type);
+  if (
+    !fields ||
+    !exactKeys(value, fields) ||
+    value.protocolVersion !== CONTROL_PROTOCOL ||
+    value.sessionId !== expectedSessionId ||
+    !SESSION_PATTERN.test(value.sessionId) ||
+    !validSequence(value.sequence) ||
+    value.sequence !== expectedSequence
+  ) {
+    return undefined;
+  }
+  if ("requestSequence" in value && !validSequence(value.requestSequence)) {
+    return undefined;
+  }
+  if ("senderSendTimeMs" in value && !validTime(value.senderSendTimeMs)) {
+    return undefined;
+  }
+  if (
+    "receiverReceiveTimeMs" in value &&
+    !validTime(value.receiverReceiveTimeMs)
+  ) {
+    return undefined;
+  }
+  if (
+    "receiverSendTimeMs" in value &&
+    (!validTime(value.receiverSendTimeMs) ||
+      value.receiverSendTimeMs < value.receiverReceiveTimeMs)
+  ) {
+    return undefined;
+  }
+  for (const field of ["compositorFrames", "decodedFrames", "droppedFrames"]) {
+    if (
+      field in value &&
+      (!Number.isSafeInteger(value[field]) || value[field] < 0)
+    ) {
+      return undefined;
+    }
+  }
+  if (
+    "latestPresentedRtpTimestamp" in value &&
+    value.latestPresentedRtpTimestamp !== null &&
+    (!Number.isSafeInteger(value.latestPresentedRtpTimestamp) ||
+      value.latestPresentedRtpTimestamp < 0 ||
+      value.latestPresentedRtpTimestamp > 0xffffffff)
   ) {
     return undefined;
   }

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   CONTROL_PROTOCOL,
+  decodeReceiverControlMessage,
   decodeSenderControlMessage,
   MAXIMUM_CONTROL_BYTES,
   SlidingControlRateLimit,
@@ -50,9 +51,20 @@ test("accepts only the bounded sender-to-receiver control vocabulary", () => {
   );
   assert.equal(
     decodeSenderControlMessage(
-      encoded("PROTOCOL_ERROR", 4, { code: "SEQUENCE_INVALID" }),
+      encoded("SESSION_RESUMED", 4, {
+        dependencyEpoch: 8,
+        mediaEpoch: 2,
+      }),
       sessionId,
       4,
+    )?.type,
+    "SESSION_RESUMED",
+  );
+  assert.equal(
+    decodeSenderControlMessage(
+      encoded("PROTOCOL_ERROR", 5, { code: "SEQUENCE_INVALID" }),
+      sessionId,
+      5,
     )?.type,
     "PROTOCOL_ERROR",
   );
@@ -109,6 +121,14 @@ test("rejects stale sequences, wrong sessions, unknown fields, commands, and inv
   );
   assert.equal(
     decodeSenderControlMessage(
+      encoded("SESSION_RESUMED", 1, { mediaEpoch: 2 }),
+      sessionId,
+      1,
+    ),
+    undefined,
+  );
+  assert.equal(
+    decodeSenderControlMessage(
       "x".repeat(MAXIMUM_CONTROL_BYTES + 1),
       sessionId,
       1,
@@ -125,4 +145,76 @@ test("control flood limiter admits ten messages per rolling second and rejects t
   assert.equal(limiter.admit(999), false);
   assert.equal(limiter.admit(1_000), true);
   assert.equal(limiter.admit(Number.NaN), false);
+});
+
+test("validates the exact receiver-to-sender control vocabulary", () => {
+  assert.equal(
+    decodeReceiverControlMessage(
+      encoded("CLOCK_RESPONSE", 1, {
+        receiverReceiveTimeMs: 10,
+        receiverSendTimeMs: 11,
+        requestSequence: 2,
+        senderSendTimeMs: 1,
+      }),
+      sessionId,
+      1,
+    )?.type,
+    "CLOCK_RESPONSE",
+  );
+  assert.equal(
+    decodeReceiverControlMessage(
+      encoded("RECEIVER_STATS", 2, {
+        compositorFrames: 30,
+        decodedFrames: 31,
+        droppedFrames: 1,
+        latestPresentedRtpTimestamp: 0xfffffff0,
+      }),
+      sessionId,
+      2,
+    )?.type,
+    "RECEIVER_STATS",
+  );
+  assert.equal(
+    decodeReceiverControlMessage(
+      encoded("SESSION_PAUSED_ACK", 3, { requestSequence: 7 }),
+      sessionId,
+      3,
+    )?.type,
+    "SESSION_PAUSED_ACK",
+  );
+});
+
+test("rejects receiver control commands, unknown fields, and invalid telemetry", () => {
+  assert.equal(
+    decodeReceiverControlMessage(
+      encoded("KEYBOARD_INPUT", 1, { key: "Enter" }),
+      sessionId,
+      1,
+    ),
+    undefined,
+  );
+  assert.equal(
+    decodeReceiverControlMessage(
+      encoded("SESSION_ENDED_ACK", 1, {
+        requestSequence: 2,
+        unknown: true,
+      }),
+      sessionId,
+      1,
+    ),
+    undefined,
+  );
+  assert.equal(
+    decodeReceiverControlMessage(
+      encoded("RECEIVER_STATS", 1, {
+        compositorFrames: -1,
+        decodedFrames: 0,
+        droppedFrames: 0,
+        latestPresentedRtpTimestamp: null,
+      }),
+      sessionId,
+      1,
+    ),
+    undefined,
+  );
 });
