@@ -90,6 +90,8 @@ add_library(glyphrelay_core
   src/gpu/nvenc_benchmark.cpp
   src/gpu/nvenc_browser_fixture.cpp
   src/gpu/nvenc_probe.cpp
+  src/gpu/preprocess_pool.cpp
+  src/gpu/saliency.cpp
   src/media/annex_b.cpp
   src/media/h264_sps.cpp
   src/media/i420.cpp
@@ -274,6 +276,9 @@ endif()
 add_executable(glyphrelay_hash_m0_browser_source tools/hash_m0_browser_source.cpp)
 target_link_libraries(glyphrelay_hash_m0_browser_source PRIVATE glyphrelay_core)
 
+add_executable(glyphrelay_saliency_preview tools/render_saliency_preview.cpp)
+target_link_libraries(glyphrelay_saliency_preview PRIVATE glyphrelay_core)
+
 include(CTest)
 if(BUILD_TESTING)
   add_executable(glyphrelay_native_tests tests/native/test_doctor.cpp)
@@ -305,6 +310,19 @@ if(BUILD_TESTING)
   add_executable(glyphrelay_gpu_contract_tests tests/native/test_gpu_contracts.cpp)
   target_link_libraries(glyphrelay_gpu_contract_tests PRIVATE glyphrelay_core)
   add_test(NAME native.gpu_contracts COMMAND glyphrelay_gpu_contract_tests)
+
+  add_executable(glyphrelay_preprocess_pool_tests tests/native/test_preprocess_pool.cpp)
+  target_link_libraries(glyphrelay_preprocess_pool_tests PRIVATE glyphrelay_core)
+  add_test(NAME native.preprocess_pool COMMAND glyphrelay_preprocess_pool_tests)
+
+  add_executable(glyphrelay_saliency_tests tests/native/test_saliency.cpp)
+  target_link_libraries(glyphrelay_saliency_tests PRIVATE glyphrelay_core)
+  add_test(NAME native.saliency COMMAND glyphrelay_saliency_tests)
+  add_test(NAME cli.saliency_preview
+    COMMAND "${CMAKE_COMMAND}"
+      -DGLYPHRELAY_PROGRAM=$<TARGET_FILE:glyphrelay_saliency_preview>
+      -DGLYPHRELAY_OUTPUT=${CMAKE_CURRENT_BINARY_DIR}/saliency-preview.ppm
+      -P "${CMAKE_SOURCE_DIR}/tests/cmake/assert_saliency_preview.cmake")
 
   add_executable(glyphrelay_capture_contract_tests tests/native/test_capture_contracts.cpp)
   target_link_libraries(glyphrelay_capture_contract_tests PRIVATE glyphrelay_core)

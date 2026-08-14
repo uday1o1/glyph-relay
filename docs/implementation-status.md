@@ -38,7 +38,7 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 | --- | --- | --- |
 | 0 | `WAITING_HARDWARE` | M0-L01 through M0-L10 are locally implemented and all target gates are deferred |
 | 1 | `WAITING_HARDWARE` | M1-L01A through M1-L04 are locally implemented and all remaining acceptance items require the designated target |
-| 2 | `IN_PROGRESS` | Local work packages remain pending |
+| 2 | `IN_PROGRESS` | M2-L01 is locally implemented, while CUDA and development selector packages remain pending |
 | 3 | `IN_PROGRESS` | Local work packages remain pending |
 | 4 | `IN_PROGRESS` | Local work packages and irreversible freezes remain pending |
 | 5 | `IN_PROGRESS` | Local work packages remain pending |
@@ -131,11 +131,19 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 
 ## Milestone 2 acceptance gates
 
+### Local work packages
+
+| ID | State | Deliverable | Evidence |
+| --- | --- | --- | --- |
+| M2-L01 | `IMPLEMENTED_LOCAL` | Scalar `saliency_v1`, separate bounded packed-source and NV12-surface ownership rings, deterministic map reduction, protected-region preview, and timing oracle | Hand-calculated uniform, edge, opposite-edge, isolated-pixel, border, partial-tile, dropped-frame, and geometry-reset fixtures; one twenty-frame seeded randomized sequence; ownership, alias, exhaustion, stale-token, and shutdown tests; real no-clobber preview CLI inspection |
+| M2-L02 | `PENDING_LOCAL` | CUDA conversion and saliency kernels, asynchronous map copy, CUDA event fencing, NVTX ranges, differential harness, and target qualification phase | None |
+| M2-L03 | `PENDING_LOCAL` | Frozen-grid development-only saliency selector and immutable selected configuration | None |
+
 | State | Acceptance item | Evidence |
 | --- | --- | --- |
-| `PENDING_LOCAL` | Scalar goldens and portable boundary and randomized differential tests pass | None |
+| `IMPLEMENTED_LOCAL` | Scalar goldens and portable boundary tests pass | `native.saliency`; exact frozen feature vectors and partial 1-by-1, 17-by-17, and 23-by-17 geometry fixtures |
 | `DEFERRED_HARDWARE` | CUDA goldens, differential tests, boundary tests, and compute-sanitizer pass | None |
-| `PENDING_LOCAL` | Saliency output is deterministic for the same frame sequence | None |
+| `IMPLEMENTED_LOCAL` | Saliency output is deterministic for the same frame sequence | Twenty seeded randomized frames produce exact feature, hysteresis, level, and macroblock-map equality across independent instances |
 | `DEFERRED_HARDWARE` | Complete CUDA preprocessing and map copy is at most 5 ms P95 at 1080p30 | None |
 
 ## Milestone 3 acceptance gates

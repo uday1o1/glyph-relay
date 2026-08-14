@@ -125,6 +125,16 @@ No validation or final-test pixels were opened to obtain that result.
 
 See [the corpus protocol](docs/corpus-protocol.md) for the renderer, fonts, truth ontology, OCR pipeline, metric, immutable split rules, and claim boundaries.
 
+The portable `saliency_v1` correctness oracle and bounded preprocessing ownership rings can be exercised through the real preview path:
+
+```bash
+build/macos-local/glyphrelay_saliency_preview --output build/saliency-preview.ppm
+```
+
+The command writes a local protected-region overlay without overwriting an existing file.
+
+See [the protected-region saliency contract](docs/saliency.md) for feature semantics, ownership transitions, verification, and current claim boundaries.
+
 Exercise the static loopback receiver in the exact pinned Chromium build with:
 
 ```bash

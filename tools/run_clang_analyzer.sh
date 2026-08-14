@@ -27,6 +27,8 @@ for source in \
   src/gpu/cuda_context.cpp \
   src/gpu/gpu_contracts.cpp \
   src/gpu/nvenc_probe.cpp \
+  src/gpu/preprocess_pool.cpp \
+  src/gpu/saliency.cpp \
   src/media/annex_b.cpp \
   src/media/h264_sps.cpp \
   src/media/i420.cpp \
@@ -43,8 +45,11 @@ for source in \
   tests/native/test_media_egress.cpp \
   tests/native/test_m0_protocol.cpp \
   tests/native/test_openh264_integration.cpp \
+  tests/native/test_preprocess_pool.cpp \
   tests/native/test_rtp_transport.cpp \
-  tools/freeze_m0_protocol.cpp; do
+  tests/native/test_saliency.cpp \
+  tools/freeze_m0_protocol.cpp \
+  tools/render_saliency_preview.cpp; do
   report="${output_directory}/$(basename "${source}" .cpp).plist"
   "${compiler}" --analyze -std=c++20 -Iinclude \
     -DGLYPHRELAY_VERSION=\"0.1.0\" \
