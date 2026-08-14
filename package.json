@@ -14,10 +14,12 @@
     "browser:playback": "node tooling/m0/qualify-browser-playback.ts",
     "browser:oracle:freeze": "node tooling/m0/freeze-browser-oracle.ts",
     "browser:probe": "node tooling/m0/capture-browser-offers.ts --output build/m0-browser-offers.json",
+    "dashboard:browser": "node tooling/dashboard/verify-dashboard.ts",
+    "dashboard:start": "node dashboard/main.ts",
     "signaling:start": "node signaling/main.ts",
     "signaling:verify": "node tooling/signaling/verify-bundle.ts",
     "test": "node --test tests/typescript/*.test.ts tests/typescript/*.test.js",
-    "typecheck": "tsc --noEmit && node --check receiver/receiver.js && node --check receiver/control-protocol.js && node --check receiver/v1-receiver.js"
+    "typecheck": "tsc --noEmit && node --check dashboard/dashboard.js && node --check receiver/receiver.js && node --check receiver/control-protocol.js && node --check receiver/v1-receiver.js"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",

@@ -100,6 +100,16 @@ The pinned Linux verification exercises portal selection ordering, system OpenH2
 
 The real portal-selected browser presentation remains a designated-target acceptance gate and is not inferred from those local integrations.
 
+The local dashboard is a loopback-only, fragment-authorized control boundary with exact Host and Origin validation, a separate CSRF token, bounded canonical action messages, and no cookies or CORS.
+The standalone process intentionally reports that no sender backend is available instead of simulating a live session.
+
+```bash
+corepack pnpm dashboard:start
+make dashboard-browser-check
+```
+
+See [the local dashboard security contract](docs/dashboard.md) for endpoint and verification details.
+
 Exercise the static loopback receiver in the exact pinned Chromium build with:
 
 ```bash

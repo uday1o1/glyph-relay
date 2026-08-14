@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>GlyphRelay control room</title>
+    <link rel="stylesheet" href="/dashboard.css" />
+  </head>
+  <body data-dashboard-state="opening">
+    <main>
+      <header>
+        <div>
+          <p class="eyebrow">Local control room</p>
+          <h1>GlyphRelay</h1>
+        </div>
+        <p class="local-badge">Loopback only</p>
+      </header>
+
+      <section class="hero" aria-labelledby="status-heading">
+        <div>
+          <p class="section-label">Session status</p>
+          <h2 id="status-heading">Opening the secure local dashboard</h2>
+          <p id="status-detail" role="status" aria-live="polite">
+            Verifying this launch before displaying sender state.
+          </p>
+        </div>
+        <div class="state-orb" aria-hidden="true"></div>
+      </section>
+
+      <section class="workspace" aria-label="Sharing controls">
+        <article class="panel preview-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="section-label">Protected preview</p>
+              <h2>Selected window</h2>
+            </div>
+            <span id="capture-indicator" class="capture-indicator">Idle</span>
+          </div>
+          <div class="preview" aria-label="Local protected preview">
+            <div class="preview-grid"></div>
+            <p>Preview remains on this device.</p>
+          </div>
+        </article>
+
+        <article class="panel control-panel">
+          <p class="section-label">Session controls</p>
+          <div class="controls" role="group" aria-label="Session actions">
+            <button data-action="START" type="button">Start sharing</button>
+            <button data-action="PAUSE" type="button">Pause</button>
+            <button data-action="RESUME" type="button">Resume</button>
+            <button data-action="STOP" class="danger" type="button">
+              Stop
+            </button>
+          </div>
+          <button data-action="COPY_SHARE_LINK" class="copy" type="button">
+            Copy current share link
+          </button>
+        </article>
+      </section>
+
+      <section class="metrics" aria-label="Session measurements">
+        <article>
+          <p>Presentation</p>
+          <strong id="bitrate">Unavailable</strong>
+          <span>Selected bandwidth</span>
+        </article>
+        <article>
+          <p>Queue delay</p>
+          <strong id="queue-delay">0 ms</strong>
+          <span>Bounded media queue</span>
+        </article>
+        <article>
+          <p>Dropped frames</p>
+          <strong id="dropped-frames">0</strong>
+          <span>Across all stages</span>
+        </article>
+        <article>
+          <p>Protected area</p>
+          <strong id="protected-fraction">0%</strong>
+          <span>Current automatic map</span>
+        </article>
+        <article>
+          <p>Processing</p>
+          <strong id="fallback-mode">Unavailable</strong>
+          <span>Enhanced or fallback mode</span>
+        </article>
+        <article>
+          <p>Recording</p>
+          <strong id="recording-state">Off</strong>
+          <span>Explicit opt-in only</span>
+        </article>
+      </section>
+    </main>
+    <script type="module" src="/dashboard.js"></script>
+  </body>
+</html>

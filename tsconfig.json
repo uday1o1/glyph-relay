@@ -11,6 +11,7 @@
     "types": ["node"]
   },
   "include": [
+    "dashboard/**/*.ts",
     "signaling/**/*.ts",
     "tooling/**/*.ts",
     "tests/typescript/**/*.ts"
