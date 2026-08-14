@@ -86,6 +86,12 @@ struct FrameSlice {
   std::size_t bytes = 0U;
 };
 
+struct SentFrameTrace {
+  std::size_t frame_index = 0U;
+  std::uint64_t dependency_epoch = 0U;
+  std::uint64_t extended_timestamp = 0U;
+};
+
 struct SenderState {
   std::mutex mutex;
   std::condition_variable changed;
@@ -448,7 +454,8 @@ void wait_for(SenderState &state, std::chrono::seconds timeout, std::string_view
 std::string summary_json(const Arguments &arguments, const SenderState &state,
                          const FinalEgressBridge &egress, std::size_t sent_frames,
                          std::size_t recovery_frames, std::uint64_t next_extended_sequence,
-                         std::uint64_t last_extended_timestamp) {
+                         std::uint64_t last_extended_timestamp,
+                         std::span<const SentFrameTrace> frame_trace) {
   const auto snapshot = egress.snapshot();
   const auto diagnostics = state.recovery->diagnostics();
   const auto cache = state.recovery->cache_snapshot();
@@ -498,7 +505,16 @@ std::string summary_json(const Arguments &arguments, const SenderState &state,
          << "  \"protected_retransmission_observed\": "
          << (egress.protected_retransmission_observed() ? "true" : "false") << ",\n"
          << "  \"protected_retransmission_identical\": "
-         << (egress.protected_retransmission_identical() ? "true" : "false") << "\n"
+         << (egress.protected_retransmission_identical() ? "true" : "false") << ",\n"
+         << "  \"sent_frame_trace\": [\n";
+  for (std::size_t index = 0U; index < frame_trace.size(); ++index) {
+    const auto &frame = frame_trace[index];
+    output << "    {\"frame_index\": " << frame.frame_index
+           << ", \"dependency_epoch\": " << frame.dependency_epoch
+           << ", \"extended_timestamp\": " << frame.extended_timestamp << "}"
+           << (index + 1U == frame_trace.size() ? "\n" : ",\n");
+  }
+  output << "  ]\n"
          << "}\n";
   return output.str();
 }
@@ -790,11 +806,13 @@ int run_sender(const Arguments &arguments) {
   std::uint64_t access_unit_id = 0U;
   std::size_t sent_frames = 0U;
   std::size_t recovery_frames = 0U;
+  std::vector<SentFrameTrace> frame_trace;
+  frame_trace.reserve(arguments.frame_count);
   bool pli_injected = false;
   std::size_t table_index = arguments.start_frame;
-  const auto end_index = arguments.start_frame + arguments.frame_count;
+  const auto end_index = frames.size();
   auto next_deadline = Clock::now();
-  while (table_index < end_index && !stop_requested.load()) {
+  while (sent_frames < arguments.frame_count && table_index < end_index && !stop_requested.load()) {
     if (arguments.inject_pli_after_frame && !pli_injected &&
         sent_frames == *arguments.inject_pli_after_frame) {
       rtc::message_vector feedback = {picture_loss_indication()};
@@ -824,6 +842,7 @@ int run_sender(const Arguments &arguments) {
     if (!track->sendMessage(std::move(message))) {
       throw SenderError("track_send_failed");
     }
+    frame_trace.push_back({frames[table_index].frame_index, dependency_epoch, extended_timestamp});
     ++sent_frames;
     ++table_index;
     extended_timestamp += 90'000U / arguments.frames_per_second;
@@ -835,6 +854,9 @@ int run_sender(const Arguments &arguments) {
   }
   if (stop_requested.load() || sent_frames == 0U) {
     throw SenderError("sender_interrupted_or_sent_no_frames");
+  }
+  if (sent_frames != arguments.frame_count) {
+    throw SenderError("sender_source_exhausted_before_requested_frame_count");
   }
 
   std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -870,7 +892,7 @@ int run_sender(const Arguments &arguments) {
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   const auto summary =
       summary_json(arguments, state, egress, sent_frames, recovery_frames, next_extended_sequence,
-                   extended_timestamp - 90'000U / arguments.frames_per_second);
+                   extended_timestamp - 90'000U / arguments.frames_per_second, frame_trace);
   write_exclusive_file(arguments.summary, summary);
   return 0;
 }

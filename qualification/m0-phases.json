@@ -204,10 +204,10 @@
     },
     {
       "id": "nvenc-browser-fixture",
-      "title": "NVENC 720p30 Level 3.1 browser fixture and independent decode",
+      "title": "NVENC 720p30 fixture, independent decode, and two-browser recovery matrix",
       "kind": "command",
       "required": true,
-      "dependencies": ["gpu-selection", "doctor-gpu"],
+      "dependencies": ["gpu-selection", "doctor-gpu", "browser-offers"],
       "commands": [
         [
           "build/linux-gpu/glyphrelay",
@@ -224,9 +224,33 @@
           "tools/validate_m0_browser_fixture.py",
           "{phase_dir}/fixture",
           "schemas/m0-browser-fixture-v1.schema.json"
+        ],
+        [
+          "corepack",
+          "pnpm",
+          "run",
+          "browser:matrix",
+          "--",
+          "--answerer",
+          "build/linux-gpu/glyphrelay_m0_webrtc_sender",
+          "--fixture",
+          "{phase_dir}/fixture",
+          "--output",
+          "{phase_dir}/matrix"
+        ],
+        [
+          "uv",
+          "run",
+          "python",
+          "tools/validate_m0_browser_matrix.py",
+          "{phase_dir}/matrix",
+          "{phase_dir}/fixture",
+          "--schemas",
+          "schemas"
         ]
       ],
-      "environment_names": [],
+      "environment_names": ["PLAYWRIGHT_BROWSERS_PATH"],
+      "environment_values": { "PLAYWRIGHT_BROWSERS_PATH": "0" },
       "timeout_seconds": 7200
     },
     {

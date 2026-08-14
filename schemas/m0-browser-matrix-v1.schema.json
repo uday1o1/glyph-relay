@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.invalid/schemas/m0-browser-matrix-v1.schema.json",
+  "title": "GlyphRelay Milestone 0 browser qualification matrix",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "protocol",
+    "status",
+    "fixtureStreamSha256",
+    "oracleTolerance",
+    "runs"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "protocol": { "const": "glyphrelay-m0-browser-matrix-v1" },
+    "status": { "const": "PASSED" },
+    "fixtureStreamSha256": { "$ref": "#/$defs/sha256" },
+    "oracleTolerance": { "$ref": "#/$defs/oracleTolerance" },
+    "runs": {
+      "type": "array",
+      "minItems": 18,
+      "maxItems": 18,
+      "items": { "$ref": "#/$defs/run" }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "oracleTolerance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "protocol",
+        "state",
+        "requiredZeroLossRuns",
+        "frameKey",
+        "sourceRunIds",
+        "sourceDigestSha256",
+        "maximumAbsoluteChannelError",
+        "maximumDifferingPixelFraction",
+        "maximumRootMeanSquareChannelError"
+      ],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "protocol": { "const": "browser_oracle_v1" },
+        "state": { "const": "FROZEN" },
+        "requiredZeroLossRuns": { "const": 10 },
+        "frameKey": { "const": "dependency_epoch:extended_rtp_timestamp" },
+        "sourceRunIds": {
+          "type": "array",
+          "minItems": 10,
+          "maxItems": 10,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+        },
+        "sourceDigestSha256": { "$ref": "#/$defs/sha256" },
+        "maximumAbsoluteChannelError": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "maximumDifferingPixelFraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "maximumRootMeanSquareChannelError": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 255
+        }
+      }
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "browser",
+        "faultLossExtendedSequence",
+        "injectPliAfterFrame",
+        "oraclePassed",
+        "presentedFrames",
+        "reportPath",
+        "reportSha256",
+        "runId",
+        "scenario"
+      ],
+      "properties": {
+        "browser": { "enum": ["chromium", "firefox"] },
+        "faultLossExtendedSequence": {
+          "type": ["integer", "null"],
+          "minimum": 65534,
+          "maximum": 65536
+        },
+        "injectPliAfterFrame": { "type": ["integer", "null"], "minimum": 1 },
+        "oraclePassed": { "const": true },
+        "presentedFrames": { "type": "integer", "minimum": 1440 },
+        "reportPath": {
+          "type": "string",
+          "pattern": "^runs/[a-z0-9-]+/browser-playback-summary\\.json$"
+        },
+        "reportSha256": { "$ref": "#/$defs/sha256" },
+        "runId": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "maxLength": 128
+        },
+        "scenario": { "enum": ["ZERO_LOSS", "PLI_RECOVERY", "ROLLOVER_LOSS"] }
+      }
+    }
+  }
+}

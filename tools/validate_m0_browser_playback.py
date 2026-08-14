@@ -39,12 +39,43 @@ def validate_browser_playback(evidence: Path, schema_path: Path) -> dict[str, An
 
     receiver = report["receiver"]
     sender = report["sender"]
+    frame_count = sender["requested_frames"]
+    require(
+        report["oracleFrameOrdinals"]
+        == [
+            frame_count * 2 // 5,
+            frame_count // 2,
+            frame_count * 3 // 5,
+            frame_count * 7 // 10,
+        ],
+        "oracle_frame_ordinals_invalid",
+    )
     require(
         receiver["presentedFrames"] >= report["minimumPresentedFrames"],
         "presented_frame_gate_failed",
     )
     require(receiver["playbackQuality"]["corruptedVideoFrames"] == 0, "corrupted_browser_frame")
     require(sender["sent_frames"] == sender["requested_frames"], "sender_frame_count_mismatch")
+    trace = sender["sent_frame_trace"]
+    require(len(trace) == sender["sent_frames"], "sender_frame_trace_count_mismatch")
+    for index, frame in enumerate(trace):
+        require(
+            frame["frame_index"] >= sender["start_frame"]
+            and (index == 0 or frame["frame_index"] > trace[index - 1]["frame_index"]),
+            "sender_frame_trace_source_order_invalid",
+        )
+        require(
+            frame["extended_timestamp"] == (2**32 - 3_000) + index * 3_000,
+            "sender_frame_trace_timestamp_invalid",
+        )
+        require(
+            index == 0 or frame["dependency_epoch"] >= trace[index - 1]["dependency_epoch"],
+            "sender_frame_trace_epoch_invalid",
+        )
+    require(
+        trace[-1]["extended_timestamp"] == sender["last_extended_timestamp"],
+        "sender_frame_trace_last_timestamp_mismatch",
+    )
     require(sender["initial_extended_sequence"] == 65_534, "rtp_rollover_seed_invalid")
     require(sender["next_extended_sequence"] > 65_536, "rtp_sequence_did_not_roll_over")
     require(sender["last_extended_timestamp"] >= 2**32, "rtp_timestamp_did_not_roll_over")
@@ -69,9 +100,28 @@ def validate_browser_playback(evidence: Path, schema_path: Path) -> dict[str, An
         not any(item.startswith("pageerror:") for item in report["diagnostics"]),
         "browser_page_error_observed",
     )
+    require(
+        len(report["oracleComparisons"]) == len(receiver["oracle"]),
+        "oracle_comparison_count_mismatch",
+    )
+    trace_by_key = {
+        f"{frame['dependency_epoch']}:{frame['extended_timestamp']}": frame for frame in trace
+    }
+    for comparison, presented in zip(report["oracleComparisons"], receiver["oracle"], strict=True):
+        require(comparison["key"] in trace_by_key, "oracle_comparison_trace_identity_missing")
+        require(presented["rtpTimestamp"] is not None, "oracle_presented_timestamp_missing")
+        require(
+            trace_by_key[comparison["key"]]["extended_timestamp"] % 2**32
+            == presented["rtpTimestamp"],
+            "oracle_comparison_presented_timestamp_mismatch",
+        )
     if sender["inject_pli_after_frame"] is not None:
         require(sender["recovery_frames"] >= 1, "pli_recovery_frame_missing")
         require(sender["idr_requests"] >= 2, "pli_recovery_idr_not_requested")
+        require(
+            any(frame["dependency_epoch"] > trace[0]["dependency_epoch"] for frame in trace),
+            "pli_recovery_dependency_epoch_missing",
+        )
         require(
             receiver["inboundVideo"][0]["keyFramesDecoded"] >= 2, "browser_recovery_idr_not_decoded"
         )

@@ -12,6 +12,8 @@
     "browserExecutableSha256",
     "diagnostics",
     "minimumPresentedFrames",
+    "oracleFrameOrdinals",
+    "oracleComparisons",
     "receiver",
     "sender",
     "streamSha256"
@@ -30,6 +32,19 @@
       "items": { "type": "string", "maxLength": 2048 }
     },
     "minimumPresentedFrames": { "type": "integer", "minimum": 1 },
+    "oracleFrameOrdinals": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "uniqueItems": true,
+      "items": { "type": "integer", "minimum": 0, "maximum": 1799 }
+    },
+    "oracleComparisons": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": { "$ref": "#/$defs/oracleComparison" }
+    },
     "receiver": {
       "type": "object",
       "additionalProperties": false,
@@ -70,7 +85,7 @@
         },
         "oracle": {
           "type": "array",
-          "minItems": 1,
+          "minItems": 4,
           "maxItems": 4,
           "items": {
             "type": "object",
@@ -150,7 +165,8 @@
         "fault_loss_extended_sequence",
         "fault_datagram_suppressed",
         "protected_retransmission_observed",
-        "protected_retransmission_identical"
+        "protected_retransmission_identical",
+        "sent_frame_trace"
       ],
       "properties": {
         "schema_version": { "const": 1 },
@@ -186,13 +202,74 @@
         },
         "fault_datagram_suppressed": { "type": "boolean" },
         "protected_retransmission_observed": { "type": "boolean" },
-        "protected_retransmission_identical": { "type": "boolean" }
+        "protected_retransmission_identical": { "type": "boolean" },
+        "sent_frame_trace": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1800,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "frame_index",
+              "dependency_epoch",
+              "extended_timestamp"
+            ],
+            "properties": {
+              "frame_index": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2099
+              },
+              "dependency_epoch": { "type": "integer", "minimum": 1 },
+              "extended_timestamp": { "type": "integer", "minimum": 4294964296 }
+            }
+          }
+        }
       }
     }
   },
   "$defs": {
     "count": { "type": "integer", "minimum": 0 },
     "nullableCount": { "type": ["integer", "null"], "minimum": 0 },
+    "oracleComparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "width",
+        "height",
+        "maximumAbsoluteChannelError",
+        "differingPixels",
+        "differingPixelFraction",
+        "rootMeanSquareChannelError"
+      ],
+      "properties": {
+        "key": { "type": "string", "pattern": "^[1-9][0-9]*:[1-9][0-9]*$" },
+        "width": { "const": 1280 },
+        "height": { "const": 720 },
+        "maximumAbsoluteChannelError": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "differingPixels": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 921600
+        },
+        "differingPixelFraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "rootMeanSquareChannelError": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 255
+        }
+      }
+    },
     "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
   }
 }

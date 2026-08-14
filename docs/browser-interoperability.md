@@ -128,3 +128,30 @@ corepack pnpm run browser:oracle:freeze -- \
 ```
 
 Loss, PLI, rollover, and recovery tests must consume that frozen artifact and may not update it after seeing their results.
+
+The playback harness retains exactly four target frames at 40, 50, 60, and 70 percent of the sent-frame sequence.
+Each browser frame is joined to the sender trace by its low 32-bit RTP timestamp and then identified by the unambiguous extended RTP timestamp and dependency epoch.
+The harness independently decodes the corresponding elementary-stream source frames with the pinned FFmpeg input contract and compares browser RGBA output against those references.
+The sender must remain alive until all four target frames are retained so a relaxed recovery frame-count threshold cannot produce a premature or incomplete oracle sample.
+
+The complete target matrix contains exactly eighteen runs.
+It runs five zero-loss observations in each exact browser, freezes the tolerance from those ten runs, and then evaluates one PLI recovery and loss at extended sequences 65,534, 65,535, and 65,536 in each browser against the frozen tolerance.
+Every run sends 1,800 frames at 30 fps and requires all four oracle comparisons, zero corrupted browser frames, the exact locked browser binary, and scenario-specific sender evidence.
+The PLI runs begin at source frame 240 and inject feedback after 901 sent frames so the next SPS, PPS, and IDR access unit remains within the fixed 2,100-frame fixture.
+The zero-loss and rollover runs begin at source frame 300.
+
+Run the complete matrix only with the target-generated NVENC fixture:
+
+```bash
+corepack pnpm run browser:matrix -- \
+  --answerer build/transport-contract/glyphrelay_m0_webrtc_sender \
+  --fixture build/m0-nvenc-browser-fixture \
+  --output artifacts/gpu-runs/browser-matrix
+uv run python tools/validate_m0_browser_matrix.py \
+  artifacts/gpu-runs/browser-matrix \
+  build/m0-nvenc-browser-fixture \
+  --schemas schemas
+```
+
+The matrix tool creates its output directory with no-clobber semantics and stops on the first failed or incomplete run.
+The target qualification runner retains every completed run and its failure state in the private evidence archive.

@@ -15,6 +15,7 @@ SCHEMA = Path("schemas/m0-browser-playback-v1.schema.json")
 
 
 def report() -> dict[str, object]:
+    oracle_ordinals = [36, 45, 54, 63]
     return {
         "schemaVersion": 1,
         "protocol": "glyphrelay-m0-browser-playback-v1",
@@ -24,6 +25,19 @@ def report() -> dict[str, object]:
         "browserExecutableSha256": "a" * 64,
         "diagnostics": [],
         "minimumPresentedFrames": 72,
+        "oracleFrameOrdinals": oracle_ordinals,
+        "oracleComparisons": [
+            {
+                "key": f"2:{2**32 - 3_000 + ordinal * 3_000}",
+                "width": 1280,
+                "height": 720,
+                "maximumAbsoluteChannelError": 1,
+                "differingPixels": 10,
+                "differingPixelFraction": 10 / (1280 * 720),
+                "rootMeanSquareChannelError": 0.01,
+            }
+            for ordinal in oracle_ordinals
+        ],
         "receiver": {
             "inboundVideo": [
                 {
@@ -41,9 +55,10 @@ def report() -> dict[str, object]:
                     "height": 720,
                     "presentationTime": 3000.0,
                     "rgbaSha256": "b" * 64,
-                    "rtpTimestamp": 210_000,
+                    "rtpTimestamp": (2**32 - 3_000 + ordinal * 3_000) % 2**32,
                     "width": 1280,
                 }
+                for ordinal in oracle_ordinals
             ],
             "playbackQuality": {
                 "corruptedVideoFrames": 0,
@@ -86,6 +101,14 @@ def report() -> dict[str, object]:
             "fault_datagram_suppressed": True,
             "protected_retransmission_observed": True,
             "protected_retransmission_identical": True,
+            "sent_frame_trace": [
+                {
+                    "frame_index": index if index < 30 else index + 30,
+                    "dependency_epoch": 1 if index < 30 else 2,
+                    "extended_timestamp": 2**32 - 3_000 + index * 3_000,
+                }
+                for index in range(90)
+            ],
         },
         "streamSha256": "c" * 64,
     }

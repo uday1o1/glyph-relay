@@ -33,15 +33,44 @@ let controlSequence = 0;
 let oracleBytes = 0;
 let lastStatsSentAt = Number.NEGATIVE_INFINITY;
 const oracleFrames = [];
+let oracleTargets = null;
 
 window.__glyphrelayReceiver = {
   state: "READY",
   error: null,
   oracleFrames,
+  setOracleTargets,
   snapshot: receiverSnapshot,
 };
 
-async function receiverSnapshot() {
+function setOracleTargets(values) {
+  if (
+    window.__glyphrelayReceiver.state !== "READY" ||
+    !Array.isArray(values) ||
+    values.length !== 4 ||
+    new Set(values).size !== values.length ||
+    !values.every(
+      (value) =>
+        Number.isSafeInteger(value) && value >= 0 && value <= 0xffffffff,
+    )
+  ) {
+    throw new Error("oracle_targets_invalid");
+  }
+  oracleTargets = new Set(values);
+}
+
+function rgbaBase64(bytes) {
+  let binary = "";
+  const chunkSize = 32 * 1024;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(
+      ...bytes.subarray(offset, offset + chunkSize),
+    );
+  }
+  return btoa(binary);
+}
+
+async function receiverSnapshot(includeRgba = false) {
   const inboundVideo = [];
   if (peerConnection) {
     const stats = await peerConnection.getStats();
@@ -59,9 +88,10 @@ async function receiverSnapshot() {
     }
   }
   const oracle = [];
-  for (const frame of oracleFrames.slice(-4)) {
+  const retainedFrames = oracleFrames.slice(-4);
+  for (const frame of retainedFrames) {
     const digest = await crypto.subtle.digest("SHA-256", frame.rgba);
-    oracle.push({
+    const retained = {
       expectedDisplayTime: frame.expectedDisplayTime,
       height: frame.height,
       presentationTime: frame.presentationTime,
@@ -70,7 +100,11 @@ async function receiverSnapshot() {
       ).join(""),
       rtpTimestamp: frame.rtpTimestamp,
       width: frame.width,
-    });
+    };
+    if (includeRgba) {
+      retained.rgbaBase64 = rgbaBase64(frame.rgba);
+    }
+    oracle.push(retained);
   }
   return {
     inboundVideo,
@@ -204,16 +238,24 @@ function capturePresentedFrame(_now, metadata) {
         height: canvas.height,
         rgba: new Uint8ClampedArray(pixels),
       };
-      while (
-        oracleFrames.length > 0 &&
-        oracleBytes + frame.rgba.byteLength > MAXIMUM_ORACLE_BYTES
-      ) {
-        const removed = oracleFrames.shift();
-        oracleBytes -= removed.rgba.byteLength;
-      }
-      if (frame.rgba.byteLength <= MAXIMUM_ORACLE_BYTES) {
-        oracleFrames.push(frame);
-        oracleBytes += frame.rgba.byteLength;
+      const targetSelected =
+        oracleTargets === null || oracleTargets.has(frame.rtpTimestamp);
+      const alreadyRetained = oracleFrames.some(
+        (retained) => retained.rtpTimestamp === frame.rtpTimestamp,
+      );
+      if (targetSelected && !alreadyRetained) {
+        while (
+          oracleTargets === null &&
+          oracleFrames.length > 0 &&
+          oracleBytes + frame.rgba.byteLength > MAXIMUM_ORACLE_BYTES
+        ) {
+          const removed = oracleFrames.shift();
+          oracleBytes -= removed.rgba.byteLength;
+        }
+        if (oracleBytes + frame.rgba.byteLength <= MAXIMUM_ORACLE_BYTES) {
+          oracleFrames.push(frame);
+          oracleBytes += frame.rgba.byteLength;
+        }
       }
     }
   }
@@ -321,6 +363,7 @@ function clearReceiver(reason) {
   video.srcObject = null;
   oracleFrames.splice(0);
   oracleBytes = 0;
+  oracleTargets = null;
   shell.classList.remove("has-video");
   peerConnection?.close();
   peerConnection = undefined;
