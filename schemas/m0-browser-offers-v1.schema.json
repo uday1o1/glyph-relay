@@ -68,10 +68,21 @@
             "required": [
               "compatible",
               "reason",
+              "presentation",
+              "requiredLevelIdc",
               "formats",
               "videoPayloadTypes",
               "rtxPayloadTypes"
-            ]
+            ],
+            "properties": {
+              "compatible": { "type": "boolean" },
+              "reason": { "type": "string", "minLength": 1 },
+              "presentation": { "enum": ["720p30", "720p24", "720p15"] },
+              "requiredLevelIdc": { "const": 31 },
+              "formats": { "type": "array" },
+              "videoPayloadTypes": { "type": "array" },
+              "rtxPayloadTypes": { "type": "array" }
+            }
           },
           "diagnostics": {
             "type": "array",

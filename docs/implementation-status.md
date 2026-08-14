@@ -30,7 +30,7 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 | Local language tools | Node 24, Corepack, uv, Python, and FFmpeg available |
 | Missing host tools | CMake, Ninja, pnpm, pkg-config, Tesseract, OpenH264, Firefox, clang-format, clang-tidy, ShellCheck, gitleaks, coturn, and packet capture are absent from `PATH` |
 | Target state | All target-only gates are `DEFERRED_HARDWARE` pending the consolidated qualification workflow |
-| Architectural risk | Exact Chromium and Firefox offers may not authorize the Level 4.0 required by strict 1080p30 |
+| Architectural correction | ADR 0002 retains 1080p30 for record-only and evaluation use and caps V1 browser sharing at 720p30 under Level 3.1 |
 
 ## Milestone summary
 
@@ -59,7 +59,7 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 | M0-L06 | `IMPLEMENTED_LOCAL` | CUDA context and NVENC feasibility source, ownership state machines, pre-submit rejection, and cleanup | Exact header bootstrap and configure hash gate; primary-context RAII and per-thread push/pop guard; real NVENC function-table capability probe source compiled against the locked 13.1 header; bounded portable source, surface, submission, delayed-output, busy-retry, EOS, abort, and shutdown models; seeded foreign-context, stale-frame, stale-geometry, map-size, pointer-space, event, range, FIFO, retry-mutation, output-alias, retry-limit, and fatal-path tests; target capability and encode gates remain deferred |
 | M0-L07 | `IMPLEMENTED_LOCAL` | Final datagram hook, classifier, egress gate, counter, and deterministic revocation race | Locked MPL source patch at the final `sendto` boundary; exact patched-stack build; loopback generated-control and classified-media hook test; mux, ICE TCP, and TURN TCP or TLS rejection; direct IPv4, direct IPv6, TURN arithmetic, failure, stale-epoch, control-bypass, and all-reason linearization tests; packet-capture equality remains deferred |
 | M0-L08 | `IMPLEMENTED_LOCAL` | RTP packetization, sole sequence owner, bounded NACK and PLI recovery, and rollover contracts | Strict portable and exact pinned-library packetization tests; mixed 3-byte and 4-byte Annex B; single NAL and ordered FU-A; 1,200-byte payload and marker bounds; 64-bit timestamp and sequence wrap; MPL bounded responder; exact plaintext RTP replay; PID and BLP deduplication; active-epoch absent and ambiguous recovery; 500 ms, 2,048 packet, 4 MiB, and two-retransmission cache bounds; 100-identifier and ten-message rolling limits; sustained-flood termination; patched-stack build; protected-payload and browser recovery remain deferred |
-| M0-L09 | `IMPLEMENTED_LOCAL` | Loopback signaling, receiver, browser oracle, and browser pins | Strict Host and Origin, replay, ordering, size, SDP, and static-asset tests; real Chromium receiver workflow; exact Chromium 151.0.7922.34 and Firefox 153.0 offer capture with executable hashes; schema-valid `INCOMPATIBLE` result because Chromium offered Level 3.1 and Firefox offered no H.264; strict ten-run no-clobber oracle freeze tool; profile and oracle remain unfrozen pending target qualification |
+| M0-L09 | `IMPLEMENTED_LOCAL` | Loopback signaling, receiver, browser oracle, and browser pins | Strict Host and Origin, replay, ordering, size, SDP, and static-asset tests; exact Chromium 151.0.7922.34 accepts the ADR 0002 live 720p30 Level 3.1 contract and reaches the answer wait; exact Firefox 153.0 locally exposes no H.264 payload; strict ten-run no-clobber oracle freeze tool; profile and oracle remain unfrozen pending target qualification |
 | M0-L10 | `PENDING_LOCAL` | Local qualification phases, structured result schemas, documentation, and complete local verification | Content-addressed bundle; bounded and durable failure-complete runner; frozen performance-contamination policy; separate private and public-evidence archives; disposable-remote and seeded-fault tests; complete target phase coverage remains pending |
 
 ## Milestone 0 target gates
@@ -83,7 +83,7 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 | M0-H04 | `DEFERRED_HARDWARE` | Chromium and Firefox each display the NVENC stream for 60 seconds inside the frozen oracle tolerance | None |
 | M0-H04 | `DEFERRED_HARDWARE` | Both browsers recover from PLI through an IDR carrying SPS and PPS without decoder error | None |
 | M0-H04 | `DEFERRED_HARDWARE` | Emitted SPS profile and level match negotiated SDP with packetization mode 1 | None |
-| M0-H04 | `DEFERRED_HARDWARE` | Both real offers pass `recording_profile_v1` for every V1 presentation profile | None |
+| M0-H04 | `DEFERRED_HARDWARE` | Both real offers pass `recording_profile_v1` for every selected V1 sharing presentation | None |
 | M0-H04 | `DEFERRED_HARDWARE` | NVENC and system OpenH264 record-only streams begin with SPS, PPS, and IDR without signaling | None |
 | M0-H04 | `DEFERRED_HARDWARE` | No Milestone 0 service accepts a non-loopback connection | None |
 | M0-H05 | `DEFERRED_HARDWARE` | NACK around sequence 65,535 resolves uniquely in the active epoch and preserves SRTP rollover | None |

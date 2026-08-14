@@ -10,6 +10,7 @@ import { evaluateRecordingProfileOffer } from "./sdp.ts";
 
 const PROTOCOL_VERSION = "glyphrelay-m0-loopback-v1";
 const SESSION_ID = "m0-loopback-session";
+const LIVE_PRESENTATION = "720p30";
 const MAXIMUM_ENVELOPE_BYTES = 68 * 1024;
 const BODY_TIMEOUT_MILLISECONDS = 5_000;
 
@@ -243,7 +244,10 @@ export async function startM0LoopbackServer(
           return;
         }
         if (expectedType === "offer") {
-          const compatibility = evaluateRecordingProfileOffer(envelope.sdp);
+          const compatibility = evaluateRecordingProfileOffer(
+            envelope.sdp,
+            LIVE_PRESENTATION,
+          );
           if (!compatibility.compatible) {
             respondJson(response, 422, {
               error: "recording_profile_offer_incompatible",

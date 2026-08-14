@@ -16,15 +16,29 @@ export interface H264OfferFormat {
 export interface RecordingProfileOfferResult {
   compatible: boolean;
   reason: string;
+  presentation: string;
+  requiredLevelIdc: number;
   formats: readonly H264OfferFormat[];
   videoPayloadTypes: readonly number[];
   rtxPayloadTypes: readonly number[];
 }
 
-function fail(reason: string): RecordingProfileOfferResult {
+const SHARING_PRESENTATIONS: Readonly<Record<string, number>> = Object.freeze({
+  "720p30": 31,
+  "720p24": 31,
+  "720p15": 31,
+});
+
+function fail(
+  reason: string,
+  presentation: string,
+  requiredLevelIdc: number,
+): RecordingProfileOfferResult {
   return {
     compatible: false,
     reason,
+    presentation,
+    requiredLevelIdc,
     formats: [],
     videoPayloadTypes: [],
     rtxPayloadTypes: [],
@@ -93,13 +107,18 @@ export function classifyH264Profile(
 
 export function evaluateRecordingProfileOffer(
   sdp: string,
+  presentation = "720p30",
 ): RecordingProfileOfferResult {
+  const requiredLevelIdc = SHARING_PRESENTATIONS[presentation];
+  if (requiredLevelIdc === undefined) {
+    return fail("sharing_presentation_not_supported", presentation, 0);
+  }
   if (
     !sdp ||
     Buffer.byteLength(sdp, "utf8") > MAXIMUM_SDP_BYTES ||
     sdp.includes("\0")
   ) {
-    return fail("sdp_size_or_encoding_invalid");
+    return fail("sdp_size_or_encoding_invalid", presentation, requiredLevelIdc);
   }
 
   const videoPayloadTypes: number[] = [];
@@ -113,7 +132,7 @@ export function evaluateRecordingProfileOffer(
   for (const rawLine of sdp.split("\n")) {
     const line = rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine;
     if (Buffer.byteLength(line, "utf8") > MAXIMUM_SDP_LINE_BYTES) {
-      return fail("sdp_line_too_large");
+      return fail("sdp_line_too_large", presentation, requiredLevelIdc);
     }
     if (line.startsWith("m=")) {
       inVideoSection = line.startsWith("m=video ");
@@ -121,12 +140,20 @@ export function evaluateRecordingProfileOffer(
       if (inVideoSection) {
         const fields = line.split(" ");
         if (fields.length < 4) {
-          return fail("sdp_video_media_line_malformed");
+          return fail(
+            "sdp_video_media_line_malformed",
+            presentation,
+            requiredLevelIdc,
+          );
         }
         for (const rawPayload of fields.slice(3)) {
           const payload = parsePayloadType(rawPayload);
           if (payload === undefined || advertised.has(payload)) {
-            return fail("sdp_video_payload_list_invalid");
+            return fail(
+              "sdp_video_payload_list_invalid",
+              presentation,
+              requiredLevelIdc,
+            );
           }
           advertised.add(payload);
           videoPayloadTypes.push(payload);
@@ -146,17 +173,29 @@ export function evaluateRecordingProfileOffer(
     const payload = parsePayloadType(attribute[2] ?? "");
     const value = attribute[3] ?? "";
     if (payload === undefined || !advertised.has(payload)) {
-      return fail("sdp_attribute_payload_not_advertised");
+      return fail(
+        "sdp_attribute_payload_not_advertised",
+        presentation,
+        requiredLevelIdc,
+      );
     }
     if (kind === "a=rtpmap") {
       if (codecs.has(payload)) {
-        return fail("sdp_rtpmap_duplicate_or_invalid");
+        return fail(
+          "sdp_rtpmap_duplicate_or_invalid",
+          presentation,
+          requiredLevelIdc,
+        );
       }
       codecs.set(payload, value.toLowerCase());
     } else if (kind === "a=fmtp") {
       const parsed = parseParameters(value);
       if (!parsed || parameters.has(payload)) {
-        return fail("sdp_fmtp_duplicate_or_invalid");
+        return fail(
+          "sdp_fmtp_duplicate_or_invalid",
+          presentation,
+          requiredLevelIdc,
+        );
       }
       parameters.set(payload, parsed);
     } else {
@@ -167,10 +206,14 @@ export function evaluateRecordingProfileOffer(
   }
 
   if (!sawVideoSection) {
-    return fail("sdp_video_section_missing");
+    return fail("sdp_video_section_missing", presentation, requiredLevelIdc);
   }
   if (videoPayloadTypes.length === 0) {
-    return fail("sdp_video_payload_list_invalid");
+    return fail(
+      "sdp_video_payload_list_invalid",
+      presentation,
+      requiredLevelIdc,
+    );
   }
 
   const formats: H264OfferFormat[] = [];
@@ -217,6 +260,8 @@ export function evaluateRecordingProfileOffer(
     return {
       compatible: false,
       reason: "sdp_no_explicit_h264_format",
+      presentation,
+      requiredLevelIdc,
       formats,
       videoPayloadTypes,
       rtxPayloadTypes,
@@ -225,15 +270,17 @@ export function evaluateRecordingProfileOffer(
   const compatible = formats.some(
     (format) =>
       format.profileFamily === "constrained_baseline" &&
-      format.levelIdc >= 40 &&
+      format.levelIdc >= requiredLevelIdc &&
       format.packetizationMode === 1 &&
       format.levelAsymmetryAllowed,
   );
   return {
     compatible,
     reason: compatible
-      ? "recording_profile_offer_compatible"
-      : "recording_profile_offer_lacks_level4_constrained_baseline_packetization1",
+      ? "sharing_profile_offer_compatible"
+      : "sharing_profile_offer_lacks_selected_level_constrained_baseline_packetization1",
+    presentation,
+    requiredLevelIdc,
     formats,
     videoPayloadTypes,
     rtxPayloadTypes,

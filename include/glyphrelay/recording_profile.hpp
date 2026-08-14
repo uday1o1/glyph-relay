@@ -32,9 +32,11 @@ struct RecordingProfileCompatibility {
 };
 
 const std::vector<PresentationProfile> &recording_profile_presentations();
+const std::vector<PresentationProfile> &sharing_profile_presentations();
 std::string recording_profile_candidate_canonical_json();
 std::string recording_profile_candidate_sha256();
-RecordingProfileCompatibility evaluate_recording_profile_offer(std::string_view sdp);
+RecordingProfileCompatibility evaluate_recording_profile_offer(std::string_view sdp,
+                                                               std::string_view presentation_name);
 RecordingProfileCompatibility validate_recording_profile_sps(const H264SpsInfo &sps,
                                                              std::size_t expected_width,
                                                              std::size_t expected_height);

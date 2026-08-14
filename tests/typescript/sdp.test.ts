@@ -25,19 +25,21 @@ function offer(
   ].join("\r\n");
 }
 
-test("accepts semantic constrained baseline Level 4 with packetization mode 1", () => {
-  for (const profile of ["42c028", "42e028"]) {
-    const result = evaluateRecordingProfileOffer(offer(profile));
+test("accepts semantic constrained baseline for the selected live presentation", () => {
+  for (const profile of ["42c01f", "42e01f", "42e028"]) {
+    const result = evaluateRecordingProfileOffer(offer(profile), "720p30");
     assert.equal(result.compatible, true);
-    assert.equal(result.reason, "recording_profile_offer_compatible");
+    assert.equal(result.reason, "sharing_profile_offer_compatible");
+    assert.equal(result.presentation, "720p30");
+    assert.equal(result.requiredLevelIdc, 31);
     assert.equal(result.formats[0]?.profileFamily, "constrained_baseline");
     assert.deepEqual(result.rtxPayloadTypes, [103]);
   }
 });
 
-test("rejects the observed Level 3.1 profile and strict predicate mismatches", () => {
+test("rejects levels below 3.1 and strict predicate mismatches", () => {
   assert.deepEqual(
-    evaluateRecordingProfileOffer(offer("42e01f")).compatible,
+    evaluateRecordingProfileOffer(offer("42e00d"), "720p30").compatible,
     false,
   );
   assert.deepEqual(
@@ -49,8 +51,12 @@ test("rejects the observed Level 3.1 profile and strict predicate mismatches", (
     false,
   );
   assert.equal(
-    evaluateRecordingProfileOffer(offer("42e01f")).reason,
-    "recording_profile_offer_lacks_level4_constrained_baseline_packetization1",
+    evaluateRecordingProfileOffer(offer("42e00d"), "720p30").reason,
+    "sharing_profile_offer_lacks_selected_level_constrained_baseline_packetization1",
+  );
+  assert.equal(
+    evaluateRecordingProfileOffer(offer("42e028"), "1080p30").reason,
+    "sharing_presentation_not_supported",
   );
 });
 

@@ -221,26 +221,32 @@ void test_profile_and_sdp() {
   require(glyphrelay::classify_h264_profile(66U, 0xE0U) ==
               glyphrelay::H264ProfileFamily::constrained_baseline,
           "42e0 must classify as the same RFC 6184 subprofile");
-  require(glyphrelay::evaluate_recording_profile_offer(offer("42e028")).compatible,
-          "a Level 4.0 constrained-baseline browser offer must pass");
-  require(glyphrelay::evaluate_recording_profile_offer(offer("42c028")).compatible,
+  require(glyphrelay::evaluate_recording_profile_offer(offer("42e028"), "720p30").compatible,
+          "a Level 4.0 constrained-baseline browser offer must pass the 720p30 profile");
+  require(glyphrelay::evaluate_recording_profile_offer(offer("42c028"), "720p30").compatible,
           "equivalent constrained-baseline constraint bytes must pass");
 
-  const auto level_31 = glyphrelay::evaluate_recording_profile_offer(offer("42e01f"));
-  require(!level_31.compatible &&
-              level_31.reason ==
-                  "recording_profile_offer_lacks_level4_constrained_baseline_packetization1",
-          "a Level 3.1 offer must fail the declared 1080p30 requirement");
-  require(!glyphrelay::evaluate_recording_profile_offer(offer("42e028", "0")).compatible,
+  const auto level_31 = glyphrelay::evaluate_recording_profile_offer(offer("42e01f"), "720p30");
+  require(level_31.compatible && level_31.reason == "sharing_profile_offer_compatible",
+          "a Level 3.1 offer must pass the selected 720p30 sharing requirement");
+  const auto level_13 = glyphrelay::evaluate_recording_profile_offer(offer("42e00d"), "720p30");
+  require(!level_13.compatible &&
+              level_13.reason ==
+                  "sharing_profile_offer_lacks_selected_level_constrained_baseline_packetization1",
+          "an offer below Level 3.1 must fail the selected 720p30 requirement");
+  require(!glyphrelay::evaluate_recording_profile_offer(offer("42e028", "0"), "720p30").compatible,
           "packetization mode zero must fail");
-  require(!glyphrelay::evaluate_recording_profile_offer(offer("42e028", "1", "0")).compatible,
-          "an offer without level asymmetry must fail");
+  require(
+      !glyphrelay::evaluate_recording_profile_offer(offer("42e028", "1", "0"), "720p30").compatible,
+      "an offer without level asymmetry must fail");
+  require(!glyphrelay::evaluate_recording_profile_offer(offer("42e028"), "1080p30").compatible,
+          "a record-only presentation must not enter browser sharing negotiation");
 
   const std::string spoofed =
       "v=0\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\n"
       "a=rtpmap:97 H264/90000\r\n"
       "a=fmtp:97 profile-level-id=42e028;packetization-mode=1;level-asymmetry-allowed=1\r\n";
-  const auto spoofed_result = glyphrelay::evaluate_recording_profile_offer(spoofed);
+  const auto spoofed_result = glyphrelay::evaluate_recording_profile_offer(spoofed, "720p30");
   require(!spoofed_result.compatible &&
               spoofed_result.reason == "sdp_attribute_payload_not_advertised",
           "an H.264 attribute for an unadvertised payload must be rejected");
@@ -248,10 +254,10 @@ void test_profile_and_sdp() {
   const std::string duplicate =
       offer("42e028") +
       "a=fmtp:97 profile-level-id=42e028;packetization-mode=1;level-asymmetry-allowed=1\r\n";
-  require(!glyphrelay::evaluate_recording_profile_offer(duplicate).compatible,
+  require(!glyphrelay::evaluate_recording_profile_offer(duplicate, "720p30").compatible,
           "duplicate format parameters must fail closed");
   const auto candidate_hash = glyphrelay::recording_profile_candidate_sha256();
-  require(candidate_hash == "7a8d11250e043c52b7089a375485bef3916414c6d81d6f1350f53dbcc56b04e1",
+  require(candidate_hash == "d5e05bae2645f774665675bca1230c9320f5978b3f11fe0e3b6be1c8f1746d63",
           "the candidate profile must keep its exact canonical identity");
 }
 

@@ -110,7 +110,7 @@ async function captureBrowserOffer(
       executableSha256,
       capabilities: capture.capabilities,
       offerSdp: capture.offerSdp,
-      compatibility: evaluateRecordingProfileOffer(capture.offerSdp),
+      compatibility: evaluateRecordingProfileOffer(capture.offerSdp, "720p30"),
       diagnostics,
     };
   } finally {

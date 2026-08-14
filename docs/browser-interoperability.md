@@ -14,7 +14,7 @@ The HTTP server validates the actual bound address, loopback peer address, exact
 
 It serves only three repository-owned static assets with a restrictive content security policy, `Referrer-Policy: no-referrer`, no analytics, and no third-party requests.
 
-An offer is stored only after the strict `recording_profile_candidate_v1` SDP predicate accepts it.
+An offer is stored only after the strict `recording_profile_candidate_v1` SDP predicate accepts it for the selected 720p30 sharing presentation.
 
 An incompatible offer receives status 422 with a stable reason and is never rewritten.
 
@@ -68,7 +68,13 @@ The current Firefox source also defaults its H.264 level preference to 31.
 
 See the [Firefox WebRTC debugging documentation](https://firefox-source-docs.mozilla.org/contributing/debugging/debugging_webrtc_calls.html) and the [current Firefox H.264 preference source](https://searchfox.org/mozilla-central/search?q=media.navigator.video.h264.level&path=).
 
-No profile has been frozen and no browser compatibility claim is accepted from this result.
+ADR 0002 retains 1080p30 for record-only and evaluation use, caps V1 browser sharing at 720p30, and requires a fresh target offer and decode run before freezing the profile.
+
+The post-pivot local rerun accepted Chromium's exact unmodified offer for 720p30 and still found no explicit H.264 payload in Firefox.
+
+The report therefore remains truthfully `INCOMPATIBLE` until target-side Firefox GMP qualification passes.
+
+No profile has been frozen and no two-browser compatibility claim is accepted from either local result.
 
 ## Browser oracle
 

@@ -2,7 +2,7 @@
 
 GlyphRelay currently carries `recording_profile_candidate_v1` while Milestone 0 browser qualification remains deferred.
 
-The candidate's canonical SHA-256 identity is `7a8d11250e043c52b7089a375485bef3916414c6d81d6f1350f53dbcc56b04e1`.
+The candidate's canonical SHA-256 identity is `d5e05bae2645f774665675bca1230c9320f5978b3f11fe0e3b6be1c8f1746d63`.
 
 This identity is not the final `recording_profile_v1` hash.
 
@@ -16,15 +16,17 @@ NVENC receives one contiguous NV12 surface.
 
 The system OpenH264 adapter receives I420 produced by an exact NV12-to-I420 planarization.
 
-The candidate encoder contract uses H.264 Constrained Baseline, a maximum encoded level of 4.0, no B frames, a maximum 60-frame GOP, and SPS plus PPS before the first IDR and every later IDR.
+The candidate encoder contract uses H.264 Constrained Baseline, no B frames, a maximum 60-frame GOP, and SPS plus PPS before the first IDR and every later IDR.
 
-The declared presentations are 1920x1080 at 30 or 24 frames per second and 1280x720 at 24 or 15 frames per second.
+Record-only and deterministic evaluation presentations include 1920x1080 at 30 or 24 frames per second under Level 4.0 and 1280x720 at 30, 24, or 15 frames per second under Level 3.1.
+
+Browser-sharing presentations are 1280x720 at 30, 24, or 15 frames per second under Level 3.1.
 
 Strict 1920x1080 at 30 frames per second requires Level 4.0 because it contains 8,160 macroblocks per frame and 244,800 macroblocks per second.
 
 ## SDP predicate
 
-An offer passes only when its video media line advertises an explicit `H264/90000` payload with `packetization-mode=1`, `level-asymmetry-allowed=1`, the RFC 6184 Constrained Baseline subprofile, and Level 4.0 or higher.
+An offer passes only when its video media line advertises an explicit `H264/90000` payload with `packetization-mode=1`, `level-asymmetry-allowed=1`, the RFC 6184 Constrained Baseline subprofile, and a level sufficient for the selected browser-sharing presentation.
 
 The parser bounds total and per-line input, ties attributes to payload identifiers advertised by the active video media line, rejects duplicate or malformed fields, and fails closed when any required parameter is absent.
 
@@ -32,13 +34,15 @@ Profile compatibility is semantic rather than raw-byte equality.
 
 Both `42c0xx` and `42e0xx` represent compatible Constrained Baseline constraint patterns under the RFC 6184 masks used by the predicate.
 
-A typical `42e01f` Constrained Baseline Level 3.1 offer is rejected because it cannot authorize the candidate's 1080p presentations.
+A typical `42e01f` Constrained Baseline Level 3.1 offer is accepted for the selected 720p sharing presentations and cannot authorize a 1080p share.
 
-This unresolved browser-offer conflict is a Milestone 0 kill-gate risk, not a passing result.
+ADR 0002 records the browser-level kill-gate pivot and forbids a live 1080p V1 claim.
 
 The exact pinned local-browser preflight on 2026-08-13 observed Chromium Constrained Baseline only at Level 3.1 and no explicit H.264 format from Firefox.
 
-The probe exited with the truthful `INCOMPATIBLE` state, and the candidate remains unfrozen.
+The post-pivot local probe accepts Chromium's exact Level 3.1 offer for 720p30 and remains truthfully `INCOMPATIBLE` because Firefox exposed no explicit H.264 format.
+
+The corrected candidate remains unfrozen until the target browser run passes.
 
 See [browser-interoperability.md](browser-interoperability.md) for the reproducible workflow and the boundary between local preflight and target evidence.
 
@@ -58,6 +62,6 @@ FFprobe reports H.264 Constrained Baseline, Level 4.0, 1920x1080, `yuv420p`, lim
 
 ## Remaining acceptance evidence
 
-The final profile requires captured offers from the exact pinned Chromium and Firefox binaries for every presentation, a compatible NVENC SPS and stream, 60-second playback in both browsers, PLI recovery, and independent NVENC record-only decode.
+The final profile requires captured offers from the exact pinned Chromium and Firefox binaries for the selected sharing presentations, a compatible NVENC SPS and stream, 60-second playback in both browsers, PLI recovery, and independent NVENC record-only decode.
 
 Those target-only checks remain `DEFERRED_HARDWARE` and will be run by the consolidated qualification workflow.

@@ -200,8 +200,16 @@ std::string parse_offer(std::string_view sdp, std::vector<H264OfferFormat> &form
 
 const std::vector<PresentationProfile> &recording_profile_presentations() {
   static const std::vector<PresentationProfile> profiles = {
-      {"1080p30", 1920, 1080, 30, 40},
-      {"1080p24", 1920, 1080, 24, 40},
+      {"1080p30", 1920, 1080, 30, 40}, {"1080p24", 1920, 1080, 24, 40},
+      {"720p30", 1280, 720, 30, 31},   {"720p24", 1280, 720, 24, 31},
+      {"720p15", 1280, 720, 15, 31},
+  };
+  return profiles;
+}
+
+const std::vector<PresentationProfile> &sharing_profile_presentations() {
+  static const std::vector<PresentationProfile> profiles = {
+      {"720p30", 1280, 720, 30, 31},
       {"720p24", 1280, 720, 24, 31},
       {"720p15", 1280, 720, 15, 31},
   };
@@ -210,45 +218,51 @@ const std::vector<PresentationProfile> &recording_profile_presentations() {
 
 std::string recording_profile_candidate_canonical_json() {
   return "{\"schema_version\":1,\"name\":\"recording_profile_candidate_v1\","
-         "\"profile_family\":\"constrained_baseline\",\"maximum_level_idc\":40,"
+         "\"profile_family\":\"constrained_baseline\","
+         "\"recording_maximum_level_idc\":40,\"sharing_maximum_level_idc\":31,"
          "\"packetization_mode\":1,\"level_asymmetry_allowed_required\":true,"
          "\"pixel_format\":\"8_bit_420\",\"nvenc_layout\":\"nv12\","
          "\"openh264_layout\":\"i420\",\"color_primaries\":\"bt709\","
          "\"transfer_characteristics\":\"bt709\",\"matrix_coefficients\":\"bt709\","
          "\"full_range\":false,\"b_frames\":0,\"gop_frames_maximum\":60,"
          "\"parameter_sets\":\"startup_and_every_idr\","
-         "\"presentations\":[[\"1080p30\",1920,1080,30,40],"
-         "[\"1080p24\",1920,1080,24,40],[\"720p24\",1280,720,24,31],"
-         "[\"720p15\",1280,720,15,31]]}";
+         "\"recording_presentations\":[[\"1080p30\",1920,1080,30,40],"
+         "[\"1080p24\",1920,1080,24,40],[\"720p30\",1280,720,30,31],"
+         "[\"720p24\",1280,720,24,31],[\"720p15\",1280,720,15,31]],"
+         "\"sharing_presentations\":[[\"720p30\",1280,720,30,31],"
+         "[\"720p24\",1280,720,24,31],[\"720p15\",1280,720,15,31]]}";
 }
 
 std::string recording_profile_candidate_sha256() {
   return sha256_hex(recording_profile_candidate_canonical_json());
 }
 
-RecordingProfileCompatibility evaluate_recording_profile_offer(std::string_view sdp) {
+RecordingProfileCompatibility evaluate_recording_profile_offer(std::string_view sdp,
+                                                               std::string_view presentation_name) {
   RecordingProfileCompatibility result;
   result.reason = parse_offer(sdp, result.formats);
   if (result.formats.empty()) {
     return result;
   }
-  const auto required_level =
-      std::max_element(recording_profile_presentations().begin(),
-                       recording_profile_presentations().end(),
-                       [](const PresentationProfile &left, const PresentationProfile &right) {
-                         return left.minimum_h264_level_idc < right.minimum_h264_level_idc;
-                       })
-          ->minimum_h264_level_idc;
+  const auto presentation =
+      std::find_if(sharing_profile_presentations().begin(), sharing_profile_presentations().end(),
+                   [presentation_name](const PresentationProfile &profile) {
+                     return profile.name == presentation_name;
+                   });
+  if (presentation == sharing_profile_presentations().end()) {
+    result.reason = "sharing_presentation_not_supported";
+    return result;
+  }
   for (const auto &format : result.formats) {
     if (format.profile_level.family == H264ProfileFamily::constrained_baseline &&
-        format.profile_level.level_idc >= required_level && format.packetization_mode == 1U &&
-        format.level_asymmetry_allowed) {
+        format.profile_level.level_idc >= presentation->minimum_h264_level_idc &&
+        format.packetization_mode == 1U && format.level_asymmetry_allowed) {
       result.compatible = true;
-      result.reason = "recording_profile_offer_compatible";
+      result.reason = "sharing_profile_offer_compatible";
       return result;
     }
   }
-  result.reason = "recording_profile_offer_lacks_level4_constrained_baseline_packetization1";
+  result.reason = "sharing_profile_offer_lacks_selected_level_constrained_baseline_packetization1";
   return result;
 }
 

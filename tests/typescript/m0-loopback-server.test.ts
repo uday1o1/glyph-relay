@@ -10,7 +10,7 @@ const compatibleOffer = [
   "v=0",
   "m=video 9 UDP/TLS/RTP/SAVPF 102 103",
   "a=rtpmap:102 H264/90000",
-  "a=fmtp:102 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e028",
+  "a=fmtp:102 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
   "a=rtpmap:103 rtx/90000",
   "a=fmtp:103 apt=102",
   "",
@@ -108,10 +108,10 @@ test("rejects hostile Host, Origin, incompatible offers, replays, and invalid or
   const incompatible = await rawRequest(server.origin, "/api/m0/offer", {
     method: "POST",
     headers: contentHeaders,
-    body: envelope("offer", compatibleOffer.replace("42e028", "42e01f")),
+    body: envelope("offer", compatibleOffer.replace("42e01f", "42e00d")),
   });
   assert.equal(incompatible.status, 422);
-  assert.match(incompatible.body, /recording_profile_offer_lacks_level4/);
+  assert.match(incompatible.body, /sharing_profile_offer_lacks_selected_level/);
 
   const accepted = await rawRequest(server.origin, "/api/m0/offer", {
     method: "POST",
