@@ -161,6 +161,49 @@ def validate_lock(lock: dict[str, Any], root: Path = ROOT) -> list[str]:
     _expect_equal(errors, openh264.get("soname"), "libopenh264.so.7", "OpenH264 SONAME")
     _expect_equal(errors, openh264.get("encoder_input_layout"), "I420", "OpenH264 input layout")
 
+    linux_capture = lock.get("linux_capture", {})
+    capture_packages = linux_capture.get("packages", [])
+    expected_capture_packages = {
+        "libclang-rt-18-dev": "1:18.1.3-1ubuntu1",
+        "libglib2.0-dev": "2.80.0-6ubuntu3.8",
+        "libpipewire-0.3-dev": "1.0.5-1ubuntu3.3",
+        "libspa-0.2-dev": "1.0.5-1ubuntu3.3",
+        "pkg-config": "1.8.1-2build1",
+    }
+    actual_capture_packages: dict[object, object] = {}
+    if not isinstance(capture_packages, list):
+        errors.append("linux_capture.packages must be a list")
+        capture_packages = []
+    for index, package_lock in enumerate(capture_packages):
+        if not isinstance(package_lock, dict):
+            errors.append(f"linux_capture.packages[{index}] must be an object")
+            continue
+        actual_capture_packages[package_lock.get("name")] = package_lock.get("version")
+        _expect_pattern(
+            errors,
+            package_lock.get("sha256_amd64"),
+            HEX64,
+            f"Linux capture package {index}",
+        )
+    _expect_equal(
+        errors,
+        actual_capture_packages,
+        expected_capture_packages,
+        "Linux capture package pins",
+    )
+    _expect_equal(
+        errors,
+        linux_capture.get("portal_interface"),
+        "org.freedesktop.portal.ScreenCast",
+        "portal interface",
+    )
+    _expect_equal(
+        errors,
+        linux_capture.get("mandatory_memory_path"),
+        "shared_memory",
+        "capture memory path",
+    )
+
     coturn = lock.get("coturn", {})
     _expect_pattern(errors, coturn.get("linux_amd64_digest"), SHA256, "coturn digest")
     _expect_equal(
@@ -221,6 +264,9 @@ def validate_lock(lock: dict[str, Any], root: Path = ROOT) -> list[str]:
     image_reference = f"{container.get('image')}@{container.get('digest')}"
     if not dockerfile.startswith(f"FROM {image_reference}\n"):
         errors.append("Linux CPU Dockerfile does not use the locked base image")
+    for package_name, package_version in expected_capture_packages.items():
+        if f"{package_name}={package_version}" not in dockerfile:
+            errors.append(f"Linux CPU Dockerfile omits locked {package_name} package")
 
     return errors
 

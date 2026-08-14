@@ -98,6 +98,40 @@
     "encoder_input_layout": "I420",
     "color_contract": "8-bit 4:2:0 with frozen matrix and range"
   },
+  "linux_capture": {
+    "ubuntu_release": "24.04",
+    "architecture": "amd64",
+    "packages": [
+      {
+        "name": "libclang-rt-18-dev",
+        "version": "1:18.1.3-1ubuntu1",
+        "sha256_amd64": "82d5d27d12c0abdf4cefbafa6044e7544a4cbbbec9c04784f5ce326979842b2b"
+      },
+      {
+        "name": "libglib2.0-dev",
+        "version": "2.80.0-6ubuntu3.8",
+        "sha256_amd64": "1fc421aece8e35b16c286cb3f2029c6197fff8d89ba3933b462e10a31428aac7"
+      },
+      {
+        "name": "libpipewire-0.3-dev",
+        "version": "1.0.5-1ubuntu3.3",
+        "sha256_amd64": "1a0267989f02a8729cdb4df36d9acf3a5ac1a525200d428baffe8961ccb0e0ba"
+      },
+      {
+        "name": "libspa-0.2-dev",
+        "version": "1.0.5-1ubuntu3.3",
+        "sha256_amd64": "93a60e7656fb35c97a78159fd0556842c62c2d8b9aff096009f9a20c64c1f272"
+      },
+      {
+        "name": "pkg-config",
+        "version": "1.8.1-2build1",
+        "sha256_amd64": "16bda455d9216da31ad55d72df5a7380cb9d5ac32a2393941cab262a4e5b526f"
+      }
+    ],
+    "portal_interface": "org.freedesktop.portal.ScreenCast",
+    "pipewire_pkg_config": "libpipewire-0.3",
+    "mandatory_memory_path": "shared_memory"
+  },
   "playwright": {
     "package": "@playwright/test",
     "version": "1.62.1",

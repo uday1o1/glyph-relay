@@ -224,11 +224,15 @@ void test_orientation_normalizes_pixels_damage_and_cursor() {
     std::size_t height;
     std::vector<std::uint8_t> expected;
   };
-  const std::array<OrientationCase, 4U> cases = {
+  const std::array<OrientationCase, 8U> cases = {
       OrientationCase{glyphrelay::CaptureOrientation::upright, 2U, 3U, {1U, 2U, 3U, 4U, 5U, 6U}},
       OrientationCase{glyphrelay::CaptureOrientation::rotate90, 3U, 2U, {5U, 3U, 1U, 6U, 4U, 2U}},
       OrientationCase{glyphrelay::CaptureOrientation::rotate180, 2U, 3U, {6U, 5U, 4U, 3U, 2U, 1U}},
       OrientationCase{glyphrelay::CaptureOrientation::rotate270, 3U, 2U, {2U, 4U, 6U, 1U, 3U, 5U}},
+      OrientationCase{glyphrelay::CaptureOrientation::flipped, 2U, 3U, {2U, 1U, 4U, 3U, 6U, 5U}},
+      OrientationCase{glyphrelay::CaptureOrientation::flipped90, 3U, 2U, {1U, 3U, 5U, 2U, 4U, 6U}},
+      OrientationCase{glyphrelay::CaptureOrientation::flipped180, 2U, 3U, {5U, 6U, 3U, 4U, 1U, 2U}},
+      OrientationCase{glyphrelay::CaptureOrientation::flipped270, 3U, 2U, {6U, 4U, 2U, 5U, 3U, 1U}},
   };
   for (const auto &orientation_case : cases) {
     glyphrelay::SharedMemoryCapturePool pool(1U);
@@ -266,6 +270,11 @@ void test_orientation_normalizes_pixels_damage_and_cursor() {
               lease->frame().damage[0].x == 1U && lease->frame().damage[0].y == 0U &&
               lease->frame().damage[0].width == 2U && lease->frame().damage[0].height == 1U,
           "orientation normalization must transform cursor pixels, position, and damage together");
+
+  metadata_pool.stop(glyphrelay::CaptureState::revoked);
+  metadata_pool.stop(glyphrelay::CaptureState::closed);
+  require(metadata_pool.diagnostics().terminal_state == glyphrelay::CaptureState::revoked,
+          "capture teardown must preserve the first terminal cause across repeated cleanup");
 }
 
 void test_color_goldens_and_padded_pitch() {

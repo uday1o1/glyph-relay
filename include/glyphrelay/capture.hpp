@@ -15,7 +15,16 @@ namespace glyphrelay {
 
 enum class PackedPixelOrder { bgra, rgba };
 enum class CursorMode { hidden, embedded, metadata };
-enum class CaptureOrientation { upright, rotate90, rotate180, rotate270 };
+enum class CaptureOrientation {
+  upright,
+  rotate90,
+  rotate180,
+  rotate270,
+  flipped,
+  flipped90,
+  flipped180,
+  flipped270,
+};
 enum class CaptureState {
   idle,
   creating_session,

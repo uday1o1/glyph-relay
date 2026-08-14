@@ -85,7 +85,9 @@ bool same_geometry(const CaptureGeometry &geometry, const SharedMemoryBufferView
 
 CaptureGeometry make_geometry(std::uint64_t epoch, const SharedMemoryBufferView &buffer) {
   const bool swaps_dimensions = buffer.orientation == CaptureOrientation::rotate90 ||
-                                buffer.orientation == CaptureOrientation::rotate270;
+                                buffer.orientation == CaptureOrientation::rotate270 ||
+                                buffer.orientation == CaptureOrientation::flipped90 ||
+                                buffer.orientation == CaptureOrientation::flipped270;
   const auto visible_width = swaps_dimensions ? buffer.crop.height : buffer.crop.width;
   const auto visible_height = swaps_dimensions ? buffer.crop.width : buffer.crop.height;
   return {epoch,
@@ -153,6 +155,14 @@ source_coordinate(std::size_t destination_x, std::size_t destination_y, std::siz
     return {source_width - 1U - destination_x, source_height - 1U - destination_y};
   case CaptureOrientation::rotate270:
     return {source_width - 1U - destination_y, destination_x};
+  case CaptureOrientation::flipped:
+    return {source_width - 1U - destination_x, destination_y};
+  case CaptureOrientation::flipped90:
+    return {destination_y, destination_x};
+  case CaptureOrientation::flipped180:
+    return {destination_x, source_height - 1U - destination_y};
+  case CaptureOrientation::flipped270:
+    return {source_width - 1U - destination_y, source_height - 1U - destination_x};
   }
   throw std::logic_error("unknown capture orientation");
 }
@@ -169,6 +179,15 @@ DamageRectangle transform_damage(const DamageRectangle &damage, std::size_t sour
             damage.width, damage.height};
   case CaptureOrientation::rotate270:
     return {damage.y, source_width - damage.x - damage.width, damage.height, damage.width};
+  case CaptureOrientation::flipped:
+    return {source_width - damage.x - damage.width, damage.y, damage.width, damage.height};
+  case CaptureOrientation::flipped90:
+    return {damage.y, damage.x, damage.height, damage.width};
+  case CaptureOrientation::flipped180:
+    return {damage.x, source_height - damage.y - damage.height, damage.width, damage.height};
+  case CaptureOrientation::flipped270:
+    return {source_height - damage.y - damage.height, source_width - damage.x - damage.width,
+            damage.height, damage.width};
   }
   throw std::logic_error("unknown capture orientation");
 }
@@ -197,6 +216,17 @@ std::pair<std::int32_t, std::int32_t> transform_cursor_position(const CursorMeta
             clamp_cursor_coordinate(source_height - 1 - source_y)};
   case CaptureOrientation::rotate270:
     return {clamp_cursor_coordinate(source_y),
+            clamp_cursor_coordinate(source_width - 1 - source_x)};
+  case CaptureOrientation::flipped:
+    return {clamp_cursor_coordinate(source_width - 1 - source_x),
+            clamp_cursor_coordinate(source_y)};
+  case CaptureOrientation::flipped90:
+    return {clamp_cursor_coordinate(source_y), clamp_cursor_coordinate(source_x)};
+  case CaptureOrientation::flipped180:
+    return {clamp_cursor_coordinate(source_x),
+            clamp_cursor_coordinate(source_height - 1 - source_y)};
+  case CaptureOrientation::flipped270:
+    return {clamp_cursor_coordinate(source_height - 1 - source_y),
             clamp_cursor_coordinate(source_width - 1 - source_x)};
   }
   throw std::logic_error("unknown capture orientation");
@@ -562,6 +592,9 @@ void SharedMemoryCapturePool::stop(CaptureState terminal_state) {
     throw std::invalid_argument("capture stop requires a terminal state");
   }
   std::scoped_lock lock(implementation_->mutex);
+  if (!implementation_->diagnostics.admission_open) {
+    return;
+  }
   implementation_->diagnostics.admission_open = false;
   implementation_->diagnostics.terminal_state = terminal_state;
   for (auto &slot : implementation_->slots) {
@@ -632,6 +665,14 @@ std::string_view capture_orientation_name(CaptureOrientation orientation) {
     return "rotate180";
   case CaptureOrientation::rotate270:
     return "rotate270";
+  case CaptureOrientation::flipped:
+    return "flipped";
+  case CaptureOrientation::flipped90:
+    return "flipped90";
+  case CaptureOrientation::flipped180:
+    return "flipped180";
+  case CaptureOrientation::flipped270:
+    return "flipped270";
   }
   return "unknown";
 }

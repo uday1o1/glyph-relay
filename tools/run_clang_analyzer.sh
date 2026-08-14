@@ -15,6 +15,7 @@ for source in \
   src/app/doctor_probes.cpp \
   src/app/main.cpp \
   src/capture/capture.cpp \
+  src/capture/linux_capture_stub.cpp \
   src/core/m0_protocol.cpp \
   src/core/color_conversion.cpp \
   src/core/quality_metrics.cpp \
@@ -45,6 +46,7 @@ for source in \
     -DGLYPHRELAY_HAS_CUDA_COMPILER=0 \
     -DGLYPHRELAY_HAS_CUDA_DRIVER=0 \
     -DGLYPHRELAY_HAS_OPENH264=0 \
+    -DGLYPHRELAY_HAS_LINUX_CAPTURE=0 \
     -DGLYPHRELAY_HAS_NVENC=0 \
     -DGLYPHRELAY_CUDA_COMPILER_VERSION=\"\" \
     -DGLYPHRELAY_SOURCE_DIR=\".\" \

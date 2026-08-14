@@ -63,6 +63,14 @@ else()
   message(STATUS "System OpenH264 adapter unavailable")
 endif()
 
+set(GLYPHRELAY_HAS_LINUX_CAPTURE 0)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  find_package(PkgConfig REQUIRED)
+  pkg_check_modules(GLYPHRELAY_GIO REQUIRED IMPORTED_TARGET gio-2.0 gio-unix-2.0)
+  pkg_check_modules(GLYPHRELAY_PIPEWIRE REQUIRED IMPORTED_TARGET libpipewire-0.3)
+  set(GLYPHRELAY_HAS_LINUX_CAPTURE 1)
+endif()
+
 add_library(glyphrelay_core
   src/app/doctor.cpp
   src/app/doctor_probes.cpp
@@ -87,6 +95,14 @@ add_library(glyphrelay_core
   src/transport/media_egress.cpp
   src/transport/rtp_transport.cpp
 )
+if(GLYPHRELAY_HAS_LINUX_CAPTURE)
+  target_sources(glyphrelay_core PRIVATE
+    src/capture/linux_capture_gdbus.cpp
+    src/capture/linux_capture_pipewire.cpp
+  )
+else()
+  target_sources(glyphrelay_core PRIVATE src/capture/linux_capture_stub.cpp)
+endif()
 target_include_directories(glyphrelay_core PUBLIC include)
 target_compile_definitions(glyphrelay_core PUBLIC
   GLYPHRELAY_VERSION="${PROJECT_VERSION}"
@@ -95,10 +111,16 @@ target_compile_definitions(glyphrelay_core PUBLIC
   GLYPHRELAY_CUDA_COMPILER_VERSION="${CMAKE_CUDA_COMPILER_VERSION}"
   GLYPHRELAY_HAS_NVENC=${GLYPHRELAY_HAS_NVENC}
   GLYPHRELAY_HAS_OPENH264=${GLYPHRELAY_HAS_OPENH264}
+  GLYPHRELAY_HAS_LINUX_CAPTURE=${GLYPHRELAY_HAS_LINUX_CAPTURE}
   GLYPHRELAY_M0_PROTOCOL_SHA256="5443417595e3ccb88c89adc3a2d22842fde3206c736d3069042b62cd1c8ab708"
 )
 if(GLYPHRELAY_HAS_CUDA_DRIVER)
   target_link_libraries(glyphrelay_core PRIVATE CUDA::cuda_driver)
+endif()
+if(GLYPHRELAY_HAS_LINUX_CAPTURE)
+  target_link_libraries(glyphrelay_core PRIVATE
+    PkgConfig::GLYPHRELAY_GIO
+    PkgConfig::GLYPHRELAY_PIPEWIRE)
 endif()
 if(GLYPHRELAY_HAS_NVENC)
   target_include_directories(glyphrelay_core PRIVATE ${GLYPHRELAY_NVENC_INCLUDE_DIR})
@@ -237,6 +259,18 @@ if(BUILD_TESTING)
   add_executable(glyphrelay_capture_contract_tests tests/native/test_capture_contracts.cpp)
   target_link_libraries(glyphrelay_capture_contract_tests PRIVATE glyphrelay_core)
   add_test(NAME native.capture_contracts COMMAND glyphrelay_capture_contract_tests)
+
+  if(GLYPHRELAY_HAS_LINUX_CAPTURE)
+    add_executable(glyphrelay_linux_capture_contract_tests
+      tests/native/test_linux_capture_contracts.cpp)
+    target_include_directories(glyphrelay_linux_capture_contract_tests PRIVATE
+      src/capture)
+    target_link_libraries(glyphrelay_linux_capture_contract_tests PRIVATE
+      glyphrelay_core
+      PkgConfig::GLYPHRELAY_PIPEWIRE)
+    add_test(NAME integration.linux_capture_contracts
+      COMMAND glyphrelay_linux_capture_contract_tests)
+  endif()
 
   add_executable(glyphrelay_egress_contract_tests tests/native/test_media_egress.cpp)
   target_link_libraries(glyphrelay_egress_contract_tests PRIVATE glyphrelay_core)

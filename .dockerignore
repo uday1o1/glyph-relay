@@ -1,4 +1,8 @@
 .git
+.deps
+.mypy_cache
+.pytest_cache
+.ruff_cache
 .venv
 artifacts
 build
