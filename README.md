@@ -8,6 +8,8 @@ No GPU, browser interoperability, quality, latency, or bitrate claim is accepted
 
 Current evidence and deferred gates are recorded in [docs/implementation-status.md](docs/implementation-status.md).
 
+The Linux durable recording protocol, failure behavior, and verification commands are documented in [docs/recording.md](docs/recording.md).
+
 ## Foundation workflow
 
 The portable foundation requires Node.js 24, Corepack, `uv`, Apple Clang or Clang, and Make.

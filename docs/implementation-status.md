@@ -103,7 +103,8 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 | --- | --- | --- | --- |
 | M1-L01A | `IMPLEMENTED_LOCAL` | Portable portal lifecycle, shared-memory ownership, bounded latest-frame capture pool, cursor composition, orientation transforms, geometry epochs, and scalar plus available SIMD BT.709 conversion | `native.capture_contracts`; hand-calculated limited- and full-range goldens; BGRA and RGBA; pitch, odd-edge, and all eight SPA orientation cases; 100 deterministic randomized scalar-to-SIMD comparisons; prompt-requeue and starvation controls |
 | M1-L01B | `IMPLEMENTED_LOCAL` | Real Linux GDBus ScreenCast portal and PipeWire shared-memory adapter | Locked Ubuntu GLib/GIO/PipeWire/SPA build; `integration.linux_capture_contracts`; real SPA crop, damage, reflected transform, inline cursor, prompt-requeue, and DMA-BUF-fallback fixtures; Linux capture analyzer and sanitizer lanes; interactive portal gate remains deferred |
-| M1-L02 | `PENDING_LOCAL` | Public CPU record-only and share paths, bounded media queues, drops, and local recording | None |
+| M1-L02A | `IMPLEMENTED_LOCAL` | Bounded nonblocking recorder branch, crash-safe journal, durable publication, streaming inspection, and independent filesystem crash model | Real system-OpenH264 access units; independent FFmpeg decode; all 27 recorder persistence-event process crashes; 28-operation filesystem crash model; three seeded ordering defects; Linux analyzer; ASAN and UBSAN; no-clobber and corruption fixtures |
+| M1-L02B | `PENDING_LOCAL` | Public CPU record-only and share paths, remaining media queues, drops, and user-facing recording inspection | None |
 | M1-L03 | `PENDING_LOCAL` | Self-hosted HTTPS and WSS signaling bundle, capabilities, state machine, timers, control protocol, and adversarial security tests | None |
 | M1-L04 | `PENDING_LOCAL` | Frozen corpus protocol, renderer inputs, manifests, OCR evaluator, metrics, and lossless development gates | None |
 
@@ -181,10 +182,10 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 | `PENDING_LOCAL` | Owner signaling loss revokes both sides, closes media, clears receiver, and rejects stale or rebound owners | None |
 | `PENDING_LOCAL` | Pause preserves signaling and expiry, emits no late media, clears receiver, and resumes only after acknowledgment and recovery IDR | None |
 | `PENDING_LOCAL` | Missing acknowledgments, transition closure, bad epochs, and expiry end the peer without reviving media | None |
-| `PENDING_LOCAL` | Every injected recorder crash yields a marker-verified complete or journal-anchored inspectable incomplete recording | None |
-| `PENDING_LOCAL` | Filesystem crash model proves initial preparation and publication durability order | None |
+| `IMPLEMENTED_LOCAL` | Every injected recorder crash yields a marker-verified complete or journal-anchored inspectable incomplete recording | `integration.durable_recording`; one child-process crash at every declared persistence event; completion and journal inspection |
+| `IMPLEMENTED_LOCAL` | Filesystem crash model proves initial preparation and publication durability order | `tests/python/test_recording_crash_model.py`; all 28 crash cuts; seeded journal, admission, and marker ordering defects |
 | `DEFERRED_HARDWARE` | Ten-minute 1080p30 maximum-profile recording meets queue, commit, and decode gates on named storage | None |
-| `PENDING_LOCAL` | Existing and symbolic-link outputs remain unchanged and incomplete outputs cannot be replaced | None |
+| `IMPLEMENTED_LOCAL` | Existing and symbolic-link outputs remain unchanged and incomplete outputs cannot be replaced | `integration.durable_recording`; deterministic incomplete journal reservation; `O_EXCL`, `O_NOFOLLOW`, and `RENAME_NOREPLACE` fixtures |
 | `PENDING_LOCAL` | Unsupported environments fail with actionable doctor output | None |
 | `PENDING_LOCAL` | Logs, crash fixtures, and telemetry contain no window content or titles | None |
 | `DEFERRED_HARDWARE` | Clean install instructions work on the tested environment | None |

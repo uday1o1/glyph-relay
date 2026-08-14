@@ -92,6 +92,7 @@ add_library(glyphrelay_core
   src/media/i420.cpp
   src/media/openh264_encoder.cpp
   src/media/recording_profile.cpp
+  src/recording/recording_common.cpp
   src/transport/media_egress.cpp
   src/transport/rtp_transport.cpp
 )
@@ -103,6 +104,13 @@ if(GLYPHRELAY_HAS_LINUX_CAPTURE)
 else()
   target_sources(glyphrelay_core PRIVATE src/capture/linux_capture_stub.cpp)
 endif()
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  target_sources(glyphrelay_core PRIVATE src/recording/recording_linux.cpp)
+  set(GLYPHRELAY_HAS_DURABLE_RECORDING 1)
+else()
+  target_sources(glyphrelay_core PRIVATE src/recording/recording_stub.cpp)
+  set(GLYPHRELAY_HAS_DURABLE_RECORDING 0)
+endif()
 target_include_directories(glyphrelay_core PUBLIC include)
 target_compile_definitions(glyphrelay_core PUBLIC
   GLYPHRELAY_VERSION="${PROJECT_VERSION}"
@@ -112,6 +120,7 @@ target_compile_definitions(glyphrelay_core PUBLIC
   GLYPHRELAY_HAS_NVENC=${GLYPHRELAY_HAS_NVENC}
   GLYPHRELAY_HAS_OPENH264=${GLYPHRELAY_HAS_OPENH264}
   GLYPHRELAY_HAS_LINUX_CAPTURE=${GLYPHRELAY_HAS_LINUX_CAPTURE}
+  GLYPHRELAY_HAS_DURABLE_RECORDING=${GLYPHRELAY_HAS_DURABLE_RECORDING}
   GLYPHRELAY_M0_PROTOCOL_SHA256="5443417595e3ccb88c89adc3a2d22842fde3206c736d3069042b62cd1c8ab708"
 )
 if(GLYPHRELAY_HAS_CUDA_DRIVER)
@@ -270,6 +279,26 @@ if(BUILD_TESTING)
       PkgConfig::GLYPHRELAY_PIPEWIRE)
     add_test(NAME integration.linux_capture_contracts
       COMMAND glyphrelay_linux_capture_contract_tests)
+  endif()
+
+  if(GLYPHRELAY_HAS_DURABLE_RECORDING AND GLYPHRELAY_HAS_OPENH264)
+    add_executable(glyphrelay_recording_contract_tests
+      tests/native/test_recording_contracts.cpp)
+    target_link_libraries(glyphrelay_recording_contract_tests PRIVATE glyphrelay_core)
+    set(GLYPHRELAY_DURABLE_RECORDING_TEST_STREAM
+        "${CMAKE_CURRENT_BINARY_DIR}/durable-recording.h264")
+    add_test(NAME integration.durable_recording
+      COMMAND glyphrelay_recording_contract_tests
+              "${GLYPHRELAY_DURABLE_RECORDING_TEST_STREAM}")
+    find_program(GLYPHRELAY_RECORDING_FFMPEG_EXECUTABLE NAMES ffmpeg REQUIRED)
+    add_test(NAME integration.ffmpeg_decodes_durable_recording
+      COMMAND "${GLYPHRELAY_RECORDING_FFMPEG_EXECUTABLE}" -v error -f h264
+              -i "${GLYPHRELAY_DURABLE_RECORDING_TEST_STREAM}" -f null -)
+    set_tests_properties(integration.durable_recording PROPERTIES
+      FIXTURES_SETUP durable_recording_stream)
+    set_tests_properties(integration.ffmpeg_decodes_durable_recording PROPERTIES
+      DEPENDS integration.durable_recording
+      FIXTURES_REQUIRED durable_recording_stream)
   endif()
 
   add_executable(glyphrelay_egress_contract_tests tests/native/test_media_egress.cpp)

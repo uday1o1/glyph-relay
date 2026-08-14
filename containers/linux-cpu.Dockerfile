@@ -27,6 +27,7 @@ COPY tools/freeze_m0_protocol.cpp ./tools/freeze_m0_protocol.cpp
 COPY tools/hash_m0_browser_source.cpp ./tools/hash_m0_browser_source.cpp
 COPY tools/validate_m0_benchmark.py ./tools/validate_m0_benchmark.py
 COPY tools/run_linux_capture_analyzer.sh ./tools/run_linux_capture_analyzer.sh
+COPY tools/run_linux_recording_analyzer.sh ./tools/run_linux_recording_analyzer.sh
 COPY schemas ./schemas
 COPY scripts/ci/run_linux_cpu_container.sh ./scripts/ci/run_linux_cpu_container.sh
 

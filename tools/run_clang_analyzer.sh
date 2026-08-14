@@ -29,6 +29,8 @@ for source in \
   src/media/i420.cpp \
   src/media/openh264_encoder.cpp \
   src/media/recording_profile.cpp \
+  src/recording/recording_common.cpp \
+  src/recording/recording_stub.cpp \
   src/transport/media_egress.cpp \
   src/transport/rtp_transport.cpp \
   tests/native/test_doctor.cpp \
@@ -47,6 +49,7 @@ for source in \
     -DGLYPHRELAY_HAS_CUDA_DRIVER=0 \
     -DGLYPHRELAY_HAS_OPENH264=0 \
     -DGLYPHRELAY_HAS_LINUX_CAPTURE=0 \
+    -DGLYPHRELAY_HAS_DURABLE_RECORDING=0 \
     -DGLYPHRELAY_HAS_NVENC=0 \
     -DGLYPHRELAY_CUDA_COMPILER_VERSION=\"\" \
     -DGLYPHRELAY_SOURCE_DIR=\".\" \
