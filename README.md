@@ -51,6 +51,24 @@ Run the pinned Linux x86-64 portable compile and test path with:
 make linux-cpu-check
 ```
 
+Exercise the static loopback receiver in the exact pinned Chromium build with:
+
+```bash
+make browser-harness-check
+```
+
+Capture and evaluate the unmodified pinned Chromium and Firefox offers with:
+
+```bash
+make browser-probe
+```
+
+The offer probe currently exits nonzero on the measured local platform because Chromium offers only Level 3.1 and Firefox exposes no H.264 payload.
+
+That result is retained as a failed preflight rather than presented as interoperability.
+
+The receiver, probe result states, and unfrozen browser-oracle workflow are documented in [docs/browser-interoperability.md](docs/browser-interoperability.md).
+
 CUDA, NVENC, XDG portal, PipeWire, browser, network, and performance acceptance remains deferred to the consolidated target qualification workflow required by the build plan.
 
 ## License

@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.invalid/schemas/m0-browser-offers-v1.schema.json",
+  "title": "GlyphRelay Milestone 0 browser offer evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "protocol",
+    "status",
+    "generatedAtUtc",
+    "host",
+    "browsers",
+    "failures"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "protocol": { "const": "glyphrelay-browser-offers-v1" },
+    "status": { "enum": ["PASSED", "INCOMPATIBLE", "INFRASTRUCTURE_FAILURE"] },
+    "generatedAtUtc": { "type": "string", "format": "date-time" },
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform",
+        "release",
+        "architecture",
+        "nodeVersion",
+        "playwrightVersion"
+      ],
+      "properties": {
+        "platform": { "type": "string", "minLength": 1 },
+        "release": { "type": "string", "minLength": 1 },
+        "architecture": { "type": "string", "minLength": 1 },
+        "nodeVersion": { "type": "string", "minLength": 1 },
+        "playwrightVersion": { "type": "string", "minLength": 1 }
+      }
+    },
+    "browsers": {
+      "type": "array",
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "browser",
+          "expectedVersion",
+          "expectedRevision",
+          "actualVersion",
+          "executablePath",
+          "executableSha256",
+          "capabilities",
+          "offerSdp",
+          "compatibility",
+          "diagnostics"
+        ],
+        "properties": {
+          "browser": { "enum": ["chromium", "firefox"] },
+          "expectedVersion": { "type": "string", "minLength": 1 },
+          "expectedRevision": { "type": "string", "minLength": 1 },
+          "actualVersion": { "type": "string", "minLength": 1 },
+          "executablePath": { "type": "string", "minLength": 1 },
+          "executableSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "capabilities": {},
+          "offerSdp": { "type": "string", "minLength": 1, "maxLength": 65536 },
+          "compatibility": {
+            "type": "object",
+            "required": [
+              "compatible",
+              "reason",
+              "formats",
+              "videoPayloadTypes",
+              "rtxPayloadTypes"
+            ]
+          },
+          "diagnostics": {
+            "type": "array",
+            "maxItems": 100,
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "failures": { "type": "array", "items": { "type": "string" } }
+  }
+}

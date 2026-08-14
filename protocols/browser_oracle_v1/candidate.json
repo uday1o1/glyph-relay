@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "protocol": "browser_oracle_v1",
+  "state": "UNFROZEN",
+  "frame_key": ["dependency_epoch", "extended_rtp_timestamp"],
+  "capture_format": "canvas_rgba8888",
+  "reference_source": "independent_decoder_rgba8888",
+  "maximum_receiver_buffer_bytes": 16777216,
+  "freeze": {
+    "required_zero_loss_runs": 10,
+    "required_runs_per_browser": 5,
+    "required_browsers": ["chromium", "firefox"],
+    "requires_complete_frame_set": true,
+    "permits_infrastructure_exclusions": false,
+    "requires_zero_decoder_errors": true
+  },
+  "tolerance": null
+}

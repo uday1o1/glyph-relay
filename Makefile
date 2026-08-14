@@ -4,7 +4,7 @@ HOST_SYSTEM := $(shell uname -s)
 PRESET := $(if $(filter Darwin,$(HOST_SYSTEM)),macos-local,linux-cpu)
 CXX_FILES := $(shell find include src tests tools -type f \( -name '*.cpp' -o -name '*.hpp' \) | sort)
 
-.PHONY: all analyze build check clean clean-tree-check configure dependency-check format format-check lint linux-cpu-check protocol-check python-check secret-scan test transport-check typecheck
+.PHONY: all analyze browser-harness-check browser-probe build check clean clean-tree-check configure dependency-check format format-check lint linux-cpu-check protocol-check python-check secret-scan test transport-check typecheck
 
 all: build
 
@@ -21,18 +21,24 @@ test: build
 format:
 	$(CLANG_FORMAT) -i $(CXX_FILES)
 	uv run ruff format tools tests/python
-	corepack pnpm exec prettier --write package.json tsconfig.json 'tooling/**/*.ts' 'tests/typescript/**/*.ts' '.github/**/*.yml'
+	corepack pnpm exec prettier --write package.json tsconfig.json 'signaling/**/*.ts' 'tooling/**/*.ts' 'tests/typescript/**/*.ts' 'receiver/**/*.{html,css,js}' 'protocols/browser_oracle_v1/*.json' 'schemas/*.json' '.github/**/*.yml'
 
 format-check:
 	$(CLANG_FORMAT) --dry-run --Werror $(CXX_FILES)
 	uv run ruff format --check tools tests/python
-	corepack pnpm exec prettier --check package.json tsconfig.json 'tooling/**/*.ts' 'tests/typescript/**/*.ts' '.github/**/*.yml'
+	corepack pnpm exec prettier --check package.json tsconfig.json 'signaling/**/*.ts' 'tooling/**/*.ts' 'tests/typescript/**/*.ts' 'receiver/**/*.{html,css,js}' 'protocols/browser_oracle_v1/*.json' 'schemas/*.json' '.github/**/*.yml'
 
 analyze:
 	bash tools/run_clang_analyzer.sh
 
 typecheck:
-	corepack pnpm exec tsc --noEmit
+	corepack pnpm run typecheck
+
+browser-harness-check:
+	corepack pnpm run browser:harness
+
+browser-probe:
+	corepack pnpm run browser:probe
 
 python-check:
 	uv run ruff check tools tests/python

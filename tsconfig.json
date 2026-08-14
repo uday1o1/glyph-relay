@@ -10,5 +10,9 @@
     "target": "ES2024",
     "types": ["node"]
   },
-  "include": ["tooling/**/*.ts", "tests/typescript/**/*.ts"]
+  "include": [
+    "signaling/**/*.ts",
+    "tooling/**/*.ts",
+    "tests/typescript/**/*.ts"
+  ]
 }

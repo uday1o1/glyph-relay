@@ -1,0 +1,93 @@
+# Browser interoperability
+
+GlyphRelay treats browser interoperability as a measured gate and never infers it from a codec name or a Playwright revision.
+
+The machine-readable dependency lock pins Playwright 1.62.1, Chromium revision 1234 at version 151.0.7922.34, and Firefox revision 1538 at version 153.0.
+
+The qualification report also hashes each executable because a revision label alone is not a binary identity.
+
+## Loopback receiver
+
+The Milestone 0 receiver and signaling exchange bind to the literal address `127.0.0.1` and do not create a remotely usable link.
+
+The HTTP server validates the actual bound address, loopback peer address, exact Host header, and exact Origin on every signaling write.
+
+It serves only three repository-owned static assets with a restrictive content security policy, `Referrer-Policy: no-referrer`, no analytics, and no third-party requests.
+
+An offer is stored only after the strict `recording_profile_candidate_v1` SDP predicate accepts it.
+
+An incompatible offer receives status 422 with a stable reason and is never rewritten.
+
+The receiver uses a receive-only transceiver, packetization-mode 1 H.264 preferences, no ICE servers, a bounded 30-second answer poll, and the ordered `glyphrelay-control-v1` data channel.
+
+Presented frames are captured only from `requestVideoFrameCallback`, keyed by RTP timestamp, and retained in a 16 MiB ring so 1080p capture cannot grow without bound.
+
+Receiver statistics are emitted at most once per second and messages larger than 4 KiB are not sent.
+
+Run the real Chromium receiver workflow with:
+
+```bash
+make browser-harness-check
+```
+
+The check opens the actual static page, verifies the security headers and fragment removal, exercises the connect button, observes the user-visible terminal state, and rejects any request outside the loopback origin.
+
+## Offer probe
+
+Run the exact two-browser offer gate with:
+
+```bash
+make browser-probe
+```
+
+The command writes `build/m0-browser-offers.json`, which is intentionally ignored because it contains host paths and local binary identities.
+
+Exit code 0 means both exact binaries match their locks and both unmodified offers pass the candidate predicate.
+
+Exit code 4 means the capture succeeded but at least one offer is incompatible.
+
+Exit code 5 means browser launch, version identity, or capture infrastructure failed.
+
+An infrastructure failure is never converted into compatibility evidence.
+
+## Current local preflight observation
+
+The 2026-08-13 macOS arm64 preflight launched both exact pinned browser versions and produced a valid report with status `INCOMPATIBLE`.
+
+Chromium advertised Constrained Baseline `42e01f` with packetization mode 1 and level asymmetry, which is Level 3.1 rather than the Level 4.0 required for the strict 1920x1080 at 30 frames per second candidate.
+
+Firefox advertised no explicit H.264 payload in its offer.
+
+The static Chromium receiver therefore reached its visible failure state after the server rejected the incompatible offer with status 422.
+
+This preflight is a real failed observation, but it does not substitute for the required Linux GPU target run because Firefox H.264 availability depends on its separately delivered OpenH264 GMP and platform configuration.
+
+Mozilla's current WebRTC debugging documentation describes H.264 support as a third-party GMP that is downloaded on first request and may not be available in every environment.
+
+The current Firefox source also defaults its H.264 level preference to 31.
+
+See the [Firefox WebRTC debugging documentation](https://firefox-source-docs.mozilla.org/contributing/debugging/debugging_webrtc_calls.html) and the [current Firefox H.264 preference source](https://searchfox.org/mozilla-central/search?q=media.navigator.video.h264.level&path=).
+
+No profile has been frozen and no browser compatibility claim is accepted from this result.
+
+## Browser oracle
+
+`protocols/browser_oracle_v1/candidate.json` defines the unfrozen oracle protocol.
+
+The frame identity is the pair of dependency epoch and unambiguous extended RTP timestamp.
+
+The comparator rejects mismatched identity, geometry, or RGBA size and reports maximum channel error, differing-pixel fraction, and channel RMSE against independent-decoder output.
+
+The freeze tool requires exactly ten complete zero-loss runs, split as five Chromium and five Firefox runs, with identical complete frame sets and zero decoder errors.
+
+It permits no infrastructure exclusions and writes the frozen tolerance with no-clobber semantics.
+
+Run it only after target playback has produced the complete observation bundle:
+
+```bash
+corepack pnpm run browser:oracle:freeze -- \
+  --input artifacts/gpu-runs/browser-oracle-zero-loss.json \
+  --output artifacts/gpu-runs/browser-oracle-frozen.json
+```
+
+Loss, PLI, rollover, and recovery tests must consume that frozen artifact and may not update it after seeing their results.

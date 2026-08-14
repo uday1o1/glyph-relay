@@ -36,6 +36,12 @@ A typical `42e01f` Constrained Baseline Level 3.1 offer is rejected because it c
 
 This unresolved browser-offer conflict is a Milestone 0 kill-gate risk, not a passing result.
 
+The exact pinned local-browser preflight on 2026-08-13 observed Chromium Constrained Baseline only at Level 3.1 and no explicit H.264 format from Firefox.
+
+The probe exited with the truthful `INCOMPATIBLE` state, and the candidate remains unfrozen.
+
+See [browser-interoperability.md](browser-interoperability.md) for the reproducible workflow and the boundary between local preflight and target evidence.
+
 ## System OpenH264 evidence
 
 The Ubuntu 24.04 CPU path dynamically links `libopenh264-7=2.4.1+dfsg-1` and does not redistribute the codec binary.

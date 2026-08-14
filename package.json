@@ -9,8 +9,11 @@
     "node": ">=24.0.0"
   },
   "scripts": {
+    "browser:harness": "node tooling/m0/verify-loopback-receiver.ts",
+    "browser:oracle:freeze": "node tooling/m0/freeze-browser-oracle.ts",
+    "browser:probe": "node tooling/m0/capture-browser-offers.ts --output build/m0-browser-offers.json",
     "test": "node --test tests/typescript/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && node --check receiver/receiver.js"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",

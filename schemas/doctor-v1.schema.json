@@ -151,7 +151,12 @@
     "browser": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["chromium", "chromium_version", "firefox", "firefox_version"],
+      "required": [
+        "chromium",
+        "chromium_version",
+        "firefox",
+        "firefox_version"
+      ],
       "properties": {
         "chromium": { "$ref": "#/$defs/probe" },
         "chromium_version": { "$ref": "#/$defs/public_string" },
@@ -162,7 +167,12 @@
     "network": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["signaling_origin", "turn", "wire_cap_accounting", "selected_ip_family"],
+      "required": [
+        "signaling_origin",
+        "turn",
+        "wire_cap_accounting",
+        "selected_ip_family"
+      ],
       "properties": {
         "signaling_origin": { "$ref": "#/$defs/probe" },
         "turn": { "$ref": "#/$defs/probe" },

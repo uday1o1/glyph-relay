@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.invalid/schemas/browser-oracle-v1.schema.json",
+  "title": "GlyphRelay frozen browser oracle tolerance",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "protocol",
+    "state",
+    "requiredZeroLossRuns",
+    "frameKey",
+    "sourceRunIds",
+    "sourceDigestSha256",
+    "maximumAbsoluteChannelError",
+    "maximumDifferingPixelFraction",
+    "maximumRootMeanSquareChannelError"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "protocol": { "const": "browser_oracle_v1" },
+    "state": { "const": "FROZEN" },
+    "requiredZeroLossRuns": { "const": 10 },
+    "frameKey": { "const": "dependency_epoch:extended_rtp_timestamp" },
+    "sourceRunIds": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "sourceDigestSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "maximumAbsoluteChannelError": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 255
+    },
+    "maximumDifferingPixelFraction": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "maximumRootMeanSquareChannelError": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 255
+    }
+  }
+}
