@@ -66,12 +66,14 @@ endif()
 add_library(glyphrelay_core
   src/app/doctor.cpp
   src/app/doctor_probes.cpp
+  src/core/benchmark_gate.cpp
   src/core/m0_protocol.cpp
   src/core/quality_metrics.cpp
   src/core/sha256.cpp
   src/core/synthetic_source.cpp
   src/gpu/cuda_context.cpp
   src/gpu/gpu_contracts.cpp
+  src/gpu/nvenc_benchmark.cpp
   src/gpu/nvenc_probe.cpp
   src/media/annex_b.cpp
   src/media/h264_sps.cpp
@@ -89,6 +91,7 @@ target_compile_definitions(glyphrelay_core PUBLIC
   GLYPHRELAY_CUDA_COMPILER_VERSION="${CMAKE_CUDA_COMPILER_VERSION}"
   GLYPHRELAY_HAS_NVENC=${GLYPHRELAY_HAS_NVENC}
   GLYPHRELAY_HAS_OPENH264=${GLYPHRELAY_HAS_OPENH264}
+  GLYPHRELAY_M0_PROTOCOL_SHA256="532c2961261f8d20b24559cd5f1461a84b8adfd1d6a2f584354638e7b09c0f06"
 )
 if(GLYPHRELAY_HAS_CUDA_DRIVER)
   target_link_libraries(glyphrelay_core PRIVATE CUDA::cuda_driver)
@@ -184,7 +187,6 @@ if(BUILD_TESTING)
   target_link_libraries(glyphrelay_m0_protocol_tests PRIVATE glyphrelay_core)
   target_compile_definitions(glyphrelay_m0_protocol_tests PRIVATE
     GLYPHRELAY_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
-    GLYPHRELAY_M0_PROTOCOL_SHA256="3428958bf30b487e34c106614f83b59fe2526cfd46e1beb9a9249b70f2b1c717"
   )
   add_test(NAME native.m0_protocol COMMAND glyphrelay_m0_protocol_tests)
 

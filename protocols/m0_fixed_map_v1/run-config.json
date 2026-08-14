@@ -12,6 +12,9 @@
   "b_frames": 0,
   "lookahead": 0,
   "gop_frames": 60,
+  "vbv_buffer_frames": 1,
+  "vbv_initial_fullness_fraction": 1.0,
+  "filler_data_insertion": true,
   "repeat_parameter_sets": "startup_and_every_idr",
   "initial_requested_payload_bps": 1000000,
   "calibration": {
@@ -35,8 +38,11 @@
     "minimum_spatial_allocation_improvement_db": 0.75,
     "maximum_encode_latency_p95_ms": 10.0,
     "maximum_encode_latency_p99_ms": 16.0,
-    "maximum_pending_age_ms": 33.34
+    "latency_percentile_method": "nearest_rank",
+    "maximum_pending_age_ms": 33.34,
+    "pending_count_trend": "last_quarter_arithmetic_mean_no_greater_than_first_quarter_arithmetic_mean"
   },
+  "independent_decoder": "ffmpeg_raw_yuv420p_exact_frame_count",
   "configured_target_policy": "calibrate_each_condition_before_all_measured_repeats_and_never_change_it_during_measurement",
   "effective_encoder_configuration": "serialize_after_preset_expansion_and_hash_before_submission"
 }

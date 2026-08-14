@@ -202,6 +202,17 @@
           "protocols/m0_fixed_map_v1/manifest.lock",
           "--output",
           "{phase_dir}/benchmark"
+        ],
+        [
+          "uv",
+          "run",
+          "python",
+          "tools/validate_m0_benchmark.py",
+          "{phase_dir}/benchmark",
+          "--schemas",
+          "schemas",
+          "--manifest",
+          "protocols/m0_fixed_map_v1/manifest.lock"
         ]
       ],
       "environment_names": []

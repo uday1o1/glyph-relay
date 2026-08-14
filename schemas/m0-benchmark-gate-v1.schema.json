@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.invalid/schemas/m0-benchmark-gate-v1.schema.json",
+  "title": "GlyphRelay Milestone 0 benchmark gate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "mean_payload_bps",
+    "between_condition_payload_difference_fraction",
+    "protected_psnr_improvement_db",
+    "spatial_allocation_improvement_db",
+    "failures",
+    "runs"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "status": { "enum": ["PASSED", "FAILED"] },
+    "mean_payload_bps": { "$ref": "#/$defs/condition_numbers" },
+    "between_condition_payload_difference_fraction": {
+      "type": "number",
+      "minimum": 0
+    },
+    "protected_psnr_improvement_db": { "type": "number" },
+    "spatial_allocation_improvement_db": { "type": "number" },
+    "failures": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "runs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["controlled_uniform", "fixed_emphasis_level_4"],
+      "properties": {
+        "controlled_uniform": { "$ref": "#/$defs/runs" },
+        "fixed_emphasis_level_4": { "$ref": "#/$defs/runs" }
+      }
+    }
+  },
+  "$defs": {
+    "condition_numbers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["controlled_uniform", "fixed_emphasis_level_4"],
+      "properties": {
+        "controlled_uniform": { "type": "number", "minimum": 0 },
+        "fixed_emphasis_level_4": { "type": "number", "minimum": 0 }
+      }
+    },
+    "runs": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "items": { "$ref": "#/$defs/run" }
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repeat",
+        "payload_bps",
+        "latency_p95_ms",
+        "latency_p99_ms",
+        "maximum_pending_age_ms",
+        "first_quarter_pending_mean",
+        "last_quarter_pending_mean"
+      ],
+      "properties": {
+        "repeat": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "payload_bps": { "type": "number", "minimum": 0 },
+        "latency_p95_ms": { "type": "number", "minimum": 0 },
+        "latency_p99_ms": { "type": "number", "minimum": 0 },
+        "maximum_pending_age_ms": { "type": "number", "minimum": 0 },
+        "first_quarter_pending_mean": { "type": "number", "minimum": 0 },
+        "last_quarter_pending_mean": { "type": "number", "minimum": 0 }
+      }
+    }
+  }
+}

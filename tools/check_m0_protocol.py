@@ -125,6 +125,13 @@ def validate_protocol(root: Path = ROOT) -> list[str]:
             "src/core/synthetic_source.cpp",
             "include/glyphrelay/quality_metrics.hpp",
             "src/core/quality_metrics.cpp",
+            "include/glyphrelay/benchmark_gate.hpp",
+            "src/core/benchmark_gate.cpp",
+            "include/glyphrelay/nvenc_benchmark.hpp",
+            "src/gpu/nvenc_benchmark.cpp",
+            "tools/validate_m0_benchmark.py",
+            "schemas/m0-benchmark-summary-v1.schema.json",
+            "schemas/m0-benchmark-gate-v1.schema.json",
         }
     )
     expect(errors, required <= components.keys(), "manifest omits a required protocol component")
@@ -192,6 +199,13 @@ def validate_protocol(root: Path = ROOT) -> list[str]:
     )
     expect(errors, run.get("spatial_aq") is False, "spatial AQ must be disabled")
     expect(errors, run.get("temporal_aq") is False, "temporal AQ must be disabled")
+    expect(errors, run.get("vbv_buffer_frames") == 1, "VBV buffer must be one frame")
+    expect(
+        errors,
+        run.get("vbv_initial_fullness_fraction") == 1.0,
+        "VBV initial fullness mismatch",
+    )
+    expect(errors, run.get("filler_data_insertion") is True, "strict CBR filler must be enabled")
     measurement = run.get("measurement", {})
     expect(errors, measurement.get("repeats_per_condition") == 10, "repeat count mismatch")
     expect(errors, measurement.get("mean_payload_bps_minimum") == 980000, "bitrate floor mismatch")
@@ -207,6 +221,22 @@ def validate_protocol(root: Path = ROOT) -> list[str]:
         errors,
         measurement.get("minimum_spatial_allocation_improvement_db") == 0.75,
         "spatial allocation gate mismatch",
+    )
+    expect(
+        errors,
+        measurement.get("latency_percentile_method") == "nearest_rank",
+        "latency percentile method mismatch",
+    )
+    expect(
+        errors,
+        measurement.get("pending_count_trend")
+        == "last_quarter_arithmetic_mean_no_greater_than_first_quarter_arithmetic_mean",
+        "pending trend method mismatch",
+    )
+    expect(
+        errors,
+        run.get("independent_decoder") == "ffmpeg_raw_yuv420p_exact_frame_count",
+        "independent decoder contract mismatch",
     )
 
     frame_lines = (root / PROTOCOL / "frame-hashes.tsv").read_text(encoding="utf-8").splitlines()

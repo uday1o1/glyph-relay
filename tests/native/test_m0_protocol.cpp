@@ -1,3 +1,4 @@
+#include "glyphrelay/benchmark_gate.hpp"
 #include "glyphrelay/m0_protocol.hpp"
 #include "glyphrelay/quality_metrics.hpp"
 #include "glyphrelay/sha256.hpp"
@@ -99,6 +100,43 @@ int main() {
           "luma MSE must use the declared sample denominator");
   require(std::abs(metric.psnr_db - 43.01196999889036) < 1e-9,
           "luma PSNR must use peak 255 and the frozen formula");
+
+  const std::vector<double> percentile_values = {4.0, 1.0, 3.0, 2.0};
+  require(glyphrelay::nearest_rank_percentile(percentile_values, 0.75) == 3.0,
+          "the benchmark percentile must use the declared nearest-rank method");
+  std::vector<glyphrelay::M0BenchmarkTimingSample> passing_samples(
+      glyphrelay::M0SourceGeometry::measurement_frames, {1.0, 1U, 2.0});
+  const auto passing_gate =
+      glyphrelay::evaluate_m0_benchmark_run_gate(1'000'000.0, passing_samples);
+  require(passing_gate.passed && passing_gate.latency_p95_ms == 1.0 &&
+              passing_gate.latency_p99_ms == 1.0,
+          "a bounded matched-rate run must pass the portable benchmark gate");
+  const std::vector<double> passing_payloads(10U, 1'000'000.0);
+  require(glyphrelay::m0_payload_mean_within_window(passing_payloads),
+          "a matched condition mean must pass the portable payload gate");
+  auto failing_payloads = passing_payloads;
+  failing_payloads.front() = 1'300'000.0;
+  require(!glyphrelay::m0_payload_mean_within_window(failing_payloads),
+          "a condition mean above the matched window must fail the portable payload gate");
+  auto failing_samples = passing_samples;
+  for (std::size_t index = failing_samples.size() - 19U; index < failing_samples.size(); ++index) {
+    failing_samples[index].latency_ms = 20.0;
+  }
+  for (std::size_t index = failing_samples.size() * 3U / 4U; index < failing_samples.size();
+       ++index) {
+    failing_samples[index].pending_count = 2U;
+  }
+  failing_samples.back().oldest_pending_ms = 34.0;
+  const auto failing_gate =
+      glyphrelay::evaluate_m0_benchmark_run_gate(1'000'000.0, failing_samples);
+  require(!failing_gate.passed &&
+              std::find(failing_gate.failures.begin(), failing_gate.failures.end(),
+                        "encode_latency_p99_exceeded") != failing_gate.failures.end() &&
+              std::find(failing_gate.failures.begin(), failing_gate.failures.end(),
+                        "pending_age_exceeded") != failing_gate.failures.end() &&
+              std::find(failing_gate.failures.begin(), failing_gate.failures.end(),
+                        "pending_count_positive_trend") != failing_gate.failures.end(),
+          "seeded tail-latency, age, and trend defects must fail for their reasons");
 
   const auto manifest =
       std::filesystem::path(GLYPHRELAY_SOURCE_DIR) / "protocols/m0_fixed_map_v1/manifest.lock";

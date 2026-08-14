@@ -18,7 +18,7 @@ namespace {
 constexpr std::string_view kManifestMagic = "glyphrelay-protocol-lock-v1";
 constexpr std::string_view kFrameHashMagic = "glyphrelay-frame-hashes-v1";
 
-const std::array<std::string_view, 11> kRequiredComponents = {
+const std::array<std::string_view, 18> kRequiredComponents = {
     "protocols/m0_fixed_map_v1/source.json",
     "protocols/m0_fixed_map_v1/protected.mask.json",
     "protocols/m0_fixed_map_v1/comparison.mask.json",
@@ -30,6 +30,13 @@ const std::array<std::string_view, 11> kRequiredComponents = {
     "src/core/synthetic_source.cpp",
     "include/glyphrelay/quality_metrics.hpp",
     "src/core/quality_metrics.cpp",
+    "include/glyphrelay/benchmark_gate.hpp",
+    "src/core/benchmark_gate.cpp",
+    "include/glyphrelay/nvenc_benchmark.hpp",
+    "src/gpu/nvenc_benchmark.cpp",
+    "tools/validate_m0_benchmark.py",
+    "schemas/m0-benchmark-summary-v1.schema.json",
+    "schemas/m0-benchmark-gate-v1.schema.json",
 };
 
 bool hexadecimal_sha256(std::string_view value) {

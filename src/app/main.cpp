@@ -1,5 +1,6 @@
 #include "glyphrelay/doctor.hpp"
 #include "glyphrelay/m0_protocol.hpp"
+#include "glyphrelay/nvenc_benchmark.hpp"
 
 #include <filesystem>
 #include <iostream>
@@ -57,8 +58,13 @@ int run_benchmark(int argc, char **argv) {
     }
     return 3;
   }
-  std::cerr << "benchmark requires a build with the NVENC benchmark backend\n";
-  return 3;
+  const auto result = glyphrelay::run_m0_nvenc_benchmark({verification.lock, output});
+  if (result.status == glyphrelay::M0BenchmarkStatus::passed) {
+    std::cout << "Milestone 0 NVENC benchmark completed: " << output << '\n';
+    return 0;
+  }
+  std::cerr << "benchmark failed: " << result.reason << '\n';
+  return result.status == glyphrelay::M0BenchmarkStatus::unsupported ? 3 : 8;
 }
 
 } // namespace

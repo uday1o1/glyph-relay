@@ -36,6 +36,8 @@ Spatial AQ, temporal AQ, lookahead, B frames, and multipass are disabled in both
 
 The fixed condition differs from the controlled-uniform condition only by enabling and supplying the frozen map.
 
+Both conditions use an explicit one-frame VBV initialized at full occupancy and H.264 filler-data insertion for strict CBR behavior.
+
 ## Rate matching and runs
 
 Each condition calibrates its requested payload target independently through at most eight bounded integer-bisection iterations from 0.8 through 1.2 Mbps.
@@ -47,6 +49,10 @@ The configured target is then held constant for all ten measured repeats of that
 Every measured mean payload must fall from 0.98 through 1.02 Mbps and the two condition means may differ by at most two percent.
 
 Every effective NVENC initialization and reconfiguration field is serialized after preset expansion and hashed before submission.
+
+Latency percentiles use nearest-rank selection over the 1,800 post-warmup frames in each run.
+
+The pending-count trend passes only when the last-quarter arithmetic mean is no greater than the first-quarter arithmetic mean, and the maximum pending age remains bounded independently.
 
 ## Quality metric
 
@@ -64,12 +70,14 @@ The fixed condition must improve protected-region PSNR by at least 1.0 dB and th
 
 ## Protocol identity and failure behavior
 
-The manifest hashes the source declaration, both masks, map, run configuration, metric declaration, all frame hashes, the generator, the metric implementation, the SHA-256 implementation, the verifier, and the freeze tool.
+The manifest hashes the source declaration, both masks, map, run configuration, metric declaration, all frame hashes, the generator, the metric implementation, the portable gate, the complete NVENC benchmark backend, both result schemas, the independent evidence validator, the SHA-256 implementation, the protocol verifier, and the freeze tool.
 
-Its immutable identity is `3428958bf30b487e34c106614f83b59fe2526cfd46e1beb9a9249b70f2b1c717`.
+Its immutable identity is `532c2961261f8d20b24559cd5f1461a84b8adfd1d6a2f584354638e7b09c0f06`.
 
 Changing any locked byte produces benchmark-gate exit code 7 before hardware use.
 
 An unsupported host exits with capability code 3 only after the complete lock passes and does not create a benchmark result directory.
 
-An infrastructure error, timeout, unsupported encoder feature, failed independent decode, or incomplete run never counts as passing evidence.
+The qualification workflow independently recalculates every payload, latency percentile, pending-work value, quality mean, configuration hash, condition mean, and cross-condition gate from the raw result set before it writes a no-clobber validation record.
+
+An infrastructure error, timeout, unsupported encoder feature, failed independent decode, incomplete run, or evidence mismatch never counts as passing evidence.
