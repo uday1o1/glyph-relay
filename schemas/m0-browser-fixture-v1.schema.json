@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.invalid/schemas/m0-browser-fixture-v1.schema.json",
+  "title": "GlyphRelay Milestone 0 NVENC browser fixture evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "protocol",
+    "status",
+    "manifest_sha256",
+    "presentation",
+    "width",
+    "height",
+    "frames_per_second",
+    "level_idc",
+    "warmup_frames",
+    "measurement_frames",
+    "frame_count",
+    "requested_bps",
+    "measurement_bytes",
+    "payload_bps",
+    "configuration_sha256",
+    "stream_sha256",
+    "frame_table_sha256",
+    "configuration_file_sha256",
+    "source_sha256",
+    "independent_decoder"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "protocol": { "const": "m0_nvenc_browser_fixture_v1" },
+    "status": { "const": "PASSED" },
+    "manifest_sha256": { "$ref": "#/$defs/sha256" },
+    "presentation": { "const": "sharing_720p30" },
+    "width": { "const": 1280 },
+    "height": { "const": 720 },
+    "frames_per_second": { "const": 30 },
+    "level_idc": { "const": 31 },
+    "warmup_frames": { "const": 300 },
+    "measurement_frames": { "const": 1800 },
+    "frame_count": { "const": 2100 },
+    "requested_bps": { "const": 2000000 },
+    "measurement_bytes": { "type": "integer", "minimum": 1 },
+    "payload_bps": { "type": "number", "exclusiveMinimum": 0 },
+    "configuration_sha256": { "$ref": "#/$defs/sha256" },
+    "stream_sha256": { "$ref": "#/$defs/sha256" },
+    "frame_table_sha256": { "$ref": "#/$defs/sha256" },
+    "configuration_file_sha256": { "$ref": "#/$defs/sha256" },
+    "source_sha256": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["frame_0", "frame_300", "frame_2099"],
+      "properties": {
+        "frame_0": {
+          "const": "858b32ab999e6193daf9035ec26b9d3e0893d1faa3bc3404a7721fcc4b09c6e6"
+        },
+        "frame_300": {
+          "const": "35ea1743773a43b1f785121e864bcf66c8c510591d1d17e015fd9be597a6d3f3"
+        },
+        "frame_2099": {
+          "const": "52443d6562be5e66cfc716a5f8c05df96f18e79a4663f0f4dbb0845542594abd"
+        }
+      }
+    },
+    "independent_decoder": { "const": "ffmpeg_raw_yuv420p_exact_frame_count" }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

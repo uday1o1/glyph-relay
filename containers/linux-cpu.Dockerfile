@@ -19,6 +19,8 @@ COPY protocols ./protocols
 COPY src ./src
 COPY tests/native ./tests/native
 COPY tools/freeze_m0_protocol.cpp ./tools/freeze_m0_protocol.cpp
+COPY tools/hash_m0_browser_source.cpp ./tools/hash_m0_browser_source.cpp
+COPY tools/validate_m0_benchmark.py ./tools/validate_m0_benchmark.py
 COPY schemas ./schemas
 
 ENV CXX=clang++

@@ -203,6 +203,33 @@
       "timeout_seconds": 600
     },
     {
+      "id": "nvenc-browser-fixture",
+      "title": "NVENC 720p30 Level 3.1 browser fixture and independent decode",
+      "kind": "command",
+      "required": true,
+      "dependencies": ["gpu-selection", "doctor-gpu"],
+      "commands": [
+        [
+          "build/linux-gpu/glyphrelay",
+          "browser-fixture",
+          "--manifest",
+          "protocols/m0_fixed_map_v1/manifest.lock",
+          "--output",
+          "{phase_dir}/fixture"
+        ],
+        [
+          "uv",
+          "run",
+          "python",
+          "tools/validate_m0_browser_fixture.py",
+          "{phase_dir}/fixture",
+          "schemas/m0-browser-fixture-v1.schema.json"
+        ]
+      ],
+      "environment_names": [],
+      "timeout_seconds": 7200
+    },
+    {
       "id": "m0-fixed-map-quality",
       "title": "Frozen fixed-map quality, bitrate, latency, and cleanup experiment",
       "kind": "command",

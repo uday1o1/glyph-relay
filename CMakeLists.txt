@@ -67,6 +67,7 @@ add_library(glyphrelay_core
   src/app/doctor.cpp
   src/app/doctor_probes.cpp
   src/core/benchmark_gate.cpp
+  src/core/m0_browser_source.cpp
   src/core/m0_protocol.cpp
   src/core/quality_metrics.cpp
   src/core/sha256.cpp
@@ -74,6 +75,7 @@ add_library(glyphrelay_core
   src/gpu/cuda_context.cpp
   src/gpu/gpu_contracts.cpp
   src/gpu/nvenc_benchmark.cpp
+  src/gpu/nvenc_browser_fixture.cpp
   src/gpu/nvenc_probe.cpp
   src/media/annex_b.cpp
   src/media/h264_sps.cpp
@@ -186,6 +188,9 @@ endif()
 
 add_executable(glyphrelay src/app/main.cpp)
 target_link_libraries(glyphrelay PRIVATE glyphrelay_core)
+
+add_executable(glyphrelay_hash_m0_browser_source tools/hash_m0_browser_source.cpp)
+target_link_libraries(glyphrelay_hash_m0_browser_source PRIVATE glyphrelay_core)
 
 include(CTest)
 if(BUILD_TESTING)

@@ -4,7 +4,7 @@ HOST_SYSTEM := $(shell uname -s)
 PRESET := $(if $(filter Darwin,$(HOST_SYSTEM)),macos-local,linux-cpu)
 CXX_FILES := $(shell find include src tests tools -type f \( -name '*.cpp' -o -name '*.hpp' \) | sort)
 
-.PHONY: all analyze browser-harness-check browser-probe build check clean clean-tree-check configure dependency-check format format-check handoff-check lint linux-cpu-check protocol-check python-check secret-scan test transport-check typecheck
+.PHONY: all analyze browser-harness-check browser-probe build check clean clean-tree-check configure dependency-check format format-check handoff-check lint linux-cpu-check nvenc-compile-check protocol-check python-check secret-scan test transport-check typecheck
 
 all: build
 
@@ -64,6 +64,9 @@ lint: format-check analyze typecheck python-check dependency-check protocol-chec
 
 linux-cpu-check:
 	bash scripts/ci/check_linux_cpu.sh
+
+nvenc-compile-check:
+	bash scripts/ci/check_nvenc_compile_contract.sh
 
 check: lint test
 	corepack pnpm test

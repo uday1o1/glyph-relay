@@ -76,6 +76,37 @@ The report therefore remains truthfully `INCOMPATIBLE` until target-side Firefox
 
 No profile has been frozen and no two-browser compatibility claim is accepted from either local result.
 
+## NVENC playback fixture
+
+The target qualification creates its browser input with the public `glyphrelay browser-fixture` command instead of substituting an unrelated software-encoded stream.
+
+The producer derives a deterministic 1280 by 720 NV12 sequence from the immutable `m0_fixed_map_v1` source through an exact 3:2 nearest-neighbor transform.
+
+The three retained source identities are frames 0, 300, and 2099 so a changed transform fails before browser evidence is accepted.
+
+The direct NVENC session uses H.264 Constrained Baseline Level 3.1, 30 frames per second, a 60-frame GOP, repeated SPS and PPS, limited-range BT.709 colorimetry, no B frames, no AQ, and no emphasis map.
+
+The first shared access unit is frame 300, which is an IDR carrying SPS and PPS because the warmup and GOP boundaries coincide.
+
+The producer writes all 2,100 access units and their exact byte boundaries before FFmpeg independently decodes the complete elementary stream.
+
+The validator then rehashes the stream, frame table, and effective NVENC configuration, recalculates elementary-stream payload bitrate, checks every frame identity, and uses FFprobe to require exactly 2,100 decoded 720p Level 3.1 limited-range BT.709 frames.
+
+On the qualified Linux GPU target, the standalone workflow is:
+
+```bash
+build/linux-gpu/glyphrelay browser-fixture \
+  --manifest protocols/m0_fixed_map_v1/manifest.lock \
+  --output build/m0-nvenc-browser-fixture
+uv run python tools/validate_m0_browser_fixture.py \
+  build/m0-nvenc-browser-fixture \
+  schemas/m0-browser-fixture-v1.schema.json
+```
+
+An unsupported local host verifies the frozen manifest, exits with code 3, and does not create the requested output directory.
+
+Passing local source, schema, and compile-contract tests do not substitute for the target NVENC encode and decode phase.
+
 ## Browser oracle
 
 `protocols/browser_oracle_v1/candidate.json` defines the unfrozen oracle protocol.

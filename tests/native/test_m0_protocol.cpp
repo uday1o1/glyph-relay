@@ -1,4 +1,5 @@
 #include "glyphrelay/benchmark_gate.hpp"
+#include "glyphrelay/m0_browser_source.hpp"
 #include "glyphrelay/m0_protocol.hpp"
 #include "glyphrelay/quality_metrics.hpp"
 #include "glyphrelay/sha256.hpp"
@@ -81,6 +82,29 @@ int main() {
                           static_cast<std::ptrdiff_t>(glyphrelay::M0SourceGeometry::luma_bytes),
                       frame_zero.end(), [](std::uint8_t value) { return value == 128U; }),
           "the synthetic NV12 source must use neutral chroma");
+
+  glyphrelay::M0BrowserSyntheticSource browser_source;
+  const auto browser_frame_zero = browser_source.generate(0U);
+  const auto browser_frame_one = browser_source.generate(1U);
+  require(browser_frame_zero.size() == glyphrelay::M0BrowserSourceGeometry::frame_bytes &&
+              browser_frame_zero != browser_frame_one,
+          "the derived browser source must preserve exact geometry and temporal motion");
+  require(glyphrelay::sha256_hex(browser_frame_zero) ==
+                  "858b32ab999e6193daf9035ec26b9d3e0893d1faa3bc3404a7721fcc4b09c6e6" &&
+              glyphrelay::sha256_hex(browser_source.generate(300U)) ==
+                  "35ea1743773a43b1f785121e864bcf66c8c510591d1d17e015fd9be597a6d3f3" &&
+              glyphrelay::sha256_hex(browser_source.generate(2099U)) ==
+                  "52443d6562be5e66cfc716a5f8c05df96f18e79a4663f0f4dbb0845542594abd",
+          "the derived browser source must retain its frozen sample identities");
+  require(browser_frame_zero.front() == frame_zero.front() &&
+              browser_frame_zero[1U] == frame_zero[1U] &&
+              browser_frame_zero[glyphrelay::M0BrowserSourceGeometry::coded_width] ==
+                  frame_zero[glyphrelay::M0SourceGeometry::coded_width * 3U / 2U] &&
+              std::all_of(
+                  browser_frame_zero.begin() +
+                      static_cast<std::ptrdiff_t>(glyphrelay::M0BrowserSourceGeometry::luma_bytes),
+                  browser_frame_zero.end(), [](std::uint8_t value) { return value == 128U; }),
+          "the browser source must apply the frozen 3:2 NV12 nearest-neighbor transform");
 
   const auto emphasis_map = glyphrelay::m0_fixed_emphasis_map();
   require(emphasis_map.size() == glyphrelay::M0SourceGeometry::map_entries,

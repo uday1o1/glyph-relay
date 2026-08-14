@@ -69,6 +69,10 @@ That result is retained as a failed preflight rather than presented as interoper
 
 The receiver, probe result states, and unfrozen browser-oracle workflow are documented in [docs/browser-interoperability.md](docs/browser-interoperability.md).
 
+The target workflow generates its 720p30 browser input through the direct NVENC `browser-fixture` command and independently decodes all 2,100 access units before playback qualification begins.
+
+The exact fixture and evidence contract is documented in [docs/browser-interoperability.md](docs/browser-interoperability.md#nvenc-playback-fixture).
+
 CUDA, NVENC, XDG portal, PipeWire, browser, network, and performance acceptance remains deferred to the consolidated target qualification workflow required by the build plan.
 
 The content-addressed source bundle and resumable qualification runner can be exercised without a GPU through:

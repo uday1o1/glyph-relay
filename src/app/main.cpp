@@ -1,6 +1,7 @@
 #include "glyphrelay/doctor.hpp"
 #include "glyphrelay/m0_protocol.hpp"
 #include "glyphrelay/nvenc_benchmark.hpp"
+#include "glyphrelay/nvenc_browser_fixture.hpp"
 
 #include <filesystem>
 #include <iostream>
@@ -14,36 +15,49 @@ void print_help() {
             << "Usage:\n"
             << "  glyphrelay doctor [--json]\n"
             << "  glyphrelay benchmark --manifest FILE --output DIR\n"
+            << "  glyphrelay browser-fixture --manifest FILE --output DIR\n"
             << "  glyphrelay --help\n";
 }
 
-int run_benchmark(int argc, char **argv) {
+struct ArtifactArguments {
   std::filesystem::path manifest;
   std::filesystem::path output;
+};
+
+bool parse_artifact_arguments(int argc, char **argv, std::string_view command,
+                              ArtifactArguments &arguments) {
   for (int index = 2; index < argc; ++index) {
     const std::string_view option(argv[index]);
     if ((option == "--manifest" || option == "--output") && index + 1 < argc) {
-      auto &destination = option == "--manifest" ? manifest : output;
+      auto &destination = option == "--manifest" ? arguments.manifest : arguments.output;
       if (!destination.empty()) {
         std::cerr << option << " may be provided only once\n";
-        return 2;
+        return false;
       }
       destination = argv[++index];
     } else {
-      std::cerr << "benchmark requires --manifest FILE --output DIR\n";
-      return 2;
+      std::cerr << command << " requires --manifest FILE --output DIR\n";
+      return false;
     }
   }
-  if (manifest.empty() || output.empty()) {
-    std::cerr << "benchmark requires --manifest FILE --output DIR\n";
-    return 2;
+  if (arguments.manifest.empty() || arguments.output.empty()) {
+    std::cerr << command << " requires --manifest FILE --output DIR\n";
+    return false;
   }
-  if (std::filesystem::exists(output)) {
-    std::cerr << "benchmark output already exists; refusing to overwrite it\n";
+  if (std::filesystem::exists(arguments.output)) {
+    std::cerr << command << " output already exists; refusing to overwrite it\n";
+    return false;
+  }
+  return true;
+}
+
+int run_benchmark(int argc, char **argv) {
+  ArtifactArguments arguments;
+  if (!parse_artifact_arguments(argc, argv, "benchmark", arguments)) {
     return 2;
   }
 
-  const auto verification = glyphrelay::verify_m0_protocol(manifest);
+  const auto verification = glyphrelay::verify_m0_protocol(arguments.manifest);
   if (!verification.passed) {
     std::cerr << "benchmark protocol verification failed: " << verification.reason << '\n';
     return 7;
@@ -58,12 +72,42 @@ int run_benchmark(int argc, char **argv) {
     }
     return 3;
   }
-  const auto result = glyphrelay::run_m0_nvenc_benchmark({verification.lock, output});
+  const auto result = glyphrelay::run_m0_nvenc_benchmark({verification.lock, arguments.output});
   if (result.status == glyphrelay::M0BenchmarkStatus::passed) {
-    std::cout << "Milestone 0 NVENC benchmark completed: " << output << '\n';
+    std::cout << "Milestone 0 NVENC benchmark completed: " << arguments.output << '\n';
     return 0;
   }
   std::cerr << "benchmark failed: " << result.reason << '\n';
+  return result.status == glyphrelay::M0BenchmarkStatus::unsupported ? 3 : 8;
+}
+
+int run_browser_fixture(int argc, char **argv) {
+  ArtifactArguments arguments;
+  if (!parse_artifact_arguments(argc, argv, "browser-fixture", arguments)) {
+    return 2;
+  }
+  const auto verification = glyphrelay::verify_m0_protocol(arguments.manifest);
+  if (!verification.passed) {
+    std::cerr << "browser fixture protocol verification failed: " << verification.reason << '\n';
+    return 7;
+  }
+  std::cout << "Verified m0_fixed_map_v1 manifest " << verification.lock.manifest_sha256 << '\n';
+
+  const auto report = glyphrelay::build_doctor_report(glyphrelay::collect_environment_snapshot());
+  if (report.mode != "enhanced_nvenc") {
+    std::cerr << "browser-fixture requires enhanced_nvenc; doctor selected " << report.mode << '\n';
+    for (const auto &reason : report.reasons) {
+      std::cerr << "reason: " << reason << '\n';
+    }
+    return 3;
+  }
+  const auto result =
+      glyphrelay::run_m0_nvenc_browser_fixture({verification.lock, arguments.output});
+  if (result.status == glyphrelay::M0BenchmarkStatus::passed) {
+    std::cout << "Milestone 0 NVENC browser fixture completed: " << arguments.output << '\n';
+    return 0;
+  }
+  std::cerr << "browser fixture failed: " << result.reason << '\n';
   return result.status == glyphrelay::M0BenchmarkStatus::unsupported ? 3 : 8;
 }
 
@@ -92,6 +136,9 @@ int main(int argc, char **argv) {
 
   if (argc >= 2 && std::string_view(argv[1]) == "benchmark") {
     return run_benchmark(argc, argv);
+  }
+  if (argc >= 2 && std::string_view(argv[1]) == "browser-fixture") {
+    return run_browser_fixture(argc, argv);
   }
 
   print_help();

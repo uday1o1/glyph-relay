@@ -52,6 +52,8 @@
         "BUILD_TESTING": "ON",
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "GLYPHRELAY_ENABLE_CUDA": "ON",
+        "GLYPHRELAY_ENABLE_WEBRTC_CONTRACTS": "ON",
+        "GLYPHRELAY_LIBDATACHANNEL_ROOT": "${sourceDir}/.deps/libdatachannel-v0.24.1",
         "GLYPHRELAY_NV_CODEC_HEADERS_ROOT": "${sourceDir}/.deps/nv-codec-headers-n13.1.15.0"
       }
     }
