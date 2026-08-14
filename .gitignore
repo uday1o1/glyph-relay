@@ -3,6 +3,7 @@
 /dist/
 /compile_commands.json
 /.cache/
+/.deps/
 /.tools/
 /node_modules/
 /.pnpm-store/

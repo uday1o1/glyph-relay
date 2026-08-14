@@ -36,7 +36,7 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 
 | Milestone | State | Reason |
 | --- | --- | --- |
-| 0 | `IN_PROGRESS` | M0-L01 through M0-L05 are locally implemented and all target gates are deferred |
+| 0 | `IN_PROGRESS` | M0-L01 through M0-L06 are locally implemented and all target gates are deferred |
 | 1 | `IN_PROGRESS` | Local work packages remain pending |
 | 2 | `IN_PROGRESS` | Local work packages remain pending |
 | 3 | `IN_PROGRESS` | Local work packages remain pending |
@@ -56,7 +56,7 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 | M0-L03 | `IMPLEMENTED_LOCAL` | Complete versioned doctor adapters, schema, redaction, and decision fixtures | Real text and JSON CLI inspection; full Draft 2020-12 validation; enhanced, uniform, CPU, API-incompatible, pending, unsupported, and redaction fixtures; macOS sanitizers; Linux amd64 compile and tests |
 | M0-L04 | `IMPLEMENTED_LOCAL` | Canonical `m0_fixed_map_v1` generator, manifests, metrics, strict hash enforcement, and runner | Full regeneration and SHA-256 verification of 2,100 coded NV12 frames; manifest `3428958bf30b487e34c106614f83b59fe2526cfd46e1beb9a9249b70f2b1c717`; scalar PSNR and map tests; tampered source and AQ controls; public benchmark CLI exits 3 after verified lock on unsupported Mac |
 | M0-L05 | `IMPLEMENTED_LOCAL` | Annex B, SPS, SDP, recording-profile, OpenH264, and independent-decode contracts | Strict malformed-input, RFC 6184 profile, Level 3.1 rejection, SPS VUI, and NV12-to-I420 tests; Ubuntu 24.04 system OpenH264 2.4.1 record-only encode; SPS/PPS on startup and forced IDR; independent FFmpeg 6.1.1 decode; FFprobe confirms 1080p Constrained Baseline Level 4.0 limited-range BT.709; final profile remains correctly unfrozen pending exact browser and NVENC target gates |
-| M0-L06 | `PENDING_LOCAL` | CUDA context and NVENC feasibility source, ownership state machines, pre-submit rejection, and cleanup | None |
+| M0-L06 | `IMPLEMENTED_LOCAL` | CUDA context and NVENC feasibility source, ownership state machines, pre-submit rejection, and cleanup | Exact header bootstrap and configure hash gate; primary-context RAII and per-thread push/pop guard; real NVENC function-table capability probe source compiled against the locked 13.1 header; bounded portable source, surface, submission, delayed-output, busy-retry, EOS, abort, and shutdown models; seeded foreign-context, stale-frame, stale-geometry, map-size, pointer-space, event, range, FIFO, retry-mutation, output-alias, retry-limit, and fatal-path tests; target capability and encode gates remain deferred |
 | M0-L07 | `PENDING_LOCAL` | Final datagram hook, classifier, egress gate, counter, and deterministic revocation race | Source audit only |
 | M0-L08 | `PENDING_LOCAL` | RTP packetization, sole sequence owner, bounded NACK and PLI recovery, and rollover contracts | Source audit only |
 | M0-L09 | `PENDING_LOCAL` | Loopback signaling, receiver, browser oracle, and browser pins | None |

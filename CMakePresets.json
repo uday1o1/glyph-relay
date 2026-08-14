@@ -51,7 +51,8 @@
       "cacheVariables": {
         "BUILD_TESTING": "ON",
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "GLYPHRELAY_ENABLE_CUDA": "ON"
+        "GLYPHRELAY_ENABLE_CUDA": "ON",
+        "GLYPHRELAY_NV_CODEC_HEADERS_ROOT": "${sourceDir}/.deps/nv-codec-headers-n13.1.15.0"
       }
     }
   ],
