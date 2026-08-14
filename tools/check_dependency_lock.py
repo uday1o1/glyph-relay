@@ -242,6 +242,90 @@ def validate_lock(lock: dict[str, Any], root: Path = ROOT) -> list[str]:
                 f"signaling {package_name} installed license SHA-256",
             )
 
+    corpus = lock.get("corpus_protocol", {})
+    _expect_equal(errors, corpus.get("name"), "corpus_protocol_v1", "corpus protocol name")
+    _expect_pattern(errors, corpus.get("protocol_sha256"), HEX64, "corpus protocol SHA-256")
+    _expect_pattern(
+        errors,
+        corpus.get("manifest_lock_sha256"),
+        HEX64,
+        "corpus manifest lock SHA-256",
+    )
+    corpus_manifest_path = root / "protocols/corpus_protocol_v1/manifest.lock"
+    corpus_manifest = load_json(corpus_manifest_path)
+    _expect_equal(
+        errors,
+        corpus_manifest.get("protocol_sha256"),
+        corpus.get("protocol_sha256"),
+        "corpus protocol aggregate SHA-256",
+    )
+    _expect_equal(
+        errors,
+        hashlib.sha256(corpus_manifest_path.read_bytes()).hexdigest(),
+        corpus.get("manifest_lock_sha256"),
+        "corpus protocol manifest lock SHA-256",
+    )
+
+    renderer_lock = load_json(root / "corpus/renderer.lock.json")
+    expected_renderer = {
+        "image_digest": renderer_lock.get("imageDigest"),
+        "platform": renderer_lock.get("platform"),
+        "node_version": renderer_lock.get("nodeVersion"),
+        "playwright_version": renderer_lock.get("playwrightVersion"),
+        "chromium_revision": renderer_lock.get("chromiumRevision"),
+        "chromium_version": renderer_lock.get("chromiumVersion"),
+    }
+    _expect_equal(errors, corpus.get("renderer"), expected_renderer, "corpus renderer lock")
+
+    ocr_lock = load_json(root / "corpus/ocr.lock.json")
+    expected_ocr_packages: dict[str, str] = {}
+    for package_lock in ocr_lock.get("ubuntuRuntimePackages", []):
+        if not isinstance(package_lock, dict):
+            errors.append("corpus OCR package lock must be an object")
+            continue
+        corpus_package_name = package_lock.get("name")
+        corpus_package_version = package_lock.get("version")
+        if not isinstance(corpus_package_name, str) or not isinstance(corpus_package_version, str):
+            errors.append("corpus OCR package lock is incomplete")
+            continue
+        expected_ocr_packages[corpus_package_name] = corpus_package_version
+    expected_ocr = {
+        "engine_version": ocr_lock.get("engineVersion"),
+        "packages": expected_ocr_packages,
+        "runtime_sha256": ocr_lock.get("runtimeSha256"),
+        "model_commit": ocr_lock.get("modelCommit"),
+        "model_sha256": ocr_lock.get("modelSha256"),
+        "oem": ocr_lock.get("oem"),
+        "page_segmentation_mode": ocr_lock.get("pageSegmentationMode"),
+    }
+    _expect_equal(errors, corpus.get("ocr"), expected_ocr, "corpus OCR lock")
+    for package_name, package_version in expected_ocr_packages.items():
+        if f"{package_name}={package_version}" not in (
+            root / "containers/corpus.Dockerfile"
+        ).read_text(encoding="utf-8"):
+            errors.append(f"corpus Dockerfile omits locked {package_name} package")
+    runtime_hashes = ocr_lock.get("runtimeSha256", {})
+    if not isinstance(runtime_hashes, dict):
+        errors.append("corpus OCR runtime hashes must be an object")
+        runtime_hashes = {}
+    corpus_dockerfile = (root / "containers/corpus.Dockerfile").read_text(encoding="utf-8")
+    for runtime_path, runtime_sha256 in runtime_hashes.items():
+        if not isinstance(runtime_path, str) or not isinstance(runtime_sha256, str):
+            errors.append("corpus OCR runtime hash entry is incomplete")
+        elif runtime_path not in corpus_dockerfile or runtime_sha256 not in corpus_dockerfile:
+            errors.append(f"corpus Dockerfile omits locked runtime hash for {runtime_path}")
+
+    fonts_lock = load_json(root / "corpus/fonts.lock.json")
+    expected_fonts = {
+        "repository_commit": fonts_lock.get("commit"),
+        "files": {
+            font.get("id"): font.get("sha256")
+            for font in fonts_lock.get("fonts", [])
+            if isinstance(font, dict)
+        },
+    }
+    _expect_equal(errors, corpus.get("fonts"), expected_fonts, "corpus font lock")
+
     package = load_json(root / "package.json")
     playwright = lock.get("playwright", {})
     _expect_equal(
@@ -321,6 +405,13 @@ def validate_lock(lock: dict[str, Any], root: Path = ROOT) -> list[str]:
         errors.append("signaling Dockerfile does not use the locked Node image")
     if f"pnpm@{signaling.get('pnpm')}" not in signaling_dockerfile:
         errors.append("signaling Dockerfile omits locked pnpm version")
+
+    corpus_renderer = corpus.get("renderer", {})
+    corpus_dockerfile = (root / "containers/corpus.Dockerfile").read_text(encoding="utf-8")
+    if not corpus_dockerfile.startswith(
+        f"FROM mcr.microsoft.com/playwright@{corpus_renderer.get('image_digest')}\n"
+    ):
+        errors.append("corpus Dockerfile does not use the locked Playwright image")
 
     return errors
 

@@ -151,6 +151,48 @@
     "tesseract_ocr": "5.3.4-1build5",
     "tshark": "4.2.2-1.1build3"
   },
+  "corpus_protocol": {
+    "name": "corpus_protocol_v1",
+    "protocol_sha256": "81f95f221b3a9671e8547dfc3352a0766902e4a0a719baf5c50583049e6125dc",
+    "manifest_lock_sha256": "16b4da5e01d197c8e22c292ce86e2b5763b74a1516aaf1156204546368799ca8",
+    "renderer": {
+      "image_digest": "sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e",
+      "platform": "linux/amd64",
+      "node_version": "24.18.1",
+      "playwright_version": "1.62.1",
+      "chromium_revision": "1234",
+      "chromium_version": "151.0.7922.34"
+    },
+    "ocr": {
+      "engine_version": "5.3.4",
+      "packages": {
+        "libarchive13t64": "3.7.2-2ubuntu0.8",
+        "libgif7": "5.2.2-1ubuntu1.2",
+        "liblept5": "1.82.0-3build4",
+        "libtesseract5": "5.3.4-1build5",
+        "tesseract-ocr": "5.3.4-1build5",
+        "tesseract-ocr-eng": "1:4.1.0-2",
+        "tesseract-ocr-osd": "1:4.1.0-2"
+      },
+      "runtime_sha256": {
+        "/usr/bin/tesseract": "9f831cab7525c3dab04af41bda35182af7ea1df9dceeaaa2f3bf207ac45c06a5",
+        "/usr/lib/x86_64-linux-gnu/libtesseract.so.5.0.3": "0d3b71cd757860c6639918c1b2d9407c8652ee22babc8d5c5f18cc35dde6334b",
+        "/usr/lib/x86_64-linux-gnu/liblept.so.5.0.4": "b31a50179665871ddb6bdbcfeefc8673febaa29a006e78136024d4083b6ee5e5"
+      },
+      "model_commit": "87416418657359cb625c412a48b6e1d6d41c29bd",
+      "model_sha256": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2",
+      "oem": 1,
+      "page_segmentation_mode": 7
+    },
+    "fonts": {
+      "repository_commit": "352f6b7d9d6cc4fa9e242b931291d31b21a6dc84",
+      "files": {
+        "noto_sans_mono_v1": "2cb2adb378a8f574213e23df697050b83c54c27df465a2015552740b2769a081",
+        "roboto_mono_v1": "66a80e79d17e4c7cabd162e2916578a4cc08fd19eef6e2a643305eae9c567b2b",
+        "source_code_pro_v1": "b400fc584e10aff25d0e775ce181b4fc1c5ea1b5dc37b81aeb2084375b945790"
+      }
+    }
+  },
   "coturn": {
     "image": "coturn/coturn:4.15.0-r0",
     "linux_amd64_digest": "sha256:b0e616a8fc46c0e8d29546c8271fda2e691c9ef912812757786ea586f73f414f",

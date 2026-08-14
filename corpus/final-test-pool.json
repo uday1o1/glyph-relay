@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "protocol": "corpus_protocol_v1",
+  "split": "final_test_pool",
+  "concreteSeedsExist": false,
+  "sequenceCount": 64,
+  "durationFrames": 240,
+  "frameRate": 30,
+  "fontId": "source_code_pro_v1",
+  "themes": ["final_high_contrast_cyan", "final_low_contrast_red"],
+  "layouts": ["final_vector_stack", "final_dense_cards"],
+  "strata": {
+    "code_editor": 8,
+    "terminal": 8,
+    "spreadsheet_table": 8,
+    "slide_diagram": 8,
+    "browser_documentation": 8,
+    "mixed_video_text": 8,
+    "animated_typing_scrolling": 8,
+    "svg_log_viewer": 8
+  },
+  "disjointRendererFamily": "svg_scene_renderer_v1",
+  "seedRule": "corpus/final-test-seed-rule.json"
+}

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "protocol": "corpus_protocol_v1",
+  "beacon": "NIST Randomness Beacon 2.0",
+  "pulseSelection": "first verified pulse strictly after manifest commit time plus 24 hours",
+  "rootSeed": "SHA256(protocol_manifest_hash || randOut)",
+  "stratumSeed": "SHA256(root_seed || UTF8(stratum_id) || UINT32_BE(sequence_ordinal))",
+  "retryPolicy": "wait_for_exact_pulse_verification",
+  "interactivePauseAllowed": false,
+  "selectiveRerunAllowed": false,
+  "reproductionRequiresRecordedPulse": true
+}

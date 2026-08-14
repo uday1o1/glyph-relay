@@ -110,6 +110,21 @@ make dashboard-browser-check
 
 See [the local dashboard security contract](docs/dashboard.md) for endpoint and verification details.
 
+The frozen generated screen-content corpus contains 64 development sequences, 64 unopened validation sequences, and a seedless final-test generation commitment.
+
+Verify byte-for-byte manifest regeneration and the development lossless OCR floor with:
+
+```bash
+make corpus-regeneration-check
+make corpus-lossless-check
+```
+
+The current development evidence covers 20,480 visible glyph instances, including 5,120 instances whose tight rendered height is 8 to 10 pixels, and measures 0.0 bounded CER for both overall and small-glyph aggregates.
+
+No validation or final-test pixels were opened to obtain that result.
+
+See [the corpus protocol](docs/corpus-protocol.md) for the renderer, fonts, truth ontology, OCR pipeline, metric, immutable split rules, and claim boundaries.
+
 Exercise the static loopback receiver in the exact pinned Chromium build with:
 
 ```bash

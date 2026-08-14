@@ -4,7 +4,7 @@ HOST_SYSTEM := $(shell uname -s)
 PRESET := $(if $(filter Darwin,$(HOST_SYSTEM)),macos-local,linux-cpu)
 CXX_FILES := $(shell find include src tests tools -type f \( -name '*.cpp' -o -name '*.hpp' \) | sort)
 
-.PHONY: all analyze browser-harness-check browser-probe build check clean clean-tree-check configure dashboard-browser-check dependency-check format format-check handoff-check lint linux-cpu-check nvenc-compile-check protocol-check python-check secret-scan test transport-check typecheck
+.PHONY: all analyze browser-harness-check browser-probe build check clean clean-tree-check configure corpus-lossless-check corpus-regeneration-check dashboard-browser-check dependency-check format format-check handoff-check lint linux-cpu-check nvenc-compile-check protocol-check python-check secret-scan test transport-check typecheck
 
 all: build
 
@@ -22,12 +22,12 @@ test: build
 format:
 	$(CLANG_FORMAT) -i $(CXX_FILES)
 	uv run ruff format tools tests/python
-	corepack pnpm exec prettier --write package.json tsconfig.json 'dashboard/**/*.{html,css,js,ts}' 'signaling/**/*.ts' 'tooling/**/*.ts' 'tests/typescript/**/*.ts' 'receiver/**/*.{html,css,js}' 'protocols/browser_oracle_v1/*.json' 'qualification/*.json' 'schemas/*.json' '.github/**/*.yml'
+	corepack pnpm exec prettier --write package.json tsconfig.json 'corpus/*.json' 'dashboard/**/*.{html,css,js,ts}' 'signaling/**/*.ts' 'tooling/**/*.ts' 'tests/typescript/**/*.ts' 'receiver/**/*.{html,css,js}' 'protocols/browser_oracle_v1/*.json' 'qualification/*.json' 'schemas/*.json' '.github/**/*.yml'
 
 format-check:
 	$(CLANG_FORMAT) --dry-run --Werror $(CXX_FILES)
 	uv run ruff format --check tools tests/python
-	corepack pnpm exec prettier --check package.json tsconfig.json 'dashboard/**/*.{html,css,js,ts}' 'signaling/**/*.ts' 'tooling/**/*.ts' 'tests/typescript/**/*.ts' 'receiver/**/*.{html,css,js}' 'protocols/browser_oracle_v1/*.json' 'qualification/*.json' 'schemas/*.json' '.github/**/*.yml'
+	corepack pnpm exec prettier --check package.json tsconfig.json 'corpus/*.json' 'dashboard/**/*.{html,css,js,ts}' 'signaling/**/*.ts' 'tooling/**/*.ts' 'tests/typescript/**/*.ts' 'receiver/**/*.{html,css,js}' 'protocols/browser_oracle_v1/*.json' 'qualification/*.json' 'schemas/*.json' '.github/**/*.yml'
 
 analyze:
 	bash tools/run_clang_analyzer.sh
@@ -57,6 +57,13 @@ dependency-check:
 
 protocol-check:
 	uv run python tools/check_m0_protocol.py
+	uv run python tools/check_corpus_protocol.py
+
+corpus-lossless-check:
+	bash scripts/check_corpus_lossless.sh
+
+corpus-regeneration-check:
+	bash scripts/check_corpus_regeneration.sh
 
 transport-check:
 	bash scripts/verify_libdatachannel_patch.sh

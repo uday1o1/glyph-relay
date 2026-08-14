@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "protocol": "corpus_protocol_v1",
+  "coreStrata": [
+    "code_editor",
+    "terminal",
+    "spreadsheet_table",
+    "slide_diagram",
+    "browser_documentation",
+    "mixed_video_text",
+    "animated_typing_scrolling"
+  ],
+  "developmentWeightPerCoreStratum": 0.14285714285714285,
+  "validationWeightPerCoreStratum": 0.14285714285714285,
+  "finalTestPoolStrata": [
+    "code_editor",
+    "terminal",
+    "spreadsheet_table",
+    "slide_diagram",
+    "browser_documentation",
+    "mixed_video_text",
+    "animated_typing_scrolling",
+    "svg_log_viewer"
+  ],
+  "finalTestWeightPerStratum": 0.125
+}

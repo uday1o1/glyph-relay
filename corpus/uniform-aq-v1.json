@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "protocol": "corpus_protocol_v1",
+  "name": "uniform_aq_v1",
+  "targetPayloadMbps": [0.5, 0.75, 1, 2, 4],
+  "rateMatchToleranceFraction": 0.02,
+  "grid": {
+    "enableAQ": [false, true],
+    "aqStrengthWhenEnabled": [1, 4, 8, 12, 15],
+    "canonicalAqStrengthWhenDisabled": 0,
+    "enableTemporalAQ": [false, true],
+    "exclude": [
+      {
+        "enableAQ": false,
+        "aqStrength": 0,
+        "enableTemporalAQ": false,
+        "reason": "controlled_uniform_identity"
+      }
+    ]
+  },
+  "selectorObjective": [
+    "lowest_unweighted_mean_equal_stratum_fitted_cer_at_five_targets",
+    "lowest_fitted_cer_at_1_mbps",
+    "lowest_estimable_fitted_bitrate_at_10_percent_cer",
+    "lowest_p95_preprocess_plus_encode_latency",
+    "lowest_mean_sender_cpu",
+    "lexicographic_effective_fields"
+  ],
+  "interpolation": "pool_adjacent_violators_nonincreasing_cer_in_log_measured_bitrate_then_adjacent_linear_only",
+  "extrapolationAllowed": false
+}

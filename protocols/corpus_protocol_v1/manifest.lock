@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "protocol": "corpus_protocol_v1",
+  "files": [
+    {
+      "path": "containers/corpus.Dockerfile",
+      "sha256": "ff1f1e2e7cefffb1836be7f6aefc40a33cc728e94d7b2f1b70f95127709ceef0"
+    },
+    {
+      "path": "corpus/final-test-pool.json",
+      "sha256": "9e82dd8824d7d1bf10ae037b61fdfa00c1991db999290f7d6857fbd9f4e87ec2"
+    },
+    {
+      "path": "corpus/final-test-seed-rule.json",
+      "sha256": "f13d9f0236d2aec812e8d46b757fdb2c251d0541f07e2a16c17c89f01b7203f1"
+    },
+    {
+      "path": "corpus/fonts.lock.json",
+      "sha256": "a840bffb4347dddf954635e8151855363c49dc140a76321557b228adbd6f55cf"
+    },
+    {
+      "path": "corpus/manifests/development.json",
+      "sha256": "e207224520b7a45857ea4cc9f5f3636ea2326b47585a5d183143527642c2cca2"
+    },
+    {
+      "path": "corpus/manifests/validation.json",
+      "sha256": "418a7d53214d12d8393774b69e94392c81564bb754932378a7eb8f0d822c3c0e"
+    },
+    {
+      "path": "corpus/metrics-v1.json",
+      "sha256": "e3fcc199cd7b6688235fe0845a14faa55e7948f63a64d2d0050c5ae006b21f58"
+    },
+    {
+      "path": "corpus/ocr.lock.json",
+      "sha256": "c93840fecb8a5711af873b6fea1bc23c6db35adecf9dbe1b5d05313aa23e7bd0"
+    },
+    {
+      "path": "corpus/ontology-v1.json",
+      "sha256": "718896abcba4be3fac8693e29306f3a81e234c642c586b71a7539ccd13cafd71"
+    },
+    {
+      "path": "corpus/renderer.lock.json",
+      "sha256": "5ec26424f1518a17f937e9145deca904b66aee19e4cd2a287c6dc29533e09b65"
+    },
+    {
+      "path": "corpus/sampling-v1.json",
+      "sha256": "07eb13460ba57adf1082cde6c87f1e077e5440221567e9700af5716771e5ac94"
+    },
+    {
+      "path": "corpus/strata-v1.json",
+      "sha256": "f948cb8fb8dd965de057df8885e7003a084bb1f50bfaf0233a124d4b24a39bc7"
+    },
+    {
+      "path": "corpus/uniform-aq-v1.json",
+      "sha256": "ff284d7c9426fd3e4def75b12d00814796933a3623b2e4294a7f6b85c954d9c6"
+    },
+    {
+      "path": "schemas/corpus-manifest-v1.schema.json",
+      "sha256": "5aae43d4dfbe20677fb505c077d650cd4e9170debd603a311a04e41edc6e6d51"
+    },
+    {
+      "path": "scripts/build_corpus_image.sh",
+      "sha256": "d169f485489f095dc8c041d301328d12c2616d4308296f6c67a2b0c225d76174"
+    },
+    {
+      "path": "scripts/check_corpus_lossless.sh",
+      "sha256": "04559a770347da31003e408300160192bdb206577e3aecba2526819ee9c684a4"
+    },
+    {
+      "path": "scripts/run_corpus_container.sh",
+      "sha256": "935f6736399e992b2aed70760b36808520fdbfca18a451e4adba9e22703afb5c"
+    },
+    {
+      "path": "tooling/corpus/corpus-model.ts",
+      "sha256": "900cbf2664dd34ff9e196b0970d3043634fdaabd8f4cfdcac781d27bdc5de6d9"
+    },
+    {
+      "path": "tooling/corpus/generate-manifests.ts",
+      "sha256": "06a5bc45e38f91e40f147a2f2dbce865f6a6144db0f0bfad82431dd2acc1a992"
+    },
+    {
+      "path": "tooling/corpus/render-development.ts",
+      "sha256": "04b06c6cf3ad91239967fc1ce80c55c2cef987bd674933c86298c892e2f413f8"
+    },
+    {
+      "path": "tools/check_corpus_protocol.py",
+      "sha256": "cda8a8fbc3e24177a9171cd3f363b591b91613d49ce4c2f897cb94c59423f69f"
+    },
+    {
+      "path": "tools/corpus/aq_selector.py",
+      "sha256": "9eedb853ef9ec69aa41c7e5995be7507ca421f12be34597a25813c27f2792625"
+    },
+    {
+      "path": "tools/corpus/bootstrap_assets.py",
+      "sha256": "646b92136a2ca7e31d5c2ca53d65abf59f62e4e3b16fc5622dad8d954a2a2c1c"
+    },
+    {
+      "path": "tools/corpus/evaluate_ocr.py",
+      "sha256": "2bde2f91ba8ef675ba65e449287109f194a1d439309eb2590e12f538df15d2ca"
+    },
+    {
+      "path": "tools/corpus/run_tesseract.sh",
+      "sha256": "03aee2705b9a811cb07568267534038b1a988ee670ba940a0ef27b92527bb1cc"
+    }
+  ],
+  "protocol_sha256": "81f95f221b3a9671e8547dfc3352a0766902e4a0a719baf5c50583049e6125dc"
+}

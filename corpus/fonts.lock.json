@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/google/fonts.git",
+  "commit": "352f6b7d9d6cc4fa9e242b931291d31b21a6dc84",
+  "license": "OFL-1.1",
+  "fonts": [
+    {
+      "id": "noto_sans_mono_v1",
+      "split": "development",
+      "file": "NotoSansMono.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/352f6b7d9d6cc4fa9e242b931291d31b21a6dc84/ofl/notosansmono/NotoSansMono%5Bwdth%2Cwght%5D.ttf",
+      "sha256": "2cb2adb378a8f574213e23df697050b83c54c27df465a2015552740b2769a081",
+      "licenseUrl": "https://raw.githubusercontent.com/google/fonts/352f6b7d9d6cc4fa9e242b931291d31b21a6dc84/ofl/notosansmono/OFL.txt",
+      "licenseSha256": "cee9892f9f0cc8fe882c9e9537ee6a89621d86ee7ceaf70b02e2b2b1c25c061a"
+    },
+    {
+      "id": "roboto_mono_v1",
+      "split": "validation",
+      "file": "RobotoMono.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/352f6b7d9d6cc4fa9e242b931291d31b21a6dc84/ofl/robotomono/RobotoMono%5Bwght%5D.ttf",
+      "sha256": "66a80e79d17e4c7cabd162e2916578a4cc08fd19eef6e2a643305eae9c567b2b",
+      "licenseUrl": "https://raw.githubusercontent.com/google/fonts/352f6b7d9d6cc4fa9e242b931291d31b21a6dc84/ofl/robotomono/OFL.txt",
+      "licenseSha256": "50ab8dd54680d3473f649c9db86fece88434d097c7834475c1c72d2f8c429215"
+    },
+    {
+      "id": "source_code_pro_v1",
+      "split": "final_test_pool",
+      "file": "SourceCodePro.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/352f6b7d9d6cc4fa9e242b931291d31b21a6dc84/ofl/sourcecodepro/SourceCodePro%5Bwght%5D.ttf",
+      "sha256": "b400fc584e10aff25d0e775ce181b4fc1c5ea1b5dc37b81aeb2084375b945790",
+      "licenseUrl": "https://raw.githubusercontent.com/google/fonts/352f6b7d9d6cc4fa9e242b931291d31b21a6dc84/ofl/sourcecodepro/OFL.txt",
+      "licenseSha256": "cb30d3086a8b3ce0b9e3690bf48d6620402b61160bc658076f95180ccd9e9dae"
+    }
+  ]
+}

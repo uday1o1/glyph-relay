@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.invalid/schemas/corpus-manifest-v1.schema.json",
+  "title": "GlyphRelay corpus_protocol_v1 split manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "counts",
+    "frameContract",
+    "glyphRasterCatalog",
+    "protocol",
+    "rendererOutputOpened",
+    "schemaVersion",
+    "sequences",
+    "split",
+    "splitContract"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "protocol": { "const": "corpus_protocol_v1" },
+    "split": { "enum": ["development", "validation"] },
+    "rendererOutputOpened": { "const": false },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "characterInstances",
+        "sampledFrames",
+        "sequences",
+        "smallGlyphInstances"
+      ],
+      "properties": {
+        "characterInstances": { "type": "integer", "minimum": 20000 },
+        "sampledFrames": { "type": "integer", "minimum": 256 },
+        "sequences": { "type": "integer", "minimum": 64 },
+        "smallGlyphInstances": { "type": "integer", "minimum": 5000 }
+      }
+    },
+    "frameContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "durationSeconds",
+        "frameCount",
+        "frameIntervalNs",
+        "frameRate",
+        "geometryEpoch",
+        "height",
+        "sampleFrames",
+        "width"
+      ],
+      "properties": {
+        "durationSeconds": { "const": 8 },
+        "frameCount": { "const": 240 },
+        "frameIntervalNs": { "const": 33333333 },
+        "frameRate": { "const": 30 },
+        "geometryEpoch": { "const": 1 },
+        "height": { "const": 1080 },
+        "sampleFrames": {
+          "type": "array",
+          "prefixItems": [
+            { "const": 0 },
+            { "const": 60 },
+            { "const": 120 },
+            { "const": 180 }
+          ],
+          "items": false
+        },
+        "width": { "const": 1920 }
+      }
+    },
+    "glyphRasterCatalog": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "object" }
+    },
+    "sequences": {
+      "type": "array",
+      "minItems": 64,
+      "items": {
+        "type": "object",
+        "required": [
+          "durationFrames",
+          "fontId",
+          "layoutId",
+          "logicalDeviceScale",
+          "motionCategory",
+          "sampleFrames",
+          "sceneDescription",
+          "seed",
+          "sequenceId",
+          "stratum",
+          "themeId"
+        ]
+      }
+    },
+    "splitContract": {
+      "type": "object",
+      "required": ["fontId", "layoutIds", "stratumWeights", "themeIds"]
+    }
+  }
+}

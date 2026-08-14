@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "engine": "Tesseract",
+  "engineVersion": "5.3.4",
+  "ubuntuPackage": "tesseract-ocr=5.3.4-1build5",
+  "ubuntuRuntimePackages": [
+    {
+      "name": "libarchive13t64",
+      "version": "3.7.2-2ubuntu0.8"
+    },
+    {
+      "name": "libgif7",
+      "version": "5.2.2-1ubuntu1.2"
+    },
+    {
+      "name": "liblept5",
+      "version": "1.82.0-3build4"
+    },
+    {
+      "name": "libtesseract5",
+      "version": "5.3.4-1build5"
+    },
+    {
+      "name": "tesseract-ocr",
+      "version": "5.3.4-1build5"
+    },
+    {
+      "name": "tesseract-ocr-eng",
+      "version": "1:4.1.0-2"
+    },
+    {
+      "name": "tesseract-ocr-osd",
+      "version": "1:4.1.0-2"
+    }
+  ],
+  "runtimeSha256": {
+    "/usr/bin/tesseract": "9f831cab7525c3dab04af41bda35182af7ea1df9dceeaaa2f3bf207ac45c06a5",
+    "/usr/lib/x86_64-linux-gnu/libtesseract.so.5.0.3": "0d3b71cd757860c6639918c1b2d9407c8652ee22babc8d5c5f18cc35dde6334b",
+    "/usr/lib/x86_64-linux-gnu/liblept.so.5.0.4": "b31a50179665871ddb6bdbcfeefc8673febaa29a006e78136024d4083b6ee5e5"
+  },
+  "modelRepository": "https://github.com/tesseract-ocr/tessdata_fast.git",
+  "modelCommit": "87416418657359cb625c412a48b6e1d6d41c29bd",
+  "modelUrl": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/87416418657359cb625c412a48b6e1d6d41c29bd/eng.traineddata",
+  "modelSha256": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2",
+  "language": "eng",
+  "oem": 1,
+  "pageSegmentationMode": 7,
+  "preprocessing": {
+    "crop": "declared_text_region",
+    "luma": "round(0.2126*R + 0.7152*G + 0.0722*B)",
+    "polarity": "invert_when_top_left_luma_below_128",
+    "scale": 4,
+    "interpolation": "nearest",
+    "borderOutputPixels": 40,
+    "alpha": "opaque"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "protocol": "corpus_protocol_v1",
+  "normalization": {
+    "unicode": "NFC",
+    "lineEndings": "LF",
+    "casePreserved": true,
+    "spellingCorrection": false,
+    "tesseractRecordTerminatorRemoved": true
+  },
+  "boundedCharacterError": "min(levenshtein_insertions_plus_deletions_plus_substitutions, truth_character_count) / truth_character_count",
+  "sequenceCharacterError": "sum(capped_edit_count_per_box) / sum(truth_character_count_per_box)",
+  "corpusCharacterError": "unweighted_mean(unweighted_mean(sequence_character_error within stratum) for every declared stratum)",
+  "smallGlyphCharacterError": "same hierarchy restricted to text boxes whose glyph instances all have stored smallGlyphSubset=true",
+  "glyphTruthRecall": "protected_glyph_macroblocks / glyph_macroblocks",
+  "protectedFraction": "protected_visible_macroblocks / visible_macroblocks",
+  "falseProtectedFraction": "protected_macroblocks_outside_glyph_and_ui_truth / visible_macroblocks",
+  "falseDiscoveryFraction": "protected_macroblocks_outside_glyph_and_ui_truth / max(protected_macroblocks, 1)",
+  "staticMapChangeFraction": "changed_visible_emphasis_levels / visible_macroblocks",
+  "losslessDevelopmentThresholds": {
+    "overallBoundedCerMaximum": 0.02,
+    "smallGlyphBoundedCerMaximum": 0.05
+  }
+}

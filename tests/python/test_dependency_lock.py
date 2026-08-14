@@ -27,3 +27,15 @@ def test_dependency_lock_rejects_linux_capture_package_drift() -> None:
     candidate = deepcopy(locked_dependencies())
     candidate["linux_capture"]["packages"][1]["version"] = "latest"  # type: ignore[index]
     assert "Linux capture package pins" in "\n".join(validate_lock(candidate))
+
+
+def test_dependency_lock_rejects_corpus_protocol_drift() -> None:
+    candidate = deepcopy(locked_dependencies())
+    candidate["corpus_protocol"]["protocol_sha256"] = "0" * 64  # type: ignore[index]
+    assert "corpus protocol aggregate SHA-256" in "\n".join(validate_lock(candidate))
+
+
+def test_dependency_lock_rejects_corpus_runtime_drift() -> None:
+    candidate = deepcopy(locked_dependencies())
+    candidate["corpus_protocol"]["ocr"]["packages"]["tesseract-ocr"] = "latest"  # type: ignore[index]
+    assert "corpus OCR lock" in "\n".join(validate_lock(candidate))

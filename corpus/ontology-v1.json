@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "protocol": "corpus_protocol_v1",
+  "glyphTruth": "post-clipping nonzero glyph alpha after frozen renderer and coordinate transform",
+  "uiTruthTypes": [
+    "foreground_border",
+    "icon",
+    "caret",
+    "selection_outline",
+    "diagram_stroke",
+    "control_affordance"
+  ],
+  "excludedUiPixels": [
+    "background_fill",
+    "whitespace",
+    "broad_panel",
+    "photograph",
+    "embedded_video",
+    "text_container_rectangle"
+  ],
+  "precedence": "glyph_over_ui",
+  "macroblockIntersection": "at_least_one_visible_truth_pixel",
+  "clippedOccludedOffCropExcluded": true,
+  "renderedGlyphHeight": "tight nonzero-alpha height in source-visible pixels before encoder transforms",
+  "smallGlyphHeightsPx": [8, 9, 10]
+}

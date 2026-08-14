@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "protocol": "corpus_protocol_v1",
+  "frameRate": 30,
+  "durationFrames": 240,
+  "sampleFrameIds": [0, 60, 120, 180],
+  "sourcePtsNs": "frame_id * 33333333",
+  "sampleKey": ["sequence_id", "frame_id", "source_pts_ns", "geometry_epoch"],
+  "missingCandidateBoundedCer": 1,
+  "nearestFrameSubstitutionAllowed": false
+}

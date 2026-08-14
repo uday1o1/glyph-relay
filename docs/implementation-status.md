@@ -37,7 +37,7 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 | Milestone | State | Reason |
 | --- | --- | --- |
 | 0 | `WAITING_HARDWARE` | M0-L01 through M0-L10 are locally implemented and all target gates are deferred |
-| 1 | `IN_PROGRESS` | Local work packages remain pending |
+| 1 | `WAITING_HARDWARE` | M1-L01A through M1-L04 are locally implemented and all remaining acceptance items require the designated target |
 | 2 | `IN_PROGRESS` | Local work packages remain pending |
 | 3 | `IN_PROGRESS` | Local work packages remain pending |
 | 4 | `IN_PROGRESS` | Local work packages and irreversible freezes remain pending |
@@ -113,21 +113,21 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 | M1-L03B2b1 | `IMPLEMENTED_LOCAL` | Exact bidirectional `glyphrelay-control-v1` state machine and browser schema contract with bounded telemetry, sequence and session fencing, five-sample clock burst, five-second clock cadence, transition acknowledgments, and receiver flood limits | `integration.control_protocol`; browser control tests; exact lifecycle, clock identity, cumulative statistics, pause, resume, end, duplicate-key, comment, remote-command, telemetry-regression, 4 KiB, and ten-message rolling-limit fixtures |
 | M1-L03B2b2a | `IMPLEMENTED_LOCAL` | Native peer service with strict 720p30 H.264 offer admission, trickle ICE, one reliable control channel, sole RTP allocator, bounded NACK and PLI recovery, REMB observation, final UDP egress accounting, and ordered stop cleanup | `integration.peer_sender` over two real loopback DTLS-SRTP peers; five repeated functional runs; ASAN and UBSAN; offer and answer; bidirectional candidates; five clock responses; receiver statistics; recovery Annex B through RTP; final media egress; session-end acknowledgment; cache, channel, track, and peer cleanup; duplicate-candidate and unsupported TURN transport failures |
 | M1-L03B2b2b | `IMPLEMENTED_LOCAL` | Loopback dashboard binding, fragment nonce, exact Host and Origin, Fetch Metadata, cookie rejection, CSRF, canonical bounded actions, and restrictive browser boundary | Five live HTTP adversarial tests; hostile Host, Origin, DNS rebinding, cross-site Fetch Metadata, cookie, nonce, CSRF, CORS preflight, oversized body, duplicate key, noncanonical JSON, unknown field, and arbitrary-action controls; Chromium 151.0.7922.34 launch, fragment removal, state render, authorized pause, no-cookie, no-external-request, and no-nonce-request workflow |
-| M1-L04 | `PENDING_LOCAL` | Frozen corpus protocol, renderer inputs, manifests, OCR evaluator, metrics, and lossless development gates | None |
+| M1-L04 | `IMPLEMENTED_LOCAL` | Frozen corpus protocol, renderer inputs, manifests, OCR evaluator, metrics, and lossless development gates | `make corpus-regeneration-check`; `make corpus-lossless-check`; 64 development and 64 validation sequences; 20,480 visible and 5,120 small-glyph instances in each split; 256 development frames and 512 OCR boxes; overall bounded CER 0.0; small-glyph bounded CER 0.0; validation and final-test outputs absent; aggregate protocol hash `81f95f221b3a9671e8547dfc3352a0766902e4a0a719baf5c50583049e6125dc` |
 
 | State | Acceptance item | Evidence |
 | --- | --- | --- |
 | `DEFERRED_HARDWARE` | A real portal-selected window streams to Chromium and Firefox | None |
 | `DEFERRED_HARDWARE` | Record-only produces an independently decoded profile stream without signaling or a browser offer | The complete local CLI service produces and independently decodes `recording_profile_candidate_v1`; final acceptance waits for target-only `recording_profile_v1` freeze evidence |
 | `DEFERRED_HARDWARE` | Capture cancel, close, revoke, and shutdown paths pass | None |
-| `PENDING_LOCAL` | Every queue has an asserted bound and disconnects leak no session or frame resource | None |
+| `IMPLEMENTED_LOCAL` | Every queue has an asserted bound and disconnects leak no session or frame resource | Three-frame capture pool; three-access-unit, 8 MiB, and 100 ms transport bounds; bounded recorder, signaling, control, RTP recovery, and telemetry paths; real peer, owner signaling, and service disconnect tests assert empty queues, released frames, closed tracks and channels, and deleted session state |
 | `IMPLEMENTED_LOCAL` | Token replay, hostile Origin and Host, oversized messages, control floods, and insecure non-loopback binds fail closed | Live loopback service tests plus strict receiver control parser and ten-message rolling-window flood test |
 | `IMPLEMENTED_LOCAL` | Capability swaps, forged actions, impersonation, fixation, and every invalid transition fail closed without revealing capabilities | Domain-separated keyed-hash state tests, exact-field parser tests, one-receiver reservation tests, and role-confusion transition tests |
 | `IMPLEMENTED_LOCAL` | Signaling closure, heartbeat, partition, ICE, reservation, join, and absolute timers follow exact transitions without extending absolute lifetime | Deterministic monotonic-clock tests cover exact five-second, ten-minute, 15-minute, 30-second, and eight-hour boundaries plus live disconnect cleanup |
 | `IMPLEMENTED_LOCAL` | Stale owner generations and same-session owner reconnects fail closed after revocation | Connection-identity and generation-fencing tests plus idempotent post-revocation cleanup |
 | `IMPLEMENTED_LOCAL` | Self-hosted HTTPS and WSS routing works and an unconfigured sender creates no remote link | Public origin route verifier; certificate-verified native WSS integration; production share CLI transport linkage; exact CLI test proving missing configuration performs no portal, capture, signaling, or link side effect |
-| `PENDING_LOCAL` | Development lossless OCR bounded error is at most 0.02 overall and 0.05 for 8-to-10-pixel glyphs | None |
-| `PENDING_LOCAL` | Corpus and protocol validation passes without opening validation or final-test renderer output | None |
+| `IMPLEMENTED_LOCAL` | Development lossless OCR bounded error is at most 0.02 overall and 0.05 for 8-to-10-pixel glyphs | Exact Tesseract 5.3.4 image evaluates 512 boxes from 256 lossless sampled frames at 0.0 overall and 0.0 small-glyph bounded CER |
+| `IMPLEMENTED_LOCAL` | Corpus and protocol validation passes without opening validation or final-test renderer output | Frozen manifest schema and semantic checker; byte-for-byte regeneration of both 64-sequence manifests; validation and final-test output directories absent; sealed final-test pool contains no concrete seed |
 
 ## Milestone 2 acceptance gates
 
