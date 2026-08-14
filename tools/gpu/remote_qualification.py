@@ -26,6 +26,7 @@ from typing import Any, TextIO
 from tools.gpu.public_evidence import PublicEvidenceError, create_public_evidence
 from tools.gpu.resource_policy import (
     ResourcePolicyError,
+    evaluate_cuda_performance_samples,
     evaluate_nvenc_performance_samples,
     metrics_json,
     parse_gpu_metrics,
@@ -753,7 +754,7 @@ def load_phases(path: Path) -> tuple[PhaseDefinition, ...]:
             or not isinstance(timeout_seconds, int)
             or isinstance(timeout_seconds, bool)
             or not 1 <= timeout_seconds <= 86_400
-            or resource_policy not in {"none", "nvenc-performance-v1"}
+            or resource_policy not in {"none", "nvenc-performance-v1", "cuda-performance-v1"}
             or (raw.get("kind") == "command" and not commands)
             or (raw.get("kind") != "command" and resource_policy != "none")
         ):
@@ -945,7 +946,7 @@ def run_command_phase(
     returncodes: list[int] = []
     timed_out = False
     performance_samples: list[dict[str, Any]] | None = None
-    if phase.resource_policy == "nvenc-performance-v1":
+    if phase.resource_policy != "none":
         if context.sampler is None or context.selected_gpu is None:
             raise QualificationError("performance_phase_without_selected_gpu_sampler")
         context.sampler.begin_performance_phase(phase.identifier)
@@ -990,7 +991,7 @@ def run_command_phase(
             timed_out = timed_out or command_timed_out
             if returncode != 0 or command_timed_out:
                 break
-    if phase.resource_policy == "nvenc-performance-v1":
+    if phase.resource_policy != "none":
         if context.sampler is None:
             raise QualificationError("performance_sampler_disappeared")
         performance_samples = context.sampler.end_performance_phase(phase.identifier)
@@ -1010,7 +1011,12 @@ def run_command_phase(
         else f"command_exit_{returncodes[-1] if returncodes else 127}"
     )
     if performance_samples is not None:
-        assessment = evaluate_nvenc_performance_samples(performance_samples)
+        evaluator = (
+            evaluate_nvenc_performance_samples
+            if phase.resource_policy == "nvenc-performance-v1"
+            else evaluate_cuda_performance_samples
+        )
+        assessment = evaluator(performance_samples)
         atomic_json(attempt / "resource-assessment.json", assessment)
         if status == "PASSED" and assessment["status"] != "PASSED":
             status = "FAILED"
@@ -1088,6 +1094,7 @@ def run_preflight_phase(
     required_commands = [
         "bash",
         "cmake",
+        "compute-sanitizer",
         "corepack",
         "ctest",
         "c++",

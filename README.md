@@ -135,6 +135,14 @@ The command writes a local protected-region overlay without overwriting an exist
 
 See [the protected-region saliency contract](docs/saliency.md) for feature semantics, ownership transitions, verification, and current claim boundaries.
 
+Compile the CUDA implementation without making a runtime claim by using the digest-pinned official CUDA 13.3.1 build image:
+
+```bash
+make cuda-compile-check
+```
+
+The designated target runs CUDA differential, compute-sanitizer, and 1080p30 P95 qualification through the same consolidated handoff entry point shown below.
+
 Exercise the static loopback receiver in the exact pinned Chromium build with:
 
 ```bash

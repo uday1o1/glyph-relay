@@ -104,11 +104,27 @@ void test_capacity_validation() {
           "zero or oversized preprocessing pools must fail before allocating slots");
 }
 
+void test_abort_releases_only_matching_owners() {
+  glyphrelay::PreprocessOwnershipRing ring(2U, 2U);
+  const auto first = ring.reserve(1U, 1U, {0x1000U, 0x400U}, {0x8000U, 0x1000U});
+  const auto second = ring.reserve(2U, 1U, {0x2000U, 0x400U}, {0xA000U, 0x1000U});
+  require(first.passed && second.passed && ring.abort(first.token).passed,
+          "fatal preprocessing cleanup must release the matching source and surface");
+  auto stale = first.token;
+  ++stale.frame_id;
+  require(!ring.abort(stale).passed && ring.diagnostics().active_sources == 1U &&
+              ring.diagnostics().active_surfaces == 1U,
+          "a stale abort token may not release another frame's allocations");
+  require(ring.abort(second.token).passed && ring.all_free(),
+          "aborting every matching owner must drain the bounded rings");
+}
+
 } // namespace
 
 int main() {
   test_separate_bounded_ownership_cycles();
   test_alias_stale_token_exhaustion_and_shutdown();
   test_capacity_validation();
+  test_abort_releases_only_matching_owners();
   return 0;
 }

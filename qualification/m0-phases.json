@@ -373,6 +373,147 @@
       "environment_names": [],
       "timeout_seconds": 28800,
       "resource_policy": "nvenc-performance-v1"
+    },
+    {
+      "id": "cuda-saliency-correctness",
+      "title": "CUDA color conversion and saliency differential qualification",
+      "kind": "command",
+      "required": true,
+      "dependencies": ["gpu-selection"],
+      "commands": [
+        [
+          "build/linux-gpu/glyphrelay_cuda_saliency_qualify",
+          "--correctness",
+          "--output",
+          "{phase_dir}/correctness.json"
+        ],
+        [
+          "uv",
+          "run",
+          "python",
+          "tools/validate_cuda_saliency_qualification.py",
+          "{phase_dir}/correctness.json",
+          "schemas/cuda-saliency-qualification-v1.schema.json"
+        ]
+      ],
+      "environment_names": [],
+      "timeout_seconds": 1800
+    },
+    {
+      "id": "cuda-saliency-compute-sanitizer",
+      "title": "CUDA saliency compute-sanitizer qualification",
+      "kind": "command",
+      "required": true,
+      "dependencies": ["cuda-saliency-correctness"],
+      "commands": [
+        [
+          "compute-sanitizer",
+          "--tool",
+          "memcheck",
+          "--error-exitcode",
+          "9",
+          "build/linux-gpu/glyphrelay_cuda_saliency_qualify",
+          "--correctness",
+          "--output",
+          "{phase_dir}/memcheck.json"
+        ],
+        [
+          "compute-sanitizer",
+          "--tool",
+          "initcheck",
+          "--error-exitcode",
+          "9",
+          "build/linux-gpu/glyphrelay_cuda_saliency_qualify",
+          "--correctness",
+          "--output",
+          "{phase_dir}/initcheck.json"
+        ],
+        [
+          "compute-sanitizer",
+          "--tool",
+          "racecheck",
+          "--error-exitcode",
+          "9",
+          "build/linux-gpu/glyphrelay_cuda_saliency_qualify",
+          "--correctness",
+          "--output",
+          "{phase_dir}/racecheck.json"
+        ],
+        [
+          "compute-sanitizer",
+          "--tool",
+          "synccheck",
+          "--error-exitcode",
+          "9",
+          "build/linux-gpu/glyphrelay_cuda_saliency_qualify",
+          "--correctness",
+          "--output",
+          "{phase_dir}/synccheck.json"
+        ],
+        [
+          "uv",
+          "run",
+          "python",
+          "tools/validate_cuda_saliency_qualification.py",
+          "{phase_dir}/memcheck.json",
+          "schemas/cuda-saliency-qualification-v1.schema.json"
+        ],
+        [
+          "uv",
+          "run",
+          "python",
+          "tools/validate_cuda_saliency_qualification.py",
+          "{phase_dir}/initcheck.json",
+          "schemas/cuda-saliency-qualification-v1.schema.json"
+        ],
+        [
+          "uv",
+          "run",
+          "python",
+          "tools/validate_cuda_saliency_qualification.py",
+          "{phase_dir}/racecheck.json",
+          "schemas/cuda-saliency-qualification-v1.schema.json"
+        ],
+        [
+          "uv",
+          "run",
+          "python",
+          "tools/validate_cuda_saliency_qualification.py",
+          "{phase_dir}/synccheck.json",
+          "schemas/cuda-saliency-qualification-v1.schema.json"
+        ]
+      ],
+      "environment_names": [],
+      "timeout_seconds": 7200
+    },
+    {
+      "id": "cuda-saliency-performance",
+      "title": "CUDA 1080p30 preprocessing and map-copy P95 gate",
+      "kind": "command",
+      "required": true,
+      "dependencies": [
+        "cuda-saliency-correctness",
+        "cuda-saliency-compute-sanitizer"
+      ],
+      "commands": [
+        [
+          "build/linux-gpu/glyphrelay_cuda_saliency_qualify",
+          "--performance",
+          "--output",
+          "{phase_dir}/performance.json"
+        ],
+        [
+          "uv",
+          "run",
+          "python",
+          "tools/validate_cuda_saliency_qualification.py",
+          "{phase_dir}/performance.json",
+          "schemas/cuda-saliency-qualification-v1.schema.json"
+        ]
+      ],
+      "environment_names": [],
+      "timeout_seconds": 1800,
+      "resource_policy": "cuda-performance-v1"
     }
   ]
 }

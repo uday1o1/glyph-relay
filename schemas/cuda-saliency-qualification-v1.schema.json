@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.invalid/schemas/cuda-saliency-qualification-v1.schema.json",
+  "title": "GlyphRelay CUDA saliency qualification evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "protocol", "mode", "status", "reason"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "protocol": { "const": "saliency_v1" },
+    "mode": { "enum": ["correctness", "performance"] },
+    "status": { "enum": ["PASSED", "FAILED"] },
+    "reason": { "type": "string", "minLength": 1 },
+    "frameCount": { "type": "integer", "minimum": 0 },
+    "comparedLumaChromaCodes": { "type": "integer", "minimum": 0 },
+    "comparedFeatures": { "type": "integer", "minimum": 0 },
+    "maximumCodeError": { "type": "integer", "minimum": 0 },
+    "maximumFeatureError": { "type": "number", "minimum": 0 },
+    "deterministic": { "type": "boolean" },
+    "warmupFrames": { "type": "integer", "minimum": 0 },
+    "measuredFrames": { "type": "integer", "minimum": 0 },
+    "measuredWallDurationNs": { "type": "integer", "minimum": 0 },
+    "p95Ns": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inputUpload",
+        "colorConversion",
+        "featureExtraction",
+        "temporalHysteresis",
+        "morphologyAndOverrides",
+        "macroblockReduction",
+        "hostMapCopy",
+        "totalPipeline"
+      ],
+      "properties": {
+        "inputUpload": { "type": "integer", "minimum": 0 },
+        "colorConversion": { "type": "integer", "minimum": 0 },
+        "featureExtraction": { "type": "integer", "minimum": 0 },
+        "temporalHysteresis": { "type": "integer", "minimum": 0 },
+        "morphologyAndOverrides": { "type": "integer", "minimum": 0 },
+        "macroblockReduction": { "type": "integer", "minimum": 0 },
+        "hostMapCopy": { "type": "integer", "minimum": 0 },
+        "totalPipeline": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "mode": { "const": "correctness" } } },
+      "then": {
+        "required": [
+          "frameCount",
+          "comparedLumaChromaCodes",
+          "comparedFeatures",
+          "maximumCodeError",
+          "maximumFeatureError",
+          "deterministic"
+        ]
+      }
+    },
+    {
+      "if": { "properties": { "mode": { "const": "performance" } } },
+      "then": {
+        "required": [
+          "warmupFrames",
+          "measuredFrames",
+          "measuredWallDurationNs",
+          "p95Ns"
+        ]
+      }
+    }
+  ]
+}

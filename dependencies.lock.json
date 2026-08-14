@@ -203,6 +203,12 @@
     "digest": "sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea",
     "platform": "linux/amd64"
   },
+  "cuda_compile_container": {
+    "image": "nvidia/cuda:13.3.1-devel-ubuntu24.04",
+    "digest": "sha256:03c372fd9c65fe7739279f8c65473b315dc61efaaffab03e1e65bc7be7aee61e",
+    "platform": "linux/amd64",
+    "cuda_toolkit": "13.3.1"
+  },
   "signaling": {
     "node_image": "node:24.16.0-bookworm-slim",
     "node_image_digest_amd64": "sha256:ca520832af80fa37a57c14077ed0fcdd83b5aefccc356059fdc3a9a05b78ae1f",

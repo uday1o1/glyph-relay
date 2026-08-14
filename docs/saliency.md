@@ -56,6 +56,31 @@ The NV12 surface remains owned until map copy, submit readiness, NVENC submissio
 
 Registered source and surface allocation ranges may never alias, and stale tokens fail closed.
 
+Fatal preprocessing cleanup requires an exact matching token and atomically returns only that frame's owned slots.
+
+## CUDA execution
+
+The Linux GPU implementation retains the selected CUDA primary context and enters it through a scoped guard for allocation, enqueue, completion, debug-copy, and cleanup operations.
+
+One nonblocking stream orders input upload, pitch-aware BGRA or RGBA conversion, canonical luma expansion, Scharr gradients, tile features, temporal hysteresis, morphology, macroblock reduction, and the asynchronous device-to-pinned-host map copy.
+
+Each packed source has a distinct device allocation and source-read event.
+
+Each encoder surface has a distinct contiguous NV12 allocation, device feature storage, device map, pinned host map, timing events, and explicit NVENC lifetime.
+
+CUDA events fence every stage and produce both per-stage durations and a directly ranked total-pipeline duration.
+
+NVTX ranges name the same stages for target profiling without using profiler time as acceptance evidence.
+
+The correctness executable compares both color planes and every saliency feature against the scalar reference across frozen goldens, randomized temporal input, partial geometry, both pixel orders, both range contracts, overrides, and a 1920x1080 frame.
+
+An independent replay requires byte-identical NV12 and map output plus exactly identical feature state.
+
+The target performance run uses 300 warmup frames followed by at least 1,800 measured 1920x1080 frames and accepts only a directly measured total P95 at or below 5 milliseconds.
+The measured interval extends when needed to span at least ten seconds so the performance-environment sampler can observe the active compute workload.
+
+The target runs memcheck, initcheck, racecheck, and synccheck before the performance gate.
+
 ## Local verification
 
 Build and run the scalar goldens, randomized determinism checks, boundary cases, ownership checks, and the real preview command with:
@@ -72,3 +97,17 @@ The preview command creates a new PPM file and refuses to overwrite an existing 
 The preview is qualitative inspection evidence only and does not satisfy map-recall or readability gates.
 
 CUDA differential, compute-sanitizer, and 1080p30 P95 evidence remain designated-target gates.
+
+The CUDA translation unit and qualification executable compile locally through a pinned official NVIDIA CUDA image:
+
+```bash
+make cuda-compile-check
+```
+
+That command is compile evidence only because the local Docker host exposes no NVIDIA GPU.
+
+The consolidated target entry point owns runtime qualification:
+
+```bash
+./scripts/gpu/qualify_cuda_pm.sh
+```

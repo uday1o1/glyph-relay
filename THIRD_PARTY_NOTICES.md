@@ -18,6 +18,10 @@ The repository does not redistribute the NVIDIA Video Codec SDK archive, NVIDIA 
 
 Use of NVIDIA software remains subject to the terms supplied by NVIDIA.
 
+The local CUDA compile gate pulls the official NVIDIA CUDA 13.3.1 development container by its Linux amd64 manifest digest.
+
+The repository does not redistribute that image or its CUDA toolkit binaries.
+
 ## libdatachannel and libjuice
 
 GlyphRelay pins libdatachannel v0.24.1 at commit `a02b751917ac8afc8c58dc6f4461d25ff9465d48` under MPL-2.0.

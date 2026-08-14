@@ -38,7 +38,7 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 | --- | --- | --- |
 | 0 | `WAITING_HARDWARE` | M0-L01 through M0-L10 are locally implemented and all target gates are deferred |
 | 1 | `WAITING_HARDWARE` | M1-L01A through M1-L04 are locally implemented and all remaining acceptance items require the designated target |
-| 2 | `IN_PROGRESS` | M2-L01 is locally implemented, while CUDA and development selector packages remain pending |
+| 2 | `IN_PROGRESS` | M2-L01 and M2-L02 are locally implemented, while the development selector remains pending and CUDA runtime gates remain deferred |
 | 3 | `IN_PROGRESS` | Local work packages remain pending |
 | 4 | `IN_PROGRESS` | Local work packages and irreversible freezes remain pending |
 | 5 | `IN_PROGRESS` | Local work packages remain pending |
@@ -136,7 +136,7 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 | ID | State | Deliverable | Evidence |
 | --- | --- | --- | --- |
 | M2-L01 | `IMPLEMENTED_LOCAL` | Scalar `saliency_v1`, separate bounded packed-source and NV12-surface ownership rings, deterministic map reduction, protected-region preview, and timing oracle | Hand-calculated uniform, edge, opposite-edge, isolated-pixel, border, partial-tile, dropped-frame, and geometry-reset fixtures; one twenty-frame seeded randomized sequence; ownership, alias, exhaustion, stale-token, and shutdown tests; real no-clobber preview CLI inspection |
-| M2-L02 | `PENDING_LOCAL` | CUDA conversion and saliency kernels, asynchronous map copy, CUDA event fencing, NVTX ranges, differential harness, and target qualification phase | None |
+| M2-L02 | `IMPLEMENTED_LOCAL` | CUDA conversion and saliency kernels, asynchronous map copy, CUDA event fencing, NVTX ranges, differential harness, and target qualification phases | `make cuda-compile-check` builds the complete Linux CUDA target with NVCC 13.3.73 in the digest-pinned official CUDA 13.3.1 image; portable unsupported-adapter test; independent evidence schema and seeded validator controls; runtime gates remain deferred |
 | M2-L03 | `PENDING_LOCAL` | Frozen-grid development-only saliency selector and immutable selected configuration | None |
 
 | State | Acceptance item | Evidence |

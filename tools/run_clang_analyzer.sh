@@ -25,6 +25,7 @@ for source in \
   src/core/sha256.cpp \
   src/core/synthetic_source.cpp \
   src/gpu/cuda_context.cpp \
+  src/gpu/cuda_preprocess_stub.cpp \
   src/gpu/gpu_contracts.cpp \
   src/gpu/nvenc_probe.cpp \
   src/gpu/preprocess_pool.cpp \
@@ -40,6 +41,7 @@ for source in \
   src/transport/rtp_transport.cpp \
   tests/native/test_doctor.cpp \
   tests/native/test_capture_contracts.cpp \
+  tests/native/test_cuda_preprocess_stub.cpp \
   tests/native/test_gpu_contracts.cpp \
   tests/native/test_media_contracts.cpp \
   tests/native/test_media_egress.cpp \
@@ -49,6 +51,7 @@ for source in \
   tests/native/test_rtp_transport.cpp \
   tests/native/test_saliency.cpp \
   tools/freeze_m0_protocol.cpp \
+  tools/qualify_cuda_saliency.cpp \
   tools/render_saliency_preview.cpp; do
   report="${output_directory}/$(basename "${source}" .cpp).plist"
   "${compiler}" --analyze -std=c++20 -Iinclude \

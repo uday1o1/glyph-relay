@@ -4,6 +4,7 @@ import pytest
 
 from tools.gpu.resource_policy import (
     ResourcePolicyError,
+    evaluate_cuda_performance_samples,
     evaluate_nvenc_performance_samples,
     parse_gpu_metrics,
 )
@@ -92,3 +93,36 @@ def test_missing_telemetry_and_absent_nvenc_activity_fail_closed() -> None:
         "process_telemetry_incomplete",
         "xid_telemetry_incomplete",
     }
+
+
+def test_clean_cuda_performance_samples_pass_frozen_limits() -> None:
+    samples = [sample(active=False), sample(active=False)]
+    metrics = samples[1]["metrics"]
+    assert isinstance(metrics, dict)
+    metrics["gpu_utilization_percent"] = 80.0
+    result = evaluate_cuda_performance_samples(samples)
+    assert result["status"] == "PASSED"
+    assert result["policy"] == "cuda-performance-v1"
+    assert result["violations"] == []
+
+
+def test_seeded_cuda_activity_and_sm_clock_defects_fail_closed() -> None:
+    samples = [sample(active=False), sample(active=False)]
+    for item in samples:
+        metrics = item["metrics"]
+        assert isinstance(metrics, dict)
+        metrics["gpu_utilization_percent"] = 0.0
+    absent = evaluate_cuda_performance_samples(samples)
+    assert absent["status"] == "FAILED"
+    assert "cuda_activity_not_observed" in absent["violations"]
+
+    first_metrics = samples[0]["metrics"]
+    second_metrics = samples[1]["metrics"]
+    assert isinstance(first_metrics, dict) and isinstance(second_metrics, dict)
+    first_metrics["gpu_utilization_percent"] = 80.0
+    second_metrics["gpu_utilization_percent"] = 80.0
+    first_metrics["sm_clock_mhz"] = 1_500.0
+    second_metrics["sm_clock_mhz"] = 1_000.0
+    unstable = evaluate_cuda_performance_samples(samples)
+    assert unstable["status"] == "FAILED"
+    assert unstable["violations"] == ["active_sm_clock_unstable"]

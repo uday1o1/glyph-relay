@@ -245,6 +245,29 @@ PreprocessPoolOperation PreprocessOwnershipRing::release_surface(const Preproces
   return {true, "preprocess_surface_released", token};
 }
 
+PreprocessPoolOperation PreprocessOwnershipRing::abort(const PreprocessSlotToken &token) {
+  if (token.source_slot >= implementation_->sources.size() ||
+      token.surface_slot >= implementation_->surfaces.size()) {
+    return {false, "preprocess_abort_slot_out_of_range", token};
+  }
+  auto &source = implementation_->sources[token.source_slot];
+  auto &surface = implementation_->surfaces[token.surface_slot];
+  const bool source_owned = !source.free() && source.owner.matches(token);
+  const bool surface_owned = !surface.free() && surface.owner.matches(token);
+  if (!source_owned && !surface_owned) {
+    return {false, "preprocess_abort_owner_mismatch", token};
+  }
+  if (source_owned) {
+    source.state = DeviceSourceState::free;
+    source.owner = {};
+  }
+  if (surface_owned) {
+    surface.state = EncoderSurfaceState::free;
+    surface.owner = {};
+  }
+  return {true, "preprocess_slots_aborted", token};
+}
+
 void PreprocessOwnershipRing::close_admission() { implementation_->admission_open = false; }
 
 DeviceSourceState PreprocessOwnershipRing::source_state(std::size_t slot) const {

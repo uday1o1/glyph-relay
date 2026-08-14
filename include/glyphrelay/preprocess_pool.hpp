@@ -60,6 +60,7 @@ public:
   PreprocessPoolOperation submitted(const PreprocessSlotToken &token);
   PreprocessPoolOperation encoder_input_released(const PreprocessSlotToken &token);
   PreprocessPoolOperation release_surface(const PreprocessSlotToken &token);
+  PreprocessPoolOperation abort(const PreprocessSlotToken &token);
   void close_admission();
 
   DeviceSourceState source_state(std::size_t slot) const;

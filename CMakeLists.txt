@@ -20,6 +20,9 @@ if(GLYPHRELAY_ENABLE_CUDA AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
   check_language(CUDA)
   if(CMAKE_CUDA_COMPILER)
     enable_language(CUDA)
+    set(CMAKE_CUDA_STANDARD 20)
+    set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+    set(CMAKE_CUDA_EXTENSIONS OFF)
     set(GLYPHRELAY_HAS_CUDA_COMPILER 1)
   else()
     set(GLYPHRELAY_HAS_CUDA_COMPILER 0)
@@ -102,6 +105,11 @@ add_library(glyphrelay_core
   src/transport/encoded_fanout.cpp
   src/transport/rtp_transport.cpp
 )
+if(GLYPHRELAY_HAS_CUDA_COMPILER)
+  target_sources(glyphrelay_core PRIVATE src/gpu/cuda_preprocess.cu)
+else()
+  target_sources(glyphrelay_core PRIVATE src/gpu/cuda_preprocess_stub.cpp)
+endif()
 if(GLYPHRELAY_HAS_LINUX_CAPTURE)
   target_sources(glyphrelay_core PRIVATE
     src/app/record_command_linux.cpp
@@ -136,7 +144,7 @@ target_compile_definitions(glyphrelay_core PUBLIC
   GLYPHRELAY_M0_PROTOCOL_SHA256="5443417595e3ccb88c89adc3a2d22842fde3206c736d3069042b62cd1c8ab708"
 )
 if(GLYPHRELAY_HAS_CUDA_DRIVER)
-  target_link_libraries(glyphrelay_core PRIVATE CUDA::cuda_driver)
+  target_link_libraries(glyphrelay_core PRIVATE CUDA::cuda_driver CUDA::cudart CUDA::nvtx3)
 endif()
 if(GLYPHRELAY_HAS_LINUX_CAPTURE)
   target_link_libraries(glyphrelay_core PRIVATE
@@ -155,12 +163,15 @@ if(MSVC)
   target_compile_options(glyphrelay_core PRIVATE /W4 /WX /permissive-)
 else()
   target_compile_options(glyphrelay_core PRIVATE
-    -Wall
-    -Wconversion
-    -Werror
-    -Wextra
-    -Wpedantic
-    -Wshadow
+    $<$<COMPILE_LANGUAGE:CXX>:-Wall>
+    $<$<COMPILE_LANGUAGE:CXX>:-Wconversion>
+    $<$<COMPILE_LANGUAGE:CXX>:-Werror>
+    $<$<COMPILE_LANGUAGE:CXX>:-Wextra>
+    $<$<COMPILE_LANGUAGE:CXX>:-Wpedantic>
+    $<$<COMPILE_LANGUAGE:CXX>:-Wshadow>
+    $<$<COMPILE_LANGUAGE:CUDA>:--fmad=false>
+    $<$<COMPILE_LANGUAGE:CUDA>:--Werror=all-warnings>
+    $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wall,-Wconversion,-Werror,-Wextra,-Wshadow>
   )
   if(GLYPHRELAY_OPTIMIZE_PROTOCOL_CHECKS)
     set_source_files_properties(
@@ -279,6 +290,17 @@ target_link_libraries(glyphrelay_hash_m0_browser_source PRIVATE glyphrelay_core)
 add_executable(glyphrelay_saliency_preview tools/render_saliency_preview.cpp)
 target_link_libraries(glyphrelay_saliency_preview PRIVATE glyphrelay_core)
 
+if(GLYPHRELAY_HAS_CUDA_COMPILER)
+  add_executable(glyphrelay_cuda_saliency_qualify tools/qualify_cuda_saliency.cpp)
+  target_link_libraries(glyphrelay_cuda_saliency_qualify PRIVATE glyphrelay_core)
+  if(MSVC)
+    target_compile_options(glyphrelay_cuda_saliency_qualify PRIVATE /W4 /WX /permissive-)
+  else()
+    target_compile_options(glyphrelay_cuda_saliency_qualify PRIVATE
+      -Wall -Wconversion -Werror -Wextra -Wpedantic -Wshadow)
+  endif()
+endif()
+
 include(CTest)
 if(BUILD_TESTING)
   add_executable(glyphrelay_native_tests tests/native/test_doctor.cpp)
@@ -315,6 +337,13 @@ if(BUILD_TESTING)
   target_link_libraries(glyphrelay_preprocess_pool_tests PRIVATE glyphrelay_core)
   add_test(NAME native.preprocess_pool COMMAND glyphrelay_preprocess_pool_tests)
 
+  if(NOT GLYPHRELAY_HAS_CUDA_COMPILER)
+    add_executable(glyphrelay_cuda_preprocess_stub_tests
+      tests/native/test_cuda_preprocess_stub.cpp)
+    target_link_libraries(glyphrelay_cuda_preprocess_stub_tests PRIVATE glyphrelay_core)
+    add_test(NAME native.cuda_preprocess_stub COMMAND glyphrelay_cuda_preprocess_stub_tests)
+  endif()
+
   add_executable(glyphrelay_saliency_tests tests/native/test_saliency.cpp)
   target_link_libraries(glyphrelay_saliency_tests PRIVATE glyphrelay_core)
   add_test(NAME native.saliency COMMAND glyphrelay_saliency_tests)
@@ -323,6 +352,15 @@ if(BUILD_TESTING)
       -DGLYPHRELAY_PROGRAM=$<TARGET_FILE:glyphrelay_saliency_preview>
       -DGLYPHRELAY_OUTPUT=${CMAKE_CURRENT_BINARY_DIR}/saliency-preview.ppm
       -P "${CMAKE_SOURCE_DIR}/tests/cmake/assert_saliency_preview.cmake")
+  if(GLYPHRELAY_HAS_CUDA_COMPILER)
+    add_test(NAME integration.cuda_saliency_correctness
+      COMMAND "${CMAKE_COMMAND}"
+        -DGLYPHRELAY_PROGRAM=$<TARGET_FILE:glyphrelay_cuda_saliency_qualify>
+        -DGLYPHRELAY_OUTPUT=${CMAKE_CURRENT_BINARY_DIR}/cuda-saliency-correctness.json
+        -P "${CMAKE_SOURCE_DIR}/tests/cmake/assert_cuda_saliency_correctness.cmake")
+    set_tests_properties(integration.cuda_saliency_correctness PROPERTIES
+      TIMEOUT 600)
+  endif()
 
   add_executable(glyphrelay_capture_contract_tests tests/native/test_capture_contracts.cpp)
   target_link_libraries(glyphrelay_capture_contract_tests PRIVATE glyphrelay_core)

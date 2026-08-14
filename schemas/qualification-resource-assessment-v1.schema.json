@@ -16,7 +16,9 @@
   ],
   "properties": {
     "schema_version": { "const": 1 },
-    "policy": { "const": "nvenc-performance-v1" },
+    "policy": {
+      "enum": ["nvenc-performance-v1", "cuda-performance-v1"]
+    },
     "status": { "enum": ["PASSED", "FAILED"] },
     "sample_count": { "type": "integer", "minimum": 0 },
     "active_sample_count": { "type": "integer", "minimum": 0 },
@@ -25,7 +27,6 @@
       "additionalProperties": false,
       "required": [
         "maximum_temperature_c",
-        "minimum_active_video_clock_fraction",
         "allowed_active_throttle_mask",
         "maximum_foreign_compute_processes",
         "maximum_xid_events",
@@ -34,6 +35,11 @@
       "properties": {
         "maximum_temperature_c": { "type": "number", "minimum": 0 },
         "minimum_active_video_clock_fraction": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "minimum_active_sm_clock_fraction": {
           "type": "number",
           "exclusiveMinimum": 0,
           "maximum": 1
@@ -55,5 +61,25 @@
       "uniqueItems": true,
       "items": { "type": "string", "minLength": 1 }
     }
-  }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "policy": { "const": "nvenc-performance-v1" },
+        "limits": {
+          "required": ["minimum_active_video_clock_fraction"],
+          "not": { "required": ["minimum_active_sm_clock_fraction"] }
+        }
+      }
+    },
+    {
+      "properties": {
+        "policy": { "const": "cuda-performance-v1" },
+        "limits": {
+          "required": ["minimum_active_sm_clock_fraction"],
+          "not": { "required": ["minimum_active_video_clock_fraction"] }
+        }
+      }
+    }
+  ]
 }

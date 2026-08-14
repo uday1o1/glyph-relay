@@ -213,6 +213,25 @@ def validate_lock(lock: dict[str, Any], root: Path = ROOT) -> list[str]:
     _expect_pattern(errors, container.get("digest"), SHA256, "Linux CPU image digest")
     _expect_equal(errors, container.get("platform"), "linux/amd64", "Linux CPU platform")
 
+    cuda_container = lock.get("cuda_compile_container", {})
+    _expect_pattern(errors, cuda_container.get("digest"), SHA256, "CUDA compile image digest")
+    _expect_equal(errors, cuda_container.get("platform"), "linux/amd64", "CUDA compile platform")
+    _expect_equal(errors, cuda_container.get("cuda_toolkit"), "13.3.1", "CUDA toolkit")
+    cuda_dockerfile = (root / "containers/cuda-compile.Dockerfile").read_text(encoding="utf-8")
+    expected_cuda_from = (
+        f"FROM --platform={cuda_container.get('platform')} "
+        f"{cuda_container.get('image')}@{cuda_container.get('digest')}"
+    )
+    if expected_cuda_from not in cuda_dockerfile:
+        errors.append("CUDA compile Dockerfile does not use the locked image identity")
+    if (
+        str(nvenc.get("tag")) not in cuda_dockerfile
+        or str(nvenc.get("commit")) not in cuda_dockerfile
+    ):
+        errors.append("CUDA compile Dockerfile does not verify the locked NVENC source identity")
+    if str(nvenc.get("header_sha256")) not in cuda_dockerfile:
+        errors.append("CUDA compile Dockerfile does not verify the locked NVENC header hash")
+
     signaling = lock.get("signaling", {})
     _expect_pattern(
         errors,

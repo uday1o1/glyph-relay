@@ -16,6 +16,10 @@ The official compatibility table requires Linux driver 610 or newer for this hea
 
 That driver number is a runtime prerequisite, while 13.1 is the compiled NVENC API version.
 
+Local CUDA source compilation uses the official NVIDIA CUDA 13.3.1 development image at the exact Linux amd64 manifest digest recorded in the lock.
+
+The image is a build input only and cannot provide runtime or performance evidence without an NVIDIA device.
+
 libdatachannel v0.24.1 is built statically with its locked bundled dependencies, OpenSSL, media, WebSocket support, and upstream tests enabled.
 
 Examples, GnuTLS, Mbed TLS, libnice, shared libraries, and system substitutions for bundled dependencies are disabled.

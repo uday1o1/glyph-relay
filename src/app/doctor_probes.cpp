@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <limits>
 #include <optional>
 #include <sstream>
 #include <string_view>
@@ -455,8 +456,14 @@ void probe_nvenc(EnvironmentSnapshot &snapshot) {
   if (capability.nv12) {
     snapshot.nvenc_input_formats.push_back("nv12");
   }
-  snapshot.maximum_width = capability.maximum_width;
-  snapshot.maximum_height = capability.maximum_height;
+  if (capability.maximum_width > static_cast<std::size_t>(std::numeric_limits<int>::max()) ||
+      capability.maximum_height > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+    snapshot.h264_nvenc = {"error", "nvenc_dimension_capability_out_of_range"};
+    snapshot.emphasis_map = {"error", "nvenc_dimension_capability_out_of_range"};
+  } else {
+    snapshot.maximum_width = static_cast<int>(capability.maximum_width);
+    snapshot.maximum_height = static_cast<int>(capability.maximum_height);
+  }
   if (!context.shutdown()) {
     snapshot.h264_nvenc = {"error", "cuda_primary_context_release_failed"};
     snapshot.emphasis_map = {"error", "cuda_primary_context_release_failed"};

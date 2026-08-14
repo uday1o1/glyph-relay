@@ -28,9 +28,9 @@ The production phase graph includes an exact final-datagram packet-capture phase
 It requires an accessible local Docker daemon, tshark access to the Linux loopback interface, the locked coturn image, and the built DTLS-SRTP fixture.
 The phase retains raw captures privately and exports only the safe reduced validation summary after exact per-payload and aggregate byte agreement.
 
-### Milestone 0 phase coverage
+### Qualification phase coverage
 
-The committed Milestone 0 graph contains 18 required phases.
+The committed graph contains 18 required Milestone 0 phases and three required Milestone 2 CUDA saliency phases.
 
 The graph validates the source and exact dependencies, runs the complete portable and sanitizer suites, builds the Linux GPU targets, selects a device, validates doctor output, probes H.264, NV12, and emphasis-map support, and repeats the pre-submit and ownership contracts ten times with CTest `until-fail` semantics.
 
@@ -53,6 +53,9 @@ The target-only acceptance mapping is:
 | M0-H04 and M0-H05 | `browser-offers`, `openh264-record-only`, `nvenc-browser-fixture` |
 | M0-H06 | `transport-contracts`, `transport-packet-capture` |
 | M0-H07 | `portable-check`, `sanitizers`, and every evidence-producing phase above |
+| M2-H01 | `cuda-saliency-correctness` |
+| M2-H02 | `cuda-saliency-performance` |
+| M2-H03 | `cuda-saliency-compute-sanitizer` |
 
 ## Designated GPU workflow
 
@@ -119,6 +122,9 @@ Each sample contains GPU and NVENC utilization, memory use, SM and video clocks,
 Process ancestry distinguishes qualification subprocesses from foreign compute workloads on the selected GPU.
 
 The frozen `nvenc-performance-v1` policy requires at least two complete samples, readable GPU, process, and Xid telemetry, observed NVENC activity, no foreign compute process, no Xid event, no increase in volatile uncorrected ECC errors, temperature at or below 83 C, no active throttle reason while NVENC is busy, and an active video-clock minimum at least 75 percent of its active maximum.
+
+The frozen `cuda-performance-v1` policy applies the same integrity, contamination, Xid, ECC, and temperature requirements to the CUDA preprocessing benchmark.
+It additionally requires observed GPU compute activity, no active throttle reason while compute is busy, and an active SM-clock minimum at least 75 percent of its active maximum.
 
 A command success with any resource-policy violation becomes `FAILED` with a structured `resource-assessment.json` artifact.
 

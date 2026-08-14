@@ -2,9 +2,9 @@ CMAKE := uvx --from cmake==4.1.0 cmake
 CLANG_FORMAT := uvx --from clang-format==22.1.8 clang-format
 HOST_SYSTEM := $(shell uname -s)
 PRESET := $(if $(filter Darwin,$(HOST_SYSTEM)),macos-local,linux-cpu)
-CXX_FILES := $(shell find include src tests tools -type f \( -name '*.cpp' -o -name '*.hpp' \) | sort)
+CXX_FILES := $(shell find include src tests tools -type f \( -name '*.cpp' -o -name '*.cu' -o -name '*.hpp' \) | sort)
 
-.PHONY: all analyze browser-harness-check browser-probe build check clean clean-tree-check configure corpus-lossless-check corpus-regeneration-check dashboard-browser-check dependency-check format format-check handoff-check lint linux-cpu-check nvenc-compile-check protocol-check python-check secret-scan test transport-check typecheck
+.PHONY: all analyze browser-harness-check browser-probe build check clean clean-tree-check configure corpus-lossless-check corpus-regeneration-check cuda-compile-check dashboard-browser-check dependency-check format format-check handoff-check lint linux-cpu-check nvenc-compile-check protocol-check python-check secret-scan test transport-check typecheck
 
 all: build
 
@@ -64,6 +64,9 @@ corpus-lossless-check:
 
 corpus-regeneration-check:
 	bash scripts/check_corpus_regeneration.sh
+
+cuda-compile-check:
+	bash scripts/ci/check_cuda_compile.sh
 
 transport-check:
 	bash scripts/verify_libdatachannel_patch.sh
