@@ -66,7 +66,9 @@ endif()
 add_library(glyphrelay_core
   src/app/doctor.cpp
   src/app/doctor_probes.cpp
+  src/capture/capture.cpp
   src/core/benchmark_gate.cpp
+  src/core/color_conversion.cpp
   src/core/m0_browser_source.cpp
   src/core/m0_protocol.cpp
   src/core/quality_metrics.cpp
@@ -231,6 +233,10 @@ if(BUILD_TESTING)
   add_executable(glyphrelay_gpu_contract_tests tests/native/test_gpu_contracts.cpp)
   target_link_libraries(glyphrelay_gpu_contract_tests PRIVATE glyphrelay_core)
   add_test(NAME native.gpu_contracts COMMAND glyphrelay_gpu_contract_tests)
+
+  add_executable(glyphrelay_capture_contract_tests tests/native/test_capture_contracts.cpp)
+  target_link_libraries(glyphrelay_capture_contract_tests PRIVATE glyphrelay_core)
+  add_test(NAME native.capture_contracts COMMAND glyphrelay_capture_contract_tests)
 
   add_executable(glyphrelay_egress_contract_tests tests/native/test_media_egress.cpp)
   target_link_libraries(glyphrelay_egress_contract_tests PRIVATE glyphrelay_core)

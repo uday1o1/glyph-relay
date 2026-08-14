@@ -97,6 +97,16 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 
 ## Milestone 1 acceptance gates
 
+### Local work packages
+
+| ID | State | Deliverable | Evidence |
+| --- | --- | --- | --- |
+| M1-L01A | `IMPLEMENTED_LOCAL` | Portable portal lifecycle, shared-memory ownership, bounded latest-frame capture pool, cursor composition, geometry epochs, and scalar plus available SIMD BT.709 conversion | `native.capture_contracts`; hand-calculated limited- and full-range goldens; BGRA and RGBA; pitch and odd-edge cases; 100 deterministic randomized scalar-to-SIMD comparisons; prompt-requeue and starvation controls |
+| M1-L01B | `PENDING_LOCAL` | Real Linux GDBus ScreenCast portal and PipeWire shared-memory adapter | None |
+| M1-L02 | `PENDING_LOCAL` | Public CPU record-only and share paths, bounded media queues, drops, and local recording | None |
+| M1-L03 | `PENDING_LOCAL` | Self-hosted HTTPS and WSS signaling bundle, capabilities, state machine, timers, control protocol, and adversarial security tests | None |
+| M1-L04 | `PENDING_LOCAL` | Frozen corpus protocol, renderer inputs, manifests, OCR evaluator, metrics, and lossless development gates | None |
+
 | State | Acceptance item | Evidence |
 | --- | --- | --- |
 | `DEFERRED_HARDWARE` | A real portal-selected window streams to Chromium and Firefox | None |

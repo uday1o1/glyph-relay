@@ -14,7 +14,9 @@ for source in \
   src/app/doctor.cpp \
   src/app/doctor_probes.cpp \
   src/app/main.cpp \
+  src/capture/capture.cpp \
   src/core/m0_protocol.cpp \
+  src/core/color_conversion.cpp \
   src/core/quality_metrics.cpp \
   src/core/sha256.cpp \
   src/core/synthetic_source.cpp \
@@ -29,6 +31,7 @@ for source in \
   src/transport/media_egress.cpp \
   src/transport/rtp_transport.cpp \
   tests/native/test_doctor.cpp \
+  tests/native/test_capture_contracts.cpp \
   tests/native/test_gpu_contracts.cpp \
   tests/native/test_media_contracts.cpp \
   tests/native/test_media_egress.cpp \
