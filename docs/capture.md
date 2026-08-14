@@ -18,6 +18,10 @@ The mandatory shared-memory path copies the selected visible crop into one owned
 
 The owned copy normalizes row pitch while preserving the source dimensions, source crop, pixel order, cursor mode, damage rectangles, monotonic dequeue timestamp, and immutable geometry epoch.
 
+Upright and 90-, 180-, and 270-degree source orientations are normalized into source-visible coordinates before downstream use.
+
+The same immutable transform rotates damage rectangles, cursor pixels, and cursor positions with the frame.
+
 Resolution or crop changes increment the geometry epoch and prevent an older concurrent copy from re-entering the ready queue.
 
 Metadata cursor bitmaps are alpha-composited into the owned BGRA or RGBA frame before the source buffer is returned.
@@ -44,7 +48,7 @@ On ARM NEON and x86 SSE2 builds, the SIMD-assisted backend performs bounded pack
 
 The automatic backend must remain byte-identical to the scalar reference.
 
-Native tests cover hand-calculated black, white, red, green, and blue limited- and full-range values, BGRA and RGBA ordering, padded pitch, odd geometry, malformed inputs, bounded pool starvation, prompt requeue, cursor composition, portal cancellation and revocation, and 100 deterministic randomized scalar-to-SIMD comparisons.
+Native tests cover hand-calculated black, white, red, green, and blue limited- and full-range values, BGRA and RGBA ordering, padded pitch, odd geometry, every supported orientation, malformed inputs, bounded pool starvation, prompt requeue, cursor composition, portal cancellation and revocation, and 100 deterministic randomized scalar-to-SIMD comparisons.
 
 Run the portable contract with:
 

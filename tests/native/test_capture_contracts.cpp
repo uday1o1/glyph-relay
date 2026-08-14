@@ -197,6 +197,77 @@ void test_geometry_epoch_cursor_and_validation() {
           "malformed SHM metadata must fail closed and still requeue exactly once");
 }
 
+std::vector<std::uint8_t> red_plane(const std::vector<std::uint8_t> &values, std::size_t width,
+                                    std::size_t height) {
+  std::vector<std::uint8_t> pixels(width * height * 4U, 0U);
+  for (std::size_t index = 0U; index < values.size(); ++index) {
+    pixels[index * 4U + 2U] = values[index];
+    pixels[index * 4U + 3U] = 255U;
+  }
+  return pixels;
+}
+
+std::vector<std::uint8_t> captured_red(const glyphrelay::CapturedFrame &captured) {
+  std::vector<std::uint8_t> values;
+  for (std::size_t y = 0U; y < captured.geometry.visible_height; ++y) {
+    for (std::size_t x = 0U; x < captured.geometry.visible_width; ++x) {
+      values.push_back(captured.pixels[y * captured.pitch + x * 4U + 2U]);
+    }
+  }
+  return values;
+}
+
+void test_orientation_normalizes_pixels_damage_and_cursor() {
+  struct OrientationCase {
+    glyphrelay::CaptureOrientation orientation;
+    std::size_t width;
+    std::size_t height;
+    std::vector<std::uint8_t> expected;
+  };
+  const std::array<OrientationCase, 4U> cases = {
+      OrientationCase{glyphrelay::CaptureOrientation::upright, 2U, 3U, {1U, 2U, 3U, 4U, 5U, 6U}},
+      OrientationCase{glyphrelay::CaptureOrientation::rotate90, 3U, 2U, {5U, 3U, 1U, 6U, 4U, 2U}},
+      OrientationCase{glyphrelay::CaptureOrientation::rotate180, 2U, 3U, {6U, 5U, 4U, 3U, 2U, 1U}},
+      OrientationCase{glyphrelay::CaptureOrientation::rotate270, 3U, 2U, {2U, 4U, 6U, 1U, 3U, 5U}},
+  };
+  for (const auto &orientation_case : cases) {
+    glyphrelay::SharedMemoryCapturePool pool(1U);
+    auto pixels = red_plane({1U, 2U, 3U, 4U, 5U, 6U}, 2U, 3U);
+    auto buffer = view(pixels, 2U, 3U, 8U);
+    buffer.orientation = orientation_case.orientation;
+    require(pool.ingest(buffer, 1U, []() {}).accepted,
+            "every declared capture orientation must be accepted");
+    auto lease = pool.take_latest();
+    require(lease && lease->frame().geometry.visible_width == orientation_case.width &&
+                lease->frame().geometry.visible_height == orientation_case.height &&
+                lease->frame().geometry.source_orientation == orientation_case.orientation &&
+                captured_red(lease->frame()) == orientation_case.expected,
+            "capture pixels must normalize into canonical source-visible orientation");
+  }
+
+  glyphrelay::SharedMemoryCapturePool metadata_pool(1U);
+  auto pixels = red_plane({1U, 2U, 3U, 4U, 5U, 6U}, 2U, 3U);
+  auto metadata = view(pixels, 2U, 3U, 8U);
+  metadata.orientation = glyphrelay::CaptureOrientation::rotate90;
+  const std::array<std::uint8_t, 4U> cursor = {255U, 0U, 0U, 255U};
+  metadata.cursor_mode = glyphrelay::CursorMode::metadata;
+  metadata.cursor = glyphrelay::CursorMetadataView{
+      .x = 0, .y = 2, .width = 1U, .height = 1U, .pitch = 4U, .rgba = cursor};
+  const std::array<glyphrelay::DamageRectangle, 1U> damage = {
+      glyphrelay::DamageRectangle{0U, 0U, 1U, 2U}};
+  metadata.damage = damage;
+  require(metadata_pool.ingest(metadata, 2U, []() {}).accepted,
+          "rotated metadata frame must be accepted");
+  auto lease = metadata_pool.take_latest();
+  require(lease &&
+              lease->frame().cursor_position ==
+                  std::optional<std::pair<std::int32_t, std::int32_t>>{{0, 0}} &&
+              lease->frame().pixels[2U] == 255U && lease->frame().damage.size() == 1U &&
+              lease->frame().damage[0].x == 1U && lease->frame().damage[0].y == 0U &&
+              lease->frame().damage[0].width == 2U && lease->frame().damage[0].height == 1U,
+          "orientation normalization must transform cursor pixels, position, and damage together");
+}
+
 void test_color_goldens_and_padded_pitch() {
   struct Golden {
     std::array<std::uint8_t, 3U> rgb;
@@ -286,6 +357,7 @@ int main() {
   test_portal_contract_and_lifecycle();
   test_prompt_copy_requeue_latest_frame_and_bounds();
   test_geometry_epoch_cursor_and_validation();
+  test_orientation_normalizes_pixels_damage_and_cursor();
   test_color_goldens_and_padded_pitch();
   test_scalar_and_simd_are_byte_identical();
   return 0;

@@ -79,18 +79,24 @@ bool same_geometry(const CaptureGeometry &geometry, const SharedMemoryBufferView
   return geometry.source_width == buffer.width && geometry.source_height == buffer.height &&
          geometry.source_crop.x == buffer.crop.x && geometry.source_crop.y == buffer.crop.y &&
          geometry.source_crop.width == buffer.crop.width &&
-         geometry.source_crop.height == buffer.crop.height;
+         geometry.source_crop.height == buffer.crop.height &&
+         geometry.source_orientation == buffer.orientation;
 }
 
 CaptureGeometry make_geometry(std::uint64_t epoch, const SharedMemoryBufferView &buffer) {
+  const bool swaps_dimensions = buffer.orientation == CaptureOrientation::rotate90 ||
+                                buffer.orientation == CaptureOrientation::rotate270;
+  const auto visible_width = swaps_dimensions ? buffer.crop.height : buffer.crop.width;
+  const auto visible_height = swaps_dimensions ? buffer.crop.width : buffer.crop.height;
   return {epoch,
           buffer.width,
           buffer.height,
           buffer.crop,
-          buffer.crop.width,
-          buffer.crop.height,
-          (buffer.crop.width + 1U) & ~std::size_t{1U},
-          (buffer.crop.height + 1U) & ~std::size_t{1U}};
+          visible_width,
+          visible_height,
+          (visible_width + 1U) & ~std::size_t{1U},
+          (visible_height + 1U) & ~std::size_t{1U},
+          buffer.orientation};
 }
 
 std::uint8_t blend(std::uint8_t foreground, std::uint8_t background, std::uint8_t alpha) {
@@ -131,6 +137,83 @@ void composite_cursor(CapturedFrame &frame, const CursorMetadataView &cursor) {
             blend(cursor.rgba[source_offset + source_channels[channel]], destination, alpha);
       }
       frame.pixels[destination_offset + 3U] = 255U;
+    }
+  }
+}
+
+std::pair<std::size_t, std::size_t>
+source_coordinate(std::size_t destination_x, std::size_t destination_y, std::size_t source_width,
+                  std::size_t source_height, CaptureOrientation orientation) {
+  switch (orientation) {
+  case CaptureOrientation::upright:
+    return {destination_x, destination_y};
+  case CaptureOrientation::rotate90:
+    return {destination_y, source_height - 1U - destination_x};
+  case CaptureOrientation::rotate180:
+    return {source_width - 1U - destination_x, source_height - 1U - destination_y};
+  case CaptureOrientation::rotate270:
+    return {source_width - 1U - destination_y, destination_x};
+  }
+  throw std::logic_error("unknown capture orientation");
+}
+
+DamageRectangle transform_damage(const DamageRectangle &damage, std::size_t source_width,
+                                 std::size_t source_height, CaptureOrientation orientation) {
+  switch (orientation) {
+  case CaptureOrientation::upright:
+    return damage;
+  case CaptureOrientation::rotate90:
+    return {source_height - damage.y - damage.height, damage.x, damage.height, damage.width};
+  case CaptureOrientation::rotate180:
+    return {source_width - damage.x - damage.width, source_height - damage.y - damage.height,
+            damage.width, damage.height};
+  case CaptureOrientation::rotate270:
+    return {damage.y, source_width - damage.x - damage.width, damage.height, damage.width};
+  }
+  throw std::logic_error("unknown capture orientation");
+}
+
+std::int32_t clamp_cursor_coordinate(std::int64_t coordinate) {
+  return static_cast<std::int32_t>(
+      std::clamp<std::int64_t>(coordinate, std::numeric_limits<std::int32_t>::min(),
+                               std::numeric_limits<std::int32_t>::max()));
+}
+
+std::pair<std::int32_t, std::int32_t> transform_cursor_position(const CursorMetadataView &cursor,
+                                                                const CaptureCrop &crop,
+                                                                CaptureOrientation orientation) {
+  const auto source_x = static_cast<std::int64_t>(cursor.x) - static_cast<std::int64_t>(crop.x);
+  const auto source_y = static_cast<std::int64_t>(cursor.y) - static_cast<std::int64_t>(crop.y);
+  const auto source_width = static_cast<std::int64_t>(crop.width);
+  const auto source_height = static_cast<std::int64_t>(crop.height);
+  switch (orientation) {
+  case CaptureOrientation::upright:
+    return {clamp_cursor_coordinate(source_x), clamp_cursor_coordinate(source_y)};
+  case CaptureOrientation::rotate90:
+    return {clamp_cursor_coordinate(source_height - 1 - source_y),
+            clamp_cursor_coordinate(source_x)};
+  case CaptureOrientation::rotate180:
+    return {clamp_cursor_coordinate(source_width - 1 - source_x),
+            clamp_cursor_coordinate(source_height - 1 - source_y)};
+  case CaptureOrientation::rotate270:
+    return {clamp_cursor_coordinate(source_y),
+            clamp_cursor_coordinate(source_width - 1 - source_x)};
+  }
+  throw std::logic_error("unknown capture orientation");
+}
+
+void normalize_orientation(const CapturedFrame &source, CaptureOrientation orientation,
+                           CapturedFrame &destination) {
+  destination.pitch = destination.geometry.visible_width * 4U;
+  destination.pixels.resize(destination.pitch * destination.geometry.visible_height);
+  for (std::size_t y = 0U; y < destination.geometry.visible_height; ++y) {
+    for (std::size_t x = 0U; x < destination.geometry.visible_width; ++x) {
+      const auto [source_x, source_y] = source_coordinate(
+          x, y, source.geometry.visible_width, source.geometry.visible_height, orientation);
+      const auto source_offset = source_y * source.pitch + source_x * 4U;
+      const auto destination_offset = y * destination.pitch + x * 4U;
+      std::copy_n(source.pixels.begin() + static_cast<std::ptrdiff_t>(source_offset), 4U,
+                  destination.pixels.begin() + static_cast<std::ptrdiff_t>(destination_offset));
     }
   }
 }
@@ -369,23 +452,39 @@ SharedMemoryCapturePool::ingest(const SharedMemoryBufferView &buffer,
 
   std::shared_ptr<CapturedFrame> frame;
   try {
+    CapturedFrame source_frame;
+    source_frame.geometry = geometry;
+    source_frame.geometry.visible_width = buffer.crop.width;
+    source_frame.geometry.visible_height = buffer.crop.height;
+    source_frame.pitch = buffer.crop.width * 4U;
+    source_frame.pixel_order = buffer.pixel_order;
+    source_frame.cursor_mode = buffer.cursor_mode;
+    source_frame.pixels.resize(source_frame.pitch * buffer.crop.height);
+    for (std::size_t row = 0U; row < buffer.crop.height; ++row) {
+      const auto source_offset = (buffer.crop.y + row) * buffer.pitch + buffer.crop.x * 4U;
+      std::copy_n(
+          buffer.bytes.begin() + static_cast<std::ptrdiff_t>(source_offset), source_frame.pitch,
+          source_frame.pixels.begin() + static_cast<std::ptrdiff_t>(row * source_frame.pitch));
+    }
+    if (buffer.cursor_mode == CursorMode::metadata && buffer.cursor) {
+      composite_cursor(source_frame, *buffer.cursor);
+    }
     frame = std::make_shared<CapturedFrame>();
     frame->frame_id = frame_id;
     frame->monotonic_timestamp_ns = monotonic_timestamp_ns;
     frame->geometry = geometry;
     frame->pixel_order = buffer.pixel_order;
-    frame->pitch = buffer.crop.width * 4U;
     frame->cursor_mode = buffer.cursor_mode;
-    frame->damage.assign(buffer.damage.begin(), buffer.damage.end());
-    frame->pixels.resize(frame->pitch * buffer.crop.height);
-    for (std::size_t row = 0U; row < buffer.crop.height; ++row) {
-      const auto source_offset = (buffer.crop.y + row) * buffer.pitch + buffer.crop.x * 4U;
-      std::copy_n(buffer.bytes.begin() + static_cast<std::ptrdiff_t>(source_offset), frame->pitch,
-                  frame->pixels.begin() + static_cast<std::ptrdiff_t>(row * frame->pitch));
+    frame->damage.reserve(buffer.damage.size());
+    for (const auto &damage : buffer.damage) {
+      frame->damage.push_back(
+          transform_damage(damage, buffer.crop.width, buffer.crop.height, buffer.orientation));
     }
     if (buffer.cursor_mode == CursorMode::metadata && buffer.cursor) {
-      composite_cursor(*frame, *buffer.cursor);
+      frame->cursor_position =
+          transform_cursor_position(*buffer.cursor, buffer.crop, buffer.orientation);
     }
+    normalize_orientation(source_frame, buffer.orientation, *frame);
   } catch (...) {
   }
   result.requeued = requeue();
@@ -519,6 +618,20 @@ std::string_view capture_state_name(CaptureState state) {
     return "revoked";
   case CaptureState::disconnected:
     return "disconnected";
+  }
+  return "unknown";
+}
+
+std::string_view capture_orientation_name(CaptureOrientation orientation) {
+  switch (orientation) {
+  case CaptureOrientation::upright:
+    return "upright";
+  case CaptureOrientation::rotate90:
+    return "rotate90";
+  case CaptureOrientation::rotate180:
+    return "rotate180";
+  case CaptureOrientation::rotate270:
+    return "rotate270";
   }
   return "unknown";
 }

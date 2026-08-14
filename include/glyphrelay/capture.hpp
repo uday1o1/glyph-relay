@@ -15,7 +15,7 @@ namespace glyphrelay {
 
 enum class PackedPixelOrder { bgra, rgba };
 enum class CursorMode { hidden, embedded, metadata };
-enum class CaptureOrientation { upright };
+enum class CaptureOrientation { upright, rotate90, rotate180, rotate270 };
 enum class CaptureState {
   idle,
   creating_session,
@@ -116,6 +116,7 @@ struct CaptureGeometry {
   std::size_t visible_height = 0;
   std::size_t coded_width = 0;
   std::size_t coded_height = 0;
+  CaptureOrientation source_orientation = CaptureOrientation::upright;
 };
 
 struct CapturedFrame {
@@ -197,5 +198,6 @@ private:
 std::string_view packed_pixel_order_name(PackedPixelOrder order);
 std::string_view cursor_mode_name(CursorMode mode);
 std::string_view capture_state_name(CaptureState state);
+std::string_view capture_orientation_name(CaptureOrientation orientation);
 
 } // namespace glyphrelay
