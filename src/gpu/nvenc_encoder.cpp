@@ -30,9 +30,8 @@
 #endif
 
 namespace glyphrelay {
-namespace {
 
-bool valid_configuration(const NvencEncoderConfig &configuration) {
+bool valid_nvenc_encoder_configuration(const NvencEncoderConfig &configuration) {
   if (configuration.width == 0U || configuration.height == 0U || configuration.width > 16'384U ||
       configuration.height > 16'384U || (configuration.width & 1U) != 0U ||
       (configuration.height & 1U) != 0U || configuration.frames_per_second == 0U ||
@@ -41,6 +40,13 @@ bool valid_configuration(const NvencEncoderConfig &configuration) {
       configuration.gop_frames == 0U || configuration.level_idc == 0U ||
       configuration.capacity == 0U || configuration.capacity > 64U ||
       configuration.maximum_busy_retries == 0U || configuration.maximum_busy_retries > 10'000U) {
+    return false;
+  }
+  if ((configuration.enable_aq &&
+       (configuration.aq_strength < 1U || configuration.aq_strength > 15U)) ||
+      (!configuration.enable_aq && configuration.aq_strength != 0U) ||
+      (configuration.mode != NvencFrameMode::uniform &&
+       (configuration.enable_aq || configuration.enable_temporal_aq))) {
     return false;
   }
   const auto map_entries =
@@ -53,8 +59,6 @@ bool valid_configuration(const NvencEncoderConfig &configuration) {
   }
   return configuration.fixed_emphasis_map.empty();
 }
-
-} // namespace
 
 #if GLYPHRELAY_HAS_NVENC
 namespace {
@@ -217,7 +221,7 @@ struct NvencEncoder::Implementation {
   }
 
   void initialize() {
-    if (!valid_configuration(configuration)) {
+    if (!valid_nvenc_encoder_configuration(configuration)) {
       throw NvencRuntimeError("nvenc_encoder_configuration_invalid");
     }
     if (!context || !context->available() ||
@@ -295,9 +299,9 @@ struct NvencEncoder::Implementation {
     config.rcParams.vbvBufferSize =
         std::max(1U, configuration.maximum_bitrate_bps / configuration.frames_per_second);
     config.rcParams.vbvInitialDelay = config.rcParams.vbvBufferSize;
-    config.rcParams.enableAQ = 0U;
-    config.rcParams.aqStrength = 0U;
-    config.rcParams.enableTemporalAQ = 0U;
+    config.rcParams.enableAQ = configuration.enable_aq ? 1U : 0U;
+    config.rcParams.aqStrength = configuration.aq_strength;
+    config.rcParams.enableTemporalAQ = configuration.enable_temporal_aq ? 1U : 0U;
     config.rcParams.enableLookahead = 0U;
     config.rcParams.lookaheadDepth = 0U;
     config.rcParams.enableNonRefP = 0U;
@@ -794,8 +798,9 @@ struct NvencEncoder::Implementation {
   Implementation(std::shared_ptr<CudaPrimaryContext>, CudaPreprocessor &,
                  NvencEncoderConfig selected_configuration, NvencOutputCallback)
       : configuration(std::move(selected_configuration)) {
-    reason = valid_configuration(configuration) ? "nvenc_encoder_not_built"
-                                                : "nvenc_encoder_configuration_invalid";
+    reason = valid_nvenc_encoder_configuration(configuration)
+                 ? "nvenc_encoder_not_built"
+                 : "nvenc_encoder_configuration_invalid";
   }
 
   NvencEncoderOperation submit(NvencEncodeInput) { return {false, reason}; }

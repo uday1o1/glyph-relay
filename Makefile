@@ -59,6 +59,7 @@ protocol-check:
 	uv run python tools/check_m0_protocol.py
 	uv run python tools/check_corpus_protocol.py
 	uv run python tools/check_saliency_protocol.py
+	uv run python tools/check_uniform_aq_protocol.py
 
 corpus-lossless-check:
 	bash scripts/check_corpus_lossless.sh

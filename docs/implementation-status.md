@@ -40,7 +40,7 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 | 1 | `WAITING_HARDWARE` | M1-L01A through M1-L04 are locally implemented and all remaining acceptance items require the designated target |
 | 2 | `WAITING_HARDWARE` | M2-L01 through M2-L03B are locally implemented, while the real development-grid selection and CUDA runtime gates require the designated target |
 | 3 | `WAITING_HARDWARE` | M3-L01 through M3-L03 are locally implemented, while browser, real multi-flight, quality, and target teardown gates require the designated target |
-| 4 | `IN_PROGRESS` | Local work packages and irreversible freezes remain pending |
+| 4 | `IN_PROGRESS` | Correction controls and the frozen uniform-AQ selector are locally implemented, while target development evidence and the one-shot validation gate remain pending |
 | 5 | `IN_PROGRESS` | Local work packages remain pending |
 | 6 | `IN_PROGRESS` | Local work packages remain pending |
 | 7 | `IN_PROGRESS` | Profiling precondition and local experiment remain pending, but this milestone does not block the core release |
@@ -168,6 +168,16 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 | `DEFERRED_HARDWARE` | Target error and teardown stress tests pass | None |
 
 ## Milestone 4 acceptance gates
+
+### Local work packages
+
+| ID | State | Deliverable | Evidence |
+| --- | --- | --- | --- |
+| M4-L01 | `IMPLEMENTED_LOCAL` | Bounded source-visible pins and exclusions with stable identifiers, optimistic revisions, geometry reset, cursor composition, conflict visualization, and loopback dashboard controls | `native.saliency_corrections`; public preview CLI; hostile dashboard command tests; exact Chromium correction, conflict, pause, and resume workflow |
+| M4-L02 | `IMPLEMENTED_LOCAL` | Exact production NVENC uniform-AQ configuration surface and emphasis-map incompatibility guard | `native.nvenc_encoder`; canonical disabled fields; temporal-only AQ; spatial strengths 1, 4, 8, 12, and 15 with temporal AQ on and off; invalid strength and emphasis-map controls |
+| M4-L03 | `IMPLEMENTED_LOCAL` | Frozen 11-candidate `uniform_aq_v1` schema, lock, deterministic PAV selector, comparator selection, and no-validation-access guard | `make protocol-check`; eight AQ selector and interpolation tests; exact five-target coverage, two-percent rate matching, seven-stratum arithmetic, systems margins, unestimable crossing, and tie-break controls; protocol SHA-256 `0f4faf4cda2489c5cbde4e57730af862829dd728298035267d258b4febd180d4` |
+| M4-L04 | `PENDING_LOCAL` | Resumable target corpus encoder, independent decoder, pinned OCR, exact-browser verifier, evidence assembler, and freeze handoff | None |
+| M4-L05 | `PENDING_LOCAL` | One-shot validation map-gate automation with irreversible access and failure reporting | None |
 
 | State | Acceptance item | Evidence |
 | --- | --- | --- |

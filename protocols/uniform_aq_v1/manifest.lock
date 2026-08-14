@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "protocol": "uniform_aq_v1",
+  "files": [
+    {
+      "path": "corpus/uniform-aq-v1.json",
+      "sha256": "ff284d7c9426fd3e4def75b12d00814796933a3623b2e4294a7f6b85c954d9c6"
+    },
+    {
+      "path": "schemas/uniform-aq-development-evidence-v1.schema.json",
+      "sha256": "3e84fe7225264f00dde4c0ef4069437f086f2899a5ce8f96c6ef5f60e5d5f4dc"
+    },
+    {
+      "path": "schemas/uniform-aq-selection-v1.schema.json",
+      "sha256": "be0f9809fb841863c92a851a2f6771aa3d1aa7d7ca7eaa276ea33e58fba52149"
+    },
+    {
+      "path": "tools/check_uniform_aq_protocol.py",
+      "sha256": "8d391afb777a38a8fcc0572958ac895f0149ed524f89a6d49be14b29c21be46c"
+    },
+    {
+      "path": "tools/corpus/aq_selector.py",
+      "sha256": "9eedb853ef9ec69aa41c7e5995be7507ca421f12be34597a25813c27f2792625"
+    },
+    {
+      "path": "tools/corpus/uniform_aq_selector.py",
+      "sha256": "d9ac65666a2a8cdf758c38cbb058bf07dc51b8171d7f63bdf372234bdaa2c242"
+    }
+  ],
+  "protocol_sha256": "0f4faf4cda2489c5cbde4e57730af862829dd728298035267d258b4febd180d4"
+}

@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.invalid/schemas/uniform-aq-selection-v1.schema.json",
+  "title": "GlyphRelay uniform AQ development selection",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "protocol",
+    "status",
+    "developmentEvidenceSha256",
+    "protocolSha256",
+    "selectorSha256",
+    "bestSupportedUniform",
+    "comparators"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "protocol": { "const": "uniform_aq_v1" },
+    "status": { "const": "SELECTED" },
+    "developmentEvidenceSha256": { "$ref": "#/$defs/hash" },
+    "protocolSha256": { "$ref": "#/$defs/hash" },
+    "selectorSha256": { "$ref": "#/$defs/hash" },
+    "bestSupportedUniform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidateId",
+        "effectiveAqFields",
+        "effectiveEncoderFieldsSha256",
+        "selectorInputs"
+      ],
+      "properties": {
+        "candidateId": { "type": "string" },
+        "effectiveAqFields": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enableAQ", "aqStrength", "enableTemporalAQ"],
+          "properties": {
+            "enableAQ": { "type": "boolean" },
+            "aqStrength": { "type": "integer", "minimum": 0, "maximum": 15 },
+            "enableTemporalAQ": { "type": "boolean" }
+          }
+        },
+        "effectiveEncoderFieldsSha256": { "$ref": "#/$defs/hash" },
+        "selectorInputs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "meanFittedCer",
+            "fittedCerAt1Mbps",
+            "bitrateAtTenPercentCerMbps",
+            "p95PreprocessEncodeMs",
+            "meanSenderCpuPercent",
+            "lexicographicEffectiveAqFields"
+          ],
+          "properties": {
+            "meanFittedCer": { "type": "number", "minimum": 0, "maximum": 1 },
+            "fittedCerAt1Mbps": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "bitrateAtTenPercentCerMbps": {
+              "type": ["number", "null"],
+              "exclusiveMinimum": 0
+            },
+            "p95PreprocessEncodeMs": { "type": "number", "minimum": 0 },
+            "meanSenderCpuPercent": { "type": "number", "minimum": 0 },
+            "lexicographicEffectiveAqFields": { "type": "string" }
+          }
+        }
+      }
+    },
+    "comparators": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["characterError", "bitrateEfficiency"],
+      "properties": {
+        "characterError": {
+          "enum": ["controlled_uniform", "best_supported_uniform"]
+        },
+        "bitrateEfficiency": {
+          "enum": ["controlled_uniform", "best_supported_uniform"]
+        }
+      }
+    }
+  },
+  "$defs": {
+    "hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

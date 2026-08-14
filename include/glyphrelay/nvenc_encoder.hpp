@@ -25,6 +25,9 @@ struct NvencEncoderConfig {
   std::size_t capacity = 3U;
   std::size_t maximum_busy_retries = 100U;
   NvencFrameMode mode = NvencFrameMode::automatic_emphasis;
+  bool enable_aq = false;
+  std::uint32_t aq_strength = 0U;
+  bool enable_temporal_aq = false;
   std::vector<std::int8_t> fixed_emphasis_map;
 };
 
@@ -67,6 +70,8 @@ struct NvencEncoderDiagnostics {
 };
 
 using NvencOutputCallback = std::function<void(NvencEncodedFrame)>;
+
+bool valid_nvenc_encoder_configuration(const NvencEncoderConfig &configuration);
 
 class NvencEncoder {
 public:

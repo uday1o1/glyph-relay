@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.invalid/schemas/uniform-aq-development-evidence-v1.schema.json",
+  "title": "GlyphRelay uniform AQ development evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "protocol",
+    "split",
+    "corpusProtocolSha256",
+    "developmentManifestSha256",
+    "gridSha256",
+    "protocolSha256",
+    "processingPlatformSha256",
+    "controlledUniform",
+    "candidates"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "protocol": { "const": "uniform_aq_v1" },
+    "split": { "const": "development" },
+    "corpusProtocolSha256": { "$ref": "#/$defs/hash" },
+    "developmentManifestSha256": { "$ref": "#/$defs/hash" },
+    "gridSha256": { "$ref": "#/$defs/hash" },
+    "protocolSha256": { "$ref": "#/$defs/hash" },
+    "processingPlatformSha256": { "$ref": "#/$defs/hash" },
+    "controlledUniform": { "$ref": "#/$defs/condition" },
+    "candidates": {
+      "type": "array",
+      "minItems": 11,
+      "maxItems": 11,
+      "items": { "$ref": "#/$defs/condition" }
+    }
+  },
+  "$defs": {
+    "hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "aqFields": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enableAQ", "aqStrength", "enableTemporalAQ"],
+      "properties": {
+        "enableAQ": { "type": "boolean" },
+        "aqStrength": { "type": "integer", "minimum": 0, "maximum": 15 },
+        "enableTemporalAQ": { "type": "boolean" }
+      }
+    },
+    "attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requestedPayloadBps",
+        "measuredPayloadMbps",
+        "status",
+        "invalidReason"
+      ],
+      "properties": {
+        "requestedPayloadBps": { "type": "integer", "minimum": 1 },
+        "measuredPayloadMbps": {
+          "type": ["number", "null"],
+          "exclusiveMinimum": 0
+        },
+        "status": { "enum": ["PASSED", "INVALID"] },
+        "invalidReason": { "type": ["string", "null"] }
+      }
+    },
+    "perStratumCer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "animated_typing_scrolling",
+        "browser_documentation",
+        "code_editor",
+        "mixed_video_text",
+        "slide_diagram",
+        "spreadsheet_table",
+        "terminal"
+      ],
+      "properties": {
+        "animated_typing_scrolling": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "browser_documentation": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "code_editor": { "type": "number", "minimum": 0, "maximum": 1 },
+        "mixed_video_text": { "type": "number", "minimum": 0, "maximum": 1 },
+        "slide_diagram": { "type": "number", "minimum": 0, "maximum": 1 },
+        "spreadsheet_table": { "type": "number", "minimum": 0, "maximum": 1 },
+        "terminal": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "targetSearch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "targetPayloadMbps",
+        "attempts",
+        "selectedAttemptIndex",
+        "status",
+        "invalidReasons",
+        "perStratumCer",
+        "equalStratumCer",
+        "p95PreprocessMs",
+        "p95EncodeMs",
+        "p99EncodeMs",
+        "meanSenderCpuPercent",
+        "submittedFrames",
+        "decodedFrames",
+        "width",
+        "height",
+        "pendingPositiveTrend",
+        "maximumPendingAgeMs",
+        "independentDecodePassed",
+        "browserDecodePassed"
+      ],
+      "properties": {
+        "targetPayloadMbps": { "enum": [0.5, 0.75, 1, 2, 4] },
+        "attempts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/attempt" }
+        },
+        "selectedAttemptIndex": { "type": ["integer", "null"], "minimum": 0 },
+        "status": { "enum": ["PASSED", "INVALID"] },
+        "invalidReasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "perStratumCer": {
+          "oneOf": [{ "$ref": "#/$defs/perStratumCer" }, { "type": "null" }]
+        },
+        "equalStratumCer": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "p95PreprocessMs": { "type": ["number", "null"], "minimum": 0 },
+        "p95EncodeMs": { "type": ["number", "null"], "minimum": 0 },
+        "p99EncodeMs": { "type": ["number", "null"], "minimum": 0 },
+        "meanSenderCpuPercent": { "type": ["number", "null"], "minimum": 0 },
+        "submittedFrames": { "type": ["integer", "null"], "minimum": 0 },
+        "decodedFrames": { "type": ["integer", "null"], "minimum": 0 },
+        "width": { "type": ["integer", "null"], "minimum": 1 },
+        "height": { "type": ["integer", "null"], "minimum": 1 },
+        "pendingPositiveTrend": { "type": ["boolean", "null"] },
+        "maximumPendingAgeMs": { "type": ["number", "null"], "minimum": 0 },
+        "independentDecodePassed": { "type": ["boolean", "null"] },
+        "browserDecodePassed": { "type": ["boolean", "null"] }
+      }
+    },
+    "condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidateId",
+        "effectiveAqFields",
+        "effectiveEncoderFieldsSha256",
+        "status",
+        "invalidReasons",
+        "targetSearch",
+        "p95PreprocessEncodeMs",
+        "meanSenderCpuPercent"
+      ],
+      "properties": {
+        "candidateId": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "effectiveAqFields": { "$ref": "#/$defs/aqFields" },
+        "effectiveEncoderFieldsSha256": { "$ref": "#/$defs/hash" },
+        "status": { "enum": ["PASSED", "INVALID"] },
+        "invalidReasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "targetSearch": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "items": { "$ref": "#/$defs/targetSearch" }
+        },
+        "p95PreprocessEncodeMs": { "type": ["number", "null"], "minimum": 0 },
+        "meanSenderCpuPercent": { "type": ["number", "null"], "minimum": 0 }
+      }
+    }
+  }
+}
