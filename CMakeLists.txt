@@ -96,6 +96,7 @@ add_library(glyphrelay_core
   src/gpu/nvenc_probe.cpp
   src/gpu/preprocess_pool.cpp
   src/gpu/saliency.cpp
+  src/gpu/saliency_corrections.cpp
   src/gpu/saliency_development.cpp
   src/media/annex_b.cpp
   src/media/h264_sps.cpp
@@ -363,6 +364,10 @@ if(BUILD_TESTING)
   add_executable(glyphrelay_saliency_tests tests/native/test_saliency.cpp)
   target_link_libraries(glyphrelay_saliency_tests PRIVATE glyphrelay_core)
   add_test(NAME native.saliency COMMAND glyphrelay_saliency_tests)
+  add_executable(glyphrelay_saliency_correction_tests
+    tests/native/test_saliency_corrections.cpp)
+  target_link_libraries(glyphrelay_saliency_correction_tests PRIVATE glyphrelay_core)
+  add_test(NAME native.saliency_corrections COMMAND glyphrelay_saliency_correction_tests)
   add_test(NAME cli.saliency_preview
     COMMAND "${CMAKE_COMMAND}"
       -DGLYPHRELAY_PROGRAM=$<TARGET_FILE:glyphrelay_saliency_preview>

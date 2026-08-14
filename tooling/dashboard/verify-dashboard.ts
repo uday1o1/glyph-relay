@@ -6,6 +6,7 @@ import {
   startDashboardServer,
   type DashboardActionResult,
   type DashboardBackend,
+  type DashboardCommand,
   type DashboardSnapshot,
 } from "../../dashboard/server.ts";
 
@@ -16,22 +17,50 @@ interface BrowserDashboardState {
 }
 
 class BrowserBackend implements DashboardBackend {
-  actions: string[] = [];
+  commands: DashboardCommand[] = [];
   state: DashboardSnapshot = {
     bitrateProfile: "2m",
     captureActive: true,
     connectionState: "CONNECTED",
+    correctionRegions: [],
+    correctionRevision: 0,
     droppedFrames: 2,
     fallbackMode: "CPU_UNIFORM",
     protectedFraction: 0.25,
     queueDelayMs: 8,
     recordingActive: true,
     shareLinkAvailable: true,
+    saliencyPreview: {
+      conflictTiles: [5],
+      levels: [0, 2, 4, 0, 3, 0, 1, 0, 0, 0, 0, 0],
+      tileHeight: 3,
+      tileWidth: 4,
+    },
+    visibleGeometry: { geometryEpoch: 1, height: 720, width: 1280 },
   };
 
-  perform(action: string): DashboardActionResult {
-    this.actions.push(action);
-    if (action !== "PAUSE") {
+  perform(command: DashboardCommand): DashboardActionResult {
+    this.commands.push(command);
+    if (command.action === "ADD_PIN" && command.expectedRevision === 0) {
+      this.state = {
+        ...this.state,
+        correctionRegions: [
+          {
+            ...command.rectangle,
+            conflict: false,
+            id: 1,
+            kind: "PIN",
+          },
+        ],
+        correctionRevision: 1,
+      };
+      return {
+        accepted: true,
+        reason: "correction_added",
+        snapshot: this.state,
+      };
+    }
+    if (command.action !== "PAUSE") {
       return {
         accepted: false,
         reason: "unexpected_browser_action",
@@ -94,6 +123,26 @@ try {
   assert.equal(await page.locator("#recording-state").innerText(), "Recording");
   assert.equal(await page.locator("#queue-delay").innerText(), "8 ms");
   assert.equal(new URL(page.url()).hash, "");
+  assert.equal(await page.locator("#protected-preview").isVisible(), true);
+  assert.match(await page.locator("#preview-state").innerText(), /1280 x 720/);
+
+  await page.locator('input[name="x"]').fill("48");
+  await page.locator('input[name="y"]').fill("64");
+  await page.locator('input[name="width"]').fill("320");
+  await page.locator('input[name="height"]').fill("96");
+  await page.locator('button[data-correction="ADD_PIN"]').click();
+  await page.waitForFunction(
+    () =>
+      (
+        window as unknown as {
+          __glyphrelayDashboard?: BrowserDashboardState;
+        }
+      ).__glyphrelayDashboard?.snapshot?.correctionRevision === 1,
+  );
+  assert.match(
+    await page.locator("#correction-regions").innerText(),
+    /pin 48,64 320x96/,
+  );
 
   const pause = page.locator('button[data-action="PAUSE"]');
   assert.equal(await pause.isEnabled(), true);
@@ -106,7 +155,14 @@ try {
         }
       ).__glyphrelayDashboard?.state === "PAUSED",
   );
-  assert.deepEqual(backend.actions, ["PAUSE"]);
+  assert.deepEqual(backend.commands, [
+    {
+      action: "ADD_PIN",
+      expectedRevision: 0,
+      rectangle: { height: 96, width: 320, x: 48, y: 64 },
+    },
+    { action: "PAUSE" },
+  ]);
   assert.equal(await page.locator("#capture-indicator").innerText(), "Idle");
   assert.equal(
     await page.locator('button[data-action="RESUME"]').isEnabled(),

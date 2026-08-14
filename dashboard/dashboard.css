@@ -188,6 +188,53 @@ body[data-dashboard-state="rejected"] .state-orb {
   color: #82968e;
 }
 
+#protected-preview {
+  z-index: 1;
+  display: none;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+}
+
+.preview.has-map #protected-preview {
+  display: block;
+}
+
+.preview.has-map #preview-state {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.6rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.4rem;
+  background: rgba(5, 11, 10, 0.82);
+  font-size: 0.7rem;
+}
+
+.preview-legend {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.65rem;
+  color: #9eb4ab;
+  font-size: 0.72rem;
+}
+
+.preview-legend i {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.8rem;
+  margin-right: 0.3rem;
+  border-radius: 0.18rem;
+  vertical-align: -0.1rem;
+}
+
+.legend-protected {
+  background: #ff8018;
+}
+
+.legend-conflict {
+  background: #e030ff;
+}
+
 .control-panel {
   display: flex;
   flex-direction: column;
@@ -236,6 +283,85 @@ button.copy {
   margin-top: auto;
   color: #dbe7ff;
   background: #27395e;
+}
+
+.control-panel hr {
+  width: 100%;
+  margin: 1.25rem 0;
+  border: 0;
+  border-top: 1px solid rgba(200, 240, 222, 0.12);
+}
+
+.coordinate-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+}
+
+.coordinate-grid label {
+  color: #9eb4ab;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.coordinate-grid input {
+  width: 100%;
+  margin-top: 0.25rem;
+  border: 1px solid rgba(200, 240, 222, 0.16);
+  border-radius: 0.55rem;
+  padding: 0.6rem;
+  color: #eef8f2;
+  background: #09120f;
+  font: inherit;
+}
+
+.coordinate-grid input:focus-visible {
+  outline: 3px solid #a7c3ff;
+  outline-offset: 1px;
+}
+
+.correction-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+  margin-top: 0.65rem;
+}
+
+button.exclude {
+  color: #f3e9ff;
+  background: #563269;
+}
+
+#correction-regions {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.8rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+#correction-regions li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  border: 1px solid rgba(200, 240, 222, 0.1);
+  border-radius: 0.55rem;
+  padding: 0.5rem 0.65rem;
+  color: #b9ccc4;
+  font-size: 0.72rem;
+}
+
+#correction-regions li.conflict {
+  border-color: rgba(224, 48, 255, 0.7);
+}
+
+#correction-regions button {
+  min-height: auto;
+  padding: 0.35rem 0.55rem;
+  color: #ffd9d2;
+  background: #56251f;
+  font-size: 0.7rem;
 }
 
 .metrics {

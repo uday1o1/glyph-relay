@@ -44,6 +44,16 @@ Cursor halos then raise the selected level, pins raise it next, and exclusions f
 
 The preview uses the same final tile levels as macroblock reduction and never leaves the local process.
 
+Manual pins and exclusions are held in a bounded, revisioned correction set using source-visible coordinates.
+
+Each mutation names its expected revision, and stale revisions fail without changing the set.
+
+Changing the geometry epoch clears every correction atomically so a rectangle cannot be reused against a different crop or resolution.
+
+When a pin and an exclusion overlap, the encoder-facing map remains level zero and the local preview overlays the affected tile in a distinct conflict color.
+
+The public preview path exercises these controls with repeated `--pin X,Y,W,H` and `--exclude X,Y,W,H` arguments.
+
 ## Ownership contract
 
 Packed RGB sources and NV12 encoder surfaces use separate fixed-capacity rings.

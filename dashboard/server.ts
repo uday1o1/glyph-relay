@@ -13,13 +13,19 @@ const MAXIMUM_ACTION_BYTES = 4 * 1024;
 const NONCE_BYTES = 32;
 const REQUEST_TIMEOUT_MS = 5_000;
 
-const ACTIONS = new Set([
+const SESSION_ACTIONS = new Set([
   "START",
   "PAUSE",
   "RESUME",
   "STOP",
   "COPY_SHARE_LINK",
 ]);
+const CORRECTION_ACTIONS = new Set([
+  "ADD_PIN",
+  "ADD_EXCLUSION",
+  "REMOVE_CORRECTION",
+]);
+const MAXIMUM_VISIBLE_DIMENSION = 16_384;
 
 interface StaticAsset {
   body: Buffer;
@@ -37,13 +43,67 @@ export interface DashboardSnapshot {
     | "PAUSED"
     | "REVOKED"
     | "UNAVAILABLE";
+  correctionRegions: DashboardCorrectionRegion[];
+  correctionRevision: number;
   droppedFrames: number;
   fallbackMode: "CPU_UNIFORM" | "GPU_ENHANCED" | "UNAVAILABLE";
   protectedFraction: number;
   queueDelayMs: number;
   recordingActive: boolean;
   shareLinkAvailable: boolean;
+  saliencyPreview: DashboardSaliencyPreview | null;
+  visibleGeometry: DashboardVisibleGeometry | null;
 }
+
+export type DashboardCorrectionKind = "PIN" | "EXCLUSION";
+
+export interface DashboardRectangle {
+  height: number;
+  width: number;
+  x: number;
+  y: number;
+}
+
+export interface DashboardCorrectionRegion extends DashboardRectangle {
+  conflict: boolean;
+  id: number;
+  kind: DashboardCorrectionKind;
+}
+
+export interface DashboardVisibleGeometry {
+  geometryEpoch: number;
+  height: number;
+  width: number;
+}
+
+export interface DashboardSaliencyPreview {
+  conflictTiles: number[];
+  levels: number[];
+  tileHeight: number;
+  tileWidth: number;
+}
+
+export type DashboardSessionAction =
+  | "START"
+  | "PAUSE"
+  | "RESUME"
+  | "STOP"
+  | "COPY_SHARE_LINK";
+
+export type DashboardCommand =
+  | {
+      action: DashboardSessionAction;
+    }
+  | {
+      action: "ADD_PIN" | "ADD_EXCLUSION";
+      expectedRevision: number;
+      rectangle: DashboardRectangle;
+    }
+  | {
+      action: "REMOVE_CORRECTION";
+      expectedRevision: number;
+      regionId: number;
+    };
 
 export interface DashboardActionResult {
   accepted: boolean;
@@ -53,7 +113,7 @@ export interface DashboardActionResult {
 
 export interface DashboardBackend {
   perform(
-    action: string,
+    command: DashboardCommand,
   ): DashboardActionResult | Promise<DashboardActionResult>;
   snapshot(): DashboardSnapshot | Promise<DashboardSnapshot>;
 }
@@ -77,15 +137,19 @@ class UnavailableBackend implements DashboardBackend {
     bitrateProfile: "2m",
     captureActive: false,
     connectionState: "UNAVAILABLE",
+    correctionRegions: [],
+    correctionRevision: 0,
     droppedFrames: 0,
     fallbackMode: "UNAVAILABLE",
     protectedFraction: 0,
     queueDelayMs: 0,
     recordingActive: false,
     shareLinkAvailable: false,
+    saliencyPreview: null,
+    visibleGeometry: null,
   };
 
-  perform(_action: string): DashboardActionResult {
+  perform(_command: DashboardCommand): DashboardActionResult {
     return {
       accepted: false,
       reason: "sender_backend_unavailable",
@@ -290,7 +354,18 @@ async function readActionBody(request: IncomingMessage): Promise<BodyResult> {
   }
 }
 
-function parseAction(value: unknown): string | undefined {
+function exactKeys(
+  record: Record<string, unknown>,
+  expected: string[],
+): boolean {
+  const keys = Object.keys(record).sort();
+  return (
+    keys.length === expected.length &&
+    keys.every((key, index) => key === expected[index])
+  );
+}
+
+function plainRecord(value: unknown): Record<string, unknown> | undefined {
   if (
     !value ||
     typeof value !== "object" ||
@@ -299,18 +374,97 @@ function parseAction(value: unknown): string | undefined {
   ) {
     return undefined;
   }
-  const record = value as Record<string, unknown>;
-  if (Object.keys(record).length !== 2) {
+  return value as Record<string, unknown>;
+}
+
+function validRevision(value: unknown): value is number {
+  return Number.isSafeInteger(value) && Number(value) >= 0;
+}
+
+function parseRectangle(value: unknown): DashboardRectangle | undefined {
+  const record = plainRecord(value);
+  if (!record || !exactKeys(record, ["height", "width", "x", "y"])) {
     return undefined;
   }
+  const values = [record.x, record.y, record.width, record.height];
   if (
-    record.protocolVersion !== DASHBOARD_PROTOCOL ||
-    typeof record.action !== "string" ||
-    !ACTIONS.has(record.action)
+    values.some((item) => !Number.isSafeInteger(item)) ||
+    Number(record.x) < 0 ||
+    Number(record.y) < 0 ||
+    Number(record.width) < 1 ||
+    Number(record.height) < 1 ||
+    Number(record.x) + Number(record.width) > MAXIMUM_VISIBLE_DIMENSION ||
+    Number(record.y) + Number(record.height) > MAXIMUM_VISIBLE_DIMENSION
   ) {
     return undefined;
   }
-  return record.action;
+  return {
+    height: Number(record.height),
+    width: Number(record.width),
+    x: Number(record.x),
+    y: Number(record.y),
+  };
+}
+
+function parseAction(value: unknown): DashboardCommand | undefined {
+  const record = plainRecord(value);
+  if (
+    !record ||
+    record.protocolVersion !== DASHBOARD_PROTOCOL ||
+    typeof record.action !== "string"
+  ) {
+    return undefined;
+  }
+  if (SESSION_ACTIONS.has(record.action)) {
+    if (!exactKeys(record, ["action", "protocolVersion"])) {
+      return undefined;
+    }
+    return { action: record.action as DashboardSessionAction };
+  }
+  if (
+    !CORRECTION_ACTIONS.has(record.action) ||
+    !validRevision(record.expectedRevision)
+  ) {
+    return undefined;
+  }
+  if (record.action === "REMOVE_CORRECTION") {
+    if (
+      !exactKeys(record, [
+        "action",
+        "expectedRevision",
+        "protocolVersion",
+        "regionId",
+      ]) ||
+      !Number.isSafeInteger(record.regionId) ||
+      Number(record.regionId) < 1
+    ) {
+      return undefined;
+    }
+    return {
+      action: "REMOVE_CORRECTION",
+      expectedRevision: record.expectedRevision,
+      regionId: Number(record.regionId),
+    };
+  }
+  if (
+    !exactKeys(record, [
+      "action",
+      "expectedRevision",
+      "protocolVersion",
+      "rectangle",
+    ])
+  ) {
+    return undefined;
+  }
+  const rectangle = parseRectangle(record.rectangle);
+  if (!rectangle) {
+    return undefined;
+  }
+  return {
+    action: record.action as "ADD_PIN" | "ADD_EXCLUSION",
+    expectedRevision: record.expectedRevision,
+    rectangle,
+  };
 }
 
 export async function startDashboardServer(
@@ -406,12 +560,12 @@ export async function startDashboardServer(
           reject(response, body.status);
           return;
         }
-        const action = parseAction(body.value);
-        if (!action) {
+        const command = parseAction(body.value);
+        if (!command) {
           reject(response, 400);
           return;
         }
-        const result = await backend.perform(action);
+        const result = await backend.perform(command);
         respondJson(response, result.accepted ? 200 : 409, {
           ...result,
           protocolVersion: DASHBOARD_PROTOCOL,

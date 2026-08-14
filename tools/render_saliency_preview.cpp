@@ -1,7 +1,10 @@
 #include "glyphrelay/saliency.hpp"
+#include "glyphrelay/saliency_corrections.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cerrno>
+#include <charconv>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -9,6 +12,7 @@
 #include <iostream>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace {
@@ -16,7 +20,61 @@ namespace {
 constexpr std::size_t kWidth = 640U;
 constexpr std::size_t kHeight = 360U;
 
-void usage() { std::cout << "usage: glyphrelay_saliency_preview --output FILE.ppm\n"; }
+struct Arguments {
+  std::filesystem::path output;
+  std::vector<glyphrelay::SaliencyRectangle> pins;
+  std::vector<glyphrelay::SaliencyRectangle> exclusions;
+};
+
+void usage() {
+  std::cout << "usage: glyphrelay_saliency_preview --output FILE.ppm "
+               "[--pin X,Y,W,H] [--exclude X,Y,W,H]\n";
+}
+
+bool parse_size(std::string_view value, std::size_t &result) {
+  if (value.empty() || value.front() == '+' || value.front() == '-') {
+    return false;
+  }
+  const auto parsed = std::from_chars(value.data(), value.data() + value.size(), result);
+  return parsed.ec == std::errc{} && parsed.ptr == value.data() + value.size();
+}
+
+bool parse_rectangle(std::string_view value, glyphrelay::SaliencyRectangle &rectangle) {
+  std::array<std::size_t, 4U> values{};
+  std::size_t start = 0U;
+  for (std::size_t index = 0U; index < values.size(); ++index) {
+    const auto end = value.find(',', start);
+    const auto is_last = index + 1U == values.size();
+    if ((is_last && end != std::string_view::npos) || (!is_last && end == std::string_view::npos) ||
+        !parse_size(value.substr(start, is_last ? value.size() - start : end - start),
+                    values[index])) {
+      return false;
+    }
+    start = end + 1U;
+  }
+  rectangle = {values[0], values[1], values[2], values[3]};
+  return true;
+}
+
+bool parse_arguments(int argc, char **argv, Arguments &arguments) {
+  for (int index = 1; index < argc; ++index) {
+    const std::string_view option(argv[index]);
+    if (index + 1 >= argc) {
+      return false;
+    }
+    const std::string_view value(argv[++index]);
+    if (option == "--output" && arguments.output.empty()) {
+      arguments.output = value;
+      continue;
+    }
+    glyphrelay::SaliencyRectangle rectangle;
+    if ((option != "--pin" && option != "--exclude") || !parse_rectangle(value, rectangle)) {
+      return false;
+    }
+    (option == "--pin" ? arguments.pins : arguments.exclusions).push_back(rectangle);
+  }
+  return !arguments.output.empty();
+}
 
 std::vector<std::uint8_t> source_fixture() {
   std::vector<std::uint8_t> luma(kWidth * kHeight, 28U);
@@ -70,11 +128,12 @@ int main(int argc, char **argv) {
     usage();
     return 0;
   }
-  if (argc != 3 || std::string(argv[1]) != "--output") {
+  Arguments arguments;
+  if (!parse_arguments(argc, argv, arguments)) {
     usage();
     return 2;
   }
-  const std::filesystem::path output_path(argv[2]);
+  const auto &output_path = arguments.output;
   if (output_path.extension() != ".ppm" || !output_path.has_filename() ||
       !std::filesystem::is_directory(output_path.parent_path())) {
     std::cerr << "preview output must be a .ppm file in an existing directory\n";
@@ -93,20 +152,43 @@ int main(int argc, char **argv) {
       .geometry_epoch = 1U,
       .monotonic_timestamp_ns = 1U,
   };
+  glyphrelay::SaliencyCorrectionState corrections(kWidth, kHeight, 1U);
+  for (const auto rectangle : arguments.pins) {
+    const auto operation =
+        corrections.add(glyphrelay::SaliencyCorrectionKind::pin, rectangle, corrections.revision());
+    if (!operation.passed) {
+      std::cerr << "pin rejected: " << operation.reason << '\n';
+      return 2;
+    }
+  }
+  for (const auto rectangle : arguments.exclusions) {
+    const auto operation = corrections.add(glyphrelay::SaliencyCorrectionKind::exclusion, rectangle,
+                                           corrections.revision());
+    if (!operation.passed) {
+      std::cerr << "exclusion rejected: " << operation.reason << '\n';
+      return 2;
+    }
+  }
   glyphrelay::SaliencyProcessOptions options;
   options.generate_preview = true;
+  options.overrides = corrections.overrides();
   const auto result = saliency.process(frame, options);
   if (!result.passed || result.output.protected_fraction <= 0.0 ||
       result.output.preview.rgba.size() != luma.size() * 4U) {
     std::cerr << "saliency preview generation failed: " << result.reason << '\n';
     return 8;
   }
+  const auto conflicts =
+      glyphrelay::saliency_correction_conflict_tiles(kWidth, kHeight, options.overrides);
+  auto preview = result.output.preview;
+  glyphrelay::overlay_saliency_correction_conflicts(preview, conflicts, result.output.tile_width,
+                                                    result.output.tile_height);
 
   std::vector<std::uint8_t> rgb(luma.size() * 3U);
   for (std::size_t index = 0U; index < luma.size(); ++index) {
-    const auto alpha = result.output.preview.rgba[index * 4U + 3U];
+    const auto alpha = preview.rgba[index * 4U + 3U];
     for (std::size_t channel = 0U; channel < 3U; ++channel) {
-      const auto overlay = result.output.preview.rgba[index * 4U + channel];
+      const auto overlay = preview.rgba[index * 4U + channel];
       const auto blended = static_cast<unsigned int>(overlay) * alpha +
                            static_cast<unsigned int>(luma[index]) * (255U - alpha) + 127U;
       rgb[index * 3U + channel] = static_cast<std::uint8_t>(blended / 255U);
@@ -120,6 +202,8 @@ int main(int argc, char **argv) {
             << "{\"status\":\"PASSED\",\"protectedFraction\":" << result.output.protected_fraction
             << ",\"macroblockWidth\":" << result.output.macroblock_width
             << ",\"macroblockHeight\":" << result.output.macroblock_height
+            << ",\"correctionRevision\":" << corrections.revision() << ",\"conflictTileCount\":"
+            << std::count(conflicts.begin(), conflicts.end(), static_cast<std::uint8_t>(1U))
             << ",\"levelHistogram\":[";
   for (std::size_t index = 0U; index < result.output.level_histogram.size(); ++index) {
     if (index != 0U) {

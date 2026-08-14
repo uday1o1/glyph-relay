@@ -30,6 +30,7 @@ for source in \
   src/gpu/nvenc_probe.cpp \
   src/gpu/preprocess_pool.cpp \
   src/gpu/saliency.cpp \
+  src/gpu/saliency_corrections.cpp \
   src/media/annex_b.cpp \
   src/media/h264_sps.cpp \
   src/media/i420.cpp \
@@ -50,6 +51,7 @@ for source in \
   tests/native/test_preprocess_pool.cpp \
   tests/native/test_rtp_transport.cpp \
   tests/native/test_saliency.cpp \
+  tests/native/test_saliency_corrections.cpp \
   tools/freeze_m0_protocol.cpp \
   tools/qualify_cuda_saliency.cpp \
   tools/render_saliency_preview.cpp; do

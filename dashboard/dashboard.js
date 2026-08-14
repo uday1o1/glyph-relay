@@ -10,7 +10,15 @@ const droppedFrames = document.querySelector("#dropped-frames");
 const protectedFraction = document.querySelector("#protected-fraction");
 const fallbackMode = document.querySelector("#fallback-mode");
 const recordingState = document.querySelector("#recording-state");
+const preview = document.querySelector(".preview");
+const previewCanvas = document.querySelector("#protected-preview");
+const previewState = document.querySelector("#preview-state");
+const correctionForm = document.querySelector("#correction-form");
+const correctionRegions = document.querySelector("#correction-regions");
 const actionButtons = [...document.querySelectorAll("button[data-action]")];
+const correctionButtons = [
+  ...document.querySelectorAll("button[data-correction]"),
+];
 
 if (
   !(statusHeading instanceof HTMLElement) ||
@@ -22,6 +30,12 @@ if (
   !(protectedFraction instanceof HTMLElement) ||
   !(fallbackMode instanceof HTMLElement) ||
   !(recordingState instanceof HTMLElement) ||
+  !(preview instanceof HTMLElement) ||
+  !(previewCanvas instanceof HTMLCanvasElement) ||
+  !(previewState instanceof HTMLElement) ||
+  !(correctionForm instanceof HTMLFormElement) ||
+  !(correctionRegions instanceof HTMLOListElement) ||
+  correctionButtons.some((button) => !(button instanceof HTMLButtonElement)) ||
   actionButtons.some((button) => !(button instanceof HTMLButtonElement))
 ) {
   throw new Error("dashboard_document_invalid");
@@ -68,6 +82,101 @@ function updateControls(snapshot) {
     button.disabled =
       actionPending || disabled[button.dataset.action] !== false;
   }
+  const correctionsUnavailable =
+    actionPending ||
+    snapshot.connectionState === "UNAVAILABLE" ||
+    !snapshot.visibleGeometry;
+  for (const button of correctionButtons) {
+    button.disabled = correctionsUnavailable;
+  }
+  for (const input of correctionForm.elements) {
+    if (input instanceof HTMLInputElement) {
+      input.disabled = correctionsUnavailable;
+    }
+  }
+}
+
+const levelColors = [
+  "rgba(0,0,0,0)",
+  "rgba(64,128,255,0.55)",
+  "rgba(40,200,255,0.62)",
+  "rgba(255,220,32,0.68)",
+  "rgba(255,128,24,0.76)",
+  "rgba(255,32,32,0.82)",
+];
+
+function renderPreview(snapshot) {
+  const map = snapshot.saliencyPreview;
+  const geometry = snapshot.visibleGeometry;
+  if (!map || !geometry) {
+    preview.classList.remove("has-map");
+    previewState.textContent = "No sender map is available.";
+    return;
+  }
+  const tileCount = map.tileWidth * map.tileHeight;
+  const valid =
+    Number.isSafeInteger(map.tileWidth) &&
+    Number.isSafeInteger(map.tileHeight) &&
+    map.tileWidth > 0 &&
+    map.tileHeight > 0 &&
+    Array.isArray(map.levels) &&
+    map.levels.length === tileCount &&
+    map.levels.every(
+      (level) => Number.isSafeInteger(level) && level >= 0 && level <= 5,
+    ) &&
+    Array.isArray(map.conflictTiles) &&
+    map.conflictTiles.every(
+      (tile) => Number.isSafeInteger(tile) && tile >= 0 && tile < tileCount,
+    );
+  if (!valid) {
+    throw new Error("dashboard_saliency_preview_invalid");
+  }
+  const conflicts = new Set(map.conflictTiles);
+  previewCanvas.width = map.tileWidth;
+  previewCanvas.height = map.tileHeight;
+  const context = previewCanvas.getContext("2d", { alpha: true });
+  if (!context) {
+    throw new Error("dashboard_preview_context_unavailable");
+  }
+  context.clearRect(0, 0, map.tileWidth, map.tileHeight);
+  for (let tile = 0; tile < tileCount; tile += 1) {
+    context.fillStyle = conflicts.has(tile)
+      ? "rgba(224,48,255,0.9)"
+      : levelColors[map.levels[tile]];
+    context.fillRect(
+      tile % map.tileWidth,
+      Math.floor(tile / map.tileWidth),
+      1,
+      1,
+    );
+  }
+  preview.classList.add("has-map");
+  previewState.textContent = `${geometry.width} x ${geometry.height}, epoch ${geometry.geometryEpoch}`;
+}
+
+function renderCorrections(snapshot) {
+  correctionRegions.replaceChildren();
+  for (const region of snapshot.correctionRegions) {
+    const item = document.createElement("li");
+    item.classList.toggle("conflict", region.conflict);
+    const label = document.createElement("span");
+    label.textContent = `${region.kind.toLowerCase()} ${region.x},${region.y} ${region.width}x${region.height}${region.conflict ? " - conflict" : ""}`;
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "Remove";
+    remove.disabled = actionPending;
+    remove.addEventListener(
+      "click",
+      () =>
+        void performCommand({
+          action: "REMOVE_CORRECTION",
+          expectedRevision: snapshot.correctionRevision,
+          regionId: region.id,
+        }),
+    );
+    item.append(label, remove);
+    correctionRegions.append(item);
+  }
 }
 
 function render(snapshot) {
@@ -89,6 +198,8 @@ function render(snapshot) {
   fallbackMode.textContent = snapshot.fallbackMode.replaceAll("_", " ");
   recordingState.textContent = snapshot.recordingActive ? "Recording" : "Off";
 
+  renderPreview(snapshot);
+  renderCorrections(snapshot);
   updateControls(snapshot);
 }
 
@@ -128,7 +239,7 @@ async function loadState() {
   render(message.snapshot);
 }
 
-async function performAction(action) {
+async function performCommand(command) {
   if (!launchNonce || !csrfToken || actionPending) {
     return;
   }
@@ -138,7 +249,7 @@ async function performAction(action) {
   }
   try {
     const response = await fetch("/api/v1/action", {
-      body: JSON.stringify({ action, protocolVersion: DASHBOARD_PROTOCOL }),
+      body: JSON.stringify({ ...command, protocolVersion: DASHBOARD_PROTOCOL }),
       cache: "no-store",
       credentials: "omit",
       headers: {
@@ -181,12 +292,36 @@ async function performAction(action) {
 for (const button of actionButtons) {
   button.addEventListener(
     "click",
-    () => void performAction(button.dataset.action),
+    () => void performCommand({ action: button.dataset.action }),
   );
 }
 
+correctionForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const submitter = event.submitter;
+  const snapshot = window.__glyphrelayDashboard.snapshot;
+  if (!(submitter instanceof HTMLButtonElement) || !snapshot) {
+    return;
+  }
+  const form = new FormData(correctionForm);
+  const rectangle = {
+    height: Number(form.get("height")),
+    width: Number(form.get("width")),
+    x: Number(form.get("x")),
+    y: Number(form.get("y")),
+  };
+  void performCommand({
+    action: submitter.dataset.correction,
+    expectedRevision: snapshot.correctionRevision,
+    rectangle,
+  });
+});
+
 loadState().catch((error) => {
   for (const button of actionButtons) {
+    button.disabled = true;
+  }
+  for (const button of correctionButtons) {
     button.disabled = true;
   }
   setStatus(

@@ -8,6 +8,7 @@ import {
   startDashboardServer,
   type DashboardActionResult,
   type DashboardBackend,
+  type DashboardCommand,
   type DashboardServer,
   type DashboardSnapshot,
 } from "../../dashboard/server.ts";
@@ -81,22 +82,31 @@ function actionBody(action: string): string {
 }
 
 class StateBackend implements DashboardBackend {
-  actions: string[] = [];
+  commands: DashboardCommand[] = [];
   state: DashboardSnapshot = {
     bitrateProfile: "2m",
     captureActive: true,
     connectionState: "CONNECTED",
+    correctionRegions: [],
+    correctionRevision: 0,
     droppedFrames: 4,
     fallbackMode: "CPU_UNIFORM",
     protectedFraction: 0.125,
     queueDelayMs: 7,
     recordingActive: false,
     shareLinkAvailable: true,
+    saliencyPreview: {
+      conflictTiles: [],
+      levels: [0, 4, 3, 0],
+      tileHeight: 2,
+      tileWidth: 2,
+    },
+    visibleGeometry: { geometryEpoch: 1, height: 16, width: 16 },
   };
 
-  perform(action: string): DashboardActionResult {
-    this.actions.push(action);
-    if (action === "PAUSE") {
+  perform(command: DashboardCommand): DashboardActionResult {
+    this.commands.push(command);
+    if (command.action === "PAUSE") {
       this.state = {
         ...this.state,
         captureActive: false,
@@ -296,7 +306,7 @@ test("rejects Host, Origin, DNS-rebinding, nonce, and CSRF attacks before dispat
   });
   assert.equal(preflight.status, 403);
   assert.equal(preflight.headers["access-control-allow-origin"], undefined);
-  assert.deepEqual(backend.actions, []);
+  assert.deepEqual(backend.commands, []);
 
   const accepted = await rawRequest(
     server.origin,
@@ -304,7 +314,7 @@ test("rejects Host, Origin, DNS-rebinding, nonce, and CSRF attacks before dispat
     baseAction,
   );
   assert.equal(accepted.status, 200);
-  assert.deepEqual(backend.actions, ["PAUSE"]);
+  assert.deepEqual(backend.commands, [{ action: "PAUSE" }]);
   assert.equal(
     (JSON.parse(accepted.body) as DashboardActionResult).snapshot
       .connectionState,
@@ -404,7 +414,78 @@ test("bounds and strictly validates the mutation body", async (context) => {
     ).status,
     413,
   );
-  assert.deepEqual(backend.actions, []);
+  assert.deepEqual(backend.commands, []);
+});
+
+test("accepts only bounded revisioned correction commands", async (context) => {
+  const backend = new StateBackend();
+  const server = await startDashboardServer({ backend });
+  context.after(() => server.close());
+  const nonce = launchNonce(server);
+  const state = await rawRequest(server.origin, "/api/v1/state", {
+    headers: authorizedHeaders(server, nonce),
+  });
+  const csrfToken = (JSON.parse(state.body) as { csrfToken: string }).csrfToken;
+  const headers = {
+    ...authorizedHeaders(server, nonce),
+    "Content-Type": "application/json",
+    "X-GlyphRelay-CSRF": csrfToken,
+  };
+  const request = async (value: unknown): Promise<number> =>
+    (
+      await rawRequest(server.origin, "/api/v1/action", {
+        body: JSON.stringify(value),
+        headers,
+        method: "POST",
+      })
+    ).status;
+
+  assert.equal(
+    await request({
+      action: "ADD_PIN",
+      expectedRevision: 0,
+      protocolVersion: DASHBOARD_PROTOCOL,
+      rectangle: { height: 8, width: 8, x: 2, y: 3 },
+    }),
+    200,
+  );
+  assert.deepEqual(backend.commands, [
+    {
+      action: "ADD_PIN",
+      expectedRevision: 0,
+      rectangle: { height: 8, width: 8, x: 2, y: 3 },
+    },
+  ]);
+
+  for (const invalid of [
+    {
+      action: "ADD_EXCLUSION",
+      expectedRevision: -1,
+      protocolVersion: DASHBOARD_PROTOCOL,
+      rectangle: { height: 8, width: 8, x: 2, y: 3 },
+    },
+    {
+      action: "ADD_PIN",
+      expectedRevision: 0,
+      protocolVersion: DASHBOARD_PROTOCOL,
+      rectangle: { height: 1, width: 2, x: 16_383, y: 0 },
+    },
+    {
+      action: "ADD_PIN",
+      expectedRevision: 0,
+      protocolVersion: DASHBOARD_PROTOCOL,
+      rectangle: { height: 1, width: 1, x: 0, y: 0, z: 0 },
+    },
+    {
+      action: "REMOVE_CORRECTION",
+      expectedRevision: 0,
+      protocolVersion: DASHBOARD_PROTOCOL,
+      regionId: 0,
+    },
+  ]) {
+    assert.equal(await request(invalid), 400);
+  }
+  assert.equal(backend.commands.length, 1);
 });
 
 test("standalone dashboard never reports a sender action as successful", async (context) => {

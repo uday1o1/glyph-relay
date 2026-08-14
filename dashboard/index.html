@@ -39,7 +39,12 @@
           </div>
           <div class="preview" aria-label="Local protected preview">
             <div class="preview-grid"></div>
-            <p>Preview remains on this device.</p>
+            <canvas id="protected-preview" width="640" height="360"></canvas>
+            <p id="preview-state">Preview remains on this device.</p>
+          </div>
+          <div class="preview-legend" aria-label="Preview legend">
+            <span><i class="legend-protected"></i> Protected</span>
+            <span><i class="legend-conflict"></i> Pin excluded</span>
           </div>
         </article>
 
@@ -56,6 +61,42 @@
           <button data-action="COPY_SHARE_LINK" class="copy" type="button">
             Copy current share link
           </button>
+          <hr />
+          <p class="section-label">Manual correction</p>
+          <form id="correction-form">
+            <div class="coordinate-grid">
+              <label
+                >X <input name="x" type="number" min="0" step="1" required
+              /></label>
+              <label
+                >Y <input name="y" type="number" min="0" step="1" required
+              /></label>
+              <label
+                >Width
+                <input name="width" type="number" min="1" step="1" required
+              /></label>
+              <label
+                >Height
+                <input name="height" type="number" min="1" step="1" required
+              /></label>
+            </div>
+            <div class="correction-buttons">
+              <button data-correction="ADD_PIN" type="submit">
+                Pin region
+              </button>
+              <button
+                data-correction="ADD_EXCLUSION"
+                class="exclude"
+                type="submit"
+              >
+                Exclude region
+              </button>
+            </div>
+          </form>
+          <ol
+            id="correction-regions"
+            aria-label="Active manual corrections"
+          ></ol>
         </article>
       </section>
 
