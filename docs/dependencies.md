@@ -26,9 +26,11 @@ Its final datagram boundary is `deps/libjuice/src/udp.c::udp_sendto`, which call
 
 The exact MPL-2.0 source patch and its SHA-256 are locked in `dependencies.lock.json`.
 
-`make transport-check` verifies the patch against a clean exact checkout, builds with the frozen flags, and runs its loopback final-egress test.
+`make transport-check` verifies the patch against a clean exact checkout, builds with the frozen flags, and runs the pinned packetization, bounded recovery, and loopback final-egress tests.
 
 The application must not use libdatachannel's built-in NACK responder because it cannot enforce the V1 age, byte, epoch, rate, and extended-sequence limits.
+
+The replacement in `vendor/libdatachannel-v0.24.1` is published under MPL-2.0 and replays cached plaintext RTP through libdatachannel's existing SRTP path.
 
 OpenH264 is dynamically linked from the exact Ubuntu 24.04 system packages recorded in the lock.
 

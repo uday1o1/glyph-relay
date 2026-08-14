@@ -28,6 +28,8 @@ GlyphRelay keeps required transport modifications isolated to MPL-covered source
 
 The corresponding modified source is retained as `patches/libdatachannel-v0.24.1/glyphrelay-final-egress.patch`, including the patch-owned loopback test.
 
+The bounded packetization and NACK media handlers in `vendor/libdatachannel-v0.24.1` are separately published under MPL-2.0.
+
 Unmodified bundled dependencies include nlohmann/json under MIT, libsrtp under BSD-3-Clause, plog under MIT, and usrsctp under BSD-3-Clause.
 
 Exact commits and license-file hashes are recorded in `dependencies.lock.json`.

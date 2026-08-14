@@ -41,27 +41,98 @@ index f2cb135..da9c213 100644
  	// Port range
  	uint16_t portRangeBegin = 1024;
 diff --git a/include/rtc/message.hpp b/include/rtc/message.hpp
-index 52a7dbe..39be07a 100644
+index 52a7dbe..b700023 100644
 --- a/include/rtc/message.hpp
 +++ b/include/rtc/message.hpp
-@@ -19,6 +19,8 @@ namespace rtc {
+@@ -17,8 +17,11 @@
  
- struct RTC_CPP_EXPORT Message : binary {
+ namespace rtc {
+ 
+-struct RTC_CPP_EXPORT Message : binary {
++	struct RTC_CPP_EXPORT Message : binary {
  	enum Type { Binary, String, Control, Reset };
 +	enum class EgressClass { Control, Media };
 +	enum class EgressProtocol { UnknownControl, Srtp, Srtcp, Dtls };
++	enum class RtpRole { Unspecified, Sps, Pps, Idr, Inter, Supplemental };
  
  	Message(const Message &message) = default;
  	Message(size_t size, Type type_ = Binary) : binary(size), type(type_) {}
-@@ -30,6 +32,8 @@ struct RTC_CPP_EXPORT Message : binary {
+@@ -30,6 +33,15 @@ struct RTC_CPP_EXPORT Message : binary {
  	Message(binary &&data, Type type_ = Binary) : binary(std::move(data)), type(type_) {}
  
  	Type type;
 +	EgressClass egressClass = EgressClass::Control;
 +	EgressProtocol egressProtocol = EgressProtocol::UnknownControl;
++	uint64_t frameId = 0;
++	uint64_t mediaEpoch = 0;
++	uint64_t accessUnitId = 0;
++	uint64_t dependencyEpoch = 0;
++	uint64_t extendedSequenceNumber = 0;
++	uint64_t extendedTimestamp = 0;
++	RtpRole rtpRole = RtpRole::Unspecified;
  	unsigned int stream = 0; // Stream id (SCTP stream or SSRC)
  	unsigned int dscp = 0;   // Differentiated Services Code Point
  	shared_ptr<Reliability> reliability;
+diff --git a/include/rtc/rtppacketizationconfig.hpp b/include/rtc/rtppacketizationconfig.hpp
+index 3a2bfce..5a568bf 100644
+--- a/include/rtc/rtppacketizationconfig.hpp
++++ b/include/rtc/rtppacketizationconfig.hpp
+@@ -25,11 +25,13 @@ public:
+ 	uint32_t clockRate;
+ 	uint8_t videoOrientationId;
+ 
+-	// current sequence number
++	// Low 16-bit mirror of extendedSequenceNumber. Do not mutate directly.
+ 	uint16_t sequenceNumber;
++	uint64_t extendedSequenceNumber;
+ 
+-	// current timestamp
++	// Low 32-bit mirror of extendedTimestamp. Do not mutate directly.
+ 	uint32_t timestamp;
++	uint64_t extendedTimestamp;
+ 
+ 	// start timestamp
+ 	uint32_t startTimestamp;
+@@ -95,6 +97,10 @@ public:
+ 
+ 	RtpPacketizationConfig(const RtpPacketizationConfig &) = delete;
+ 
++	void setExtendedSequenceNumber(uint64_t value);
++	void setExtendedTimestamp(uint64_t value);
++	void setTimestamp(uint32_t value);
++
+ 	/// Convert timestamp to seconds
+ 	/// @param timestamp Timestamp
+ 	/// @param clockRate Clock rate for timestamp calculation
+diff --git a/src/capi.cpp b/src/capi.cpp
+index 4777e9a..14a01a9 100644
+--- a/src/capi.cpp
++++ b/src/capi.cpp
+@@ -273,8 +273,8 @@ createRtpPacketizationConfig(const rtcPacketizationHandlerInit *init) {
+ 
+ 	auto config = std::make_shared<RtpPacketizationConfig>(init->ssrc, init->cname,
+ 	                                                       init->payloadType, init->clockRate);
+-	config->sequenceNumber = init->sequenceNumber;
+-	config->timestamp = init->timestamp;
++	config->setExtendedSequenceNumber(init->sequenceNumber);
++	config->setExtendedTimestamp(init->timestamp);
+ 	config->playoutDelayId = init->playoutDelayId;
+ 	config->playoutDelayMin = init->playoutDelayMin;
+ 	config->playoutDelayMax = init->playoutDelayMax;
+@@ -1452,7 +1452,7 @@ int rtcGetCurrentTrackTimestamp(int id, uint32_t *timestamp) {
+ int rtcSetTrackRtpTimestamp(int id, uint32_t timestamp) {
+ 	return wrap([&] {
+ 		auto config = getRtpConfig(id);
+-		config->timestamp = timestamp;
++		config->setTimestamp(timestamp);
+ 		return RTC_ERR_SUCCESS;
+ 	});
+ }
+@@ -1766,4 +1766,3 @@ void rtcCleanup() {
+ 		PLOG_ERROR << e.what();
+ 	}
+ }
+-
 diff --git a/src/impl/dtlssrtptransport.cpp b/src/impl/dtlssrtptransport.cpp
 index 24f7383..3627c82 100644
 --- a/src/impl/dtlssrtptransport.cpp
@@ -247,18 +318,117 @@ index 5d74aab..55a912c 100644
  #else
  	class MainLoopWrapper {
 diff --git a/src/message.cpp b/src/message.cpp
-index 0ce3256..3e714fc 100644
+index 0ce3256..41a7811 100644
 --- a/src/message.cpp
 +++ b/src/message.cpp
-@@ -36,6 +36,8 @@ message_ptr make_message(size_t size, message_ptr orig) {
+@@ -36,6 +36,15 @@ message_ptr make_message(size_t size, message_ptr orig) {
  
  	auto message = std::make_shared<Message>(size, orig->type);
  	std::copy(orig->begin(), orig->begin() + std::min(size, orig->size()), message->begin());
 +	message->egressClass = orig->egressClass;
 +	message->egressProtocol = orig->egressProtocol;
++	message->frameId = orig->frameId;
++	message->mediaEpoch = orig->mediaEpoch;
++	message->accessUnitId = orig->accessUnitId;
++	message->dependencyEpoch = orig->dependencyEpoch;
++	message->extendedSequenceNumber = orig->extendedSequenceNumber;
++	message->extendedTimestamp = orig->extendedTimestamp;
++	message->rtpRole = orig->rtpRole;
  	message->stream = orig->stream;
  	message->reliability = orig->reliability;
  	message->frameInfo = orig->frameInfo;
+diff --git a/src/rtppacketizationconfig.cpp b/src/rtppacketizationconfig.cpp
+index 6f208c2..220bdab 100644
+--- a/src/rtppacketizationconfig.cpp
++++ b/src/rtppacketizationconfig.cpp
+@@ -33,6 +33,26 @@ RtpPacketizationConfig::RtpPacketizationConfig(SSRC ssrc, string cname, uint8_t
+ 	auto uniform = std::bind(std::uniform_int_distribution<uint32_t>(), utils::random_engine());
+ 	sequenceNumber = static_cast<uint16_t>(uniform());
+ 	timestamp = startTimestamp = uniform();
++	extendedSequenceNumber = sequenceNumber;
++	extendedTimestamp = timestamp;
++}
++
++void RtpPacketizationConfig::setExtendedSequenceNumber(uint64_t value) {
++	extendedSequenceNumber = value;
++	sequenceNumber = static_cast<uint16_t>(value & 0xFFFF);
++}
++
++void RtpPacketizationConfig::setExtendedTimestamp(uint64_t value) {
++	extendedTimestamp = value;
++	timestamp = static_cast<uint32_t>(value & 0xFFFFFFFF);
++}
++
++void RtpPacketizationConfig::setTimestamp(uint32_t value) {
++	constexpr uint64_t WireTimestampModulus = uint64_t(1) << 32;
++	auto candidate = (extendedTimestamp & ~(WireTimestampModulus - 1)) | value;
++	if (candidate < extendedTimestamp)
++		candidate += WireTimestampModulus;
++	setExtendedTimestamp(candidate);
+ }
+ 
+ double RtpPacketizationConfig::getSecondsFromTimestamp(uint32_t timestamp, uint32_t clockRate) {
+diff --git a/src/rtppacketizer.cpp b/src/rtppacketizer.cpp
+index eadcaa9..26e18b3 100644
+--- a/src/rtppacketizer.cpp
++++ b/src/rtppacketizer.cpp
+@@ -12,6 +12,8 @@
+ 
+ #include <cmath>
+ #include <cstring>
++#include <limits>
++#include <stdexcept>
+ 
+ namespace rtc {
+ 
+@@ -85,9 +87,15 @@ message_ptr RtpPacketizer::packetize(const binary &payload, bool mark) {
+ 	auto message = make_message(RtpHeaderSize + rtpExtHeaderSize + payload.size());
+ 	auto *rtp = (RtpHeader *)message->data();
+ 	rtp->setPayloadType(rtpConfig->payloadType);
+-	rtp->setSeqNumber(rtpConfig->sequenceNumber++); // increase sequence number
+-	rtp->setTimestamp(rtpConfig->timestamp);
++	const auto extendedSequenceNumber = rtpConfig->extendedSequenceNumber;
++	if (extendedSequenceNumber == std::numeric_limits<uint64_t>::max())
++		throw std::overflow_error("extended RTP sequence exhausted");
++	rtp->setSeqNumber(static_cast<uint16_t>(extendedSequenceNumber & 0xFFFF));
++	rtp->setTimestamp(static_cast<uint32_t>(rtpConfig->extendedTimestamp & 0xFFFFFFFF));
+ 	rtp->setSsrc(rtpConfig->ssrc);
++	message->extendedSequenceNumber = extendedSequenceNumber;
++	message->extendedTimestamp = rtpConfig->extendedTimestamp;
++	rtpConfig->setExtendedSequenceNumber(extendedSequenceNumber + 1);
+ 
+ 	if (mark) {
+ 		rtp->setMarker(true);
+@@ -177,12 +185,12 @@ void RtpPacketizer::outgoing(message_vector &messages,
+ 				continue;
+ 
+ 			if (frameInfo->timestampSeconds)
+-				rtpConfig->timestamp =
++			rtpConfig->setTimestamp(
+ 				    rtpConfig->startTimestamp +
+ 				    rtpConfig->secondsToTimestamp(
+-				        std::chrono::duration<double>(*frameInfo->timestampSeconds).count());
++				        std::chrono::duration<double>(*frameInfo->timestampSeconds).count()));
+ 			else
+-				rtpConfig->timestamp = frameInfo->timestamp;
++				rtpConfig->setTimestamp(frameInfo->timestamp);
+ 		}
+ 
+ 		auto payloads = fragment(std::move(*message));
+@@ -193,7 +201,12 @@ void RtpPacketizer::outgoing(message_vector &messages,
+ 				ctx.descriptor.endOfFrame = i == payloads.size() - 1;
+ 			}
+ 			bool mark = i == payloads.size() - 1;
+-			result.push_back(packetize(payloads[i], mark));
++			auto packet = packetize(payloads[i], mark);
++			packet->frameId = message->frameId;
++			packet->mediaEpoch = message->mediaEpoch;
++			packet->accessUnitId = message->accessUnitId;
++			packet->dependencyEpoch = message->dependencyEpoch;
++			result.push_back(std::move(packet));
+ 		}
+ 	}
+ 
 diff --git a/deps/libjuice/CMakeLists.txt b/deps/libjuice/CMakeLists.txt
 index aa544d3..6656ced 100644
 --- a/deps/libjuice/CMakeLists.txt
@@ -769,177 +939,3 @@ index 074823c..3ac2be9 100644
  	if(ret >= 0)
  		return JUICE_ERR_SUCCESS;
  	if(ret == -SEAGAIN || ret == -SEWOULDBLOCK)
-diff --git a/deps/libjuice/test/glyphrelay_final_egress.c b/deps/libjuice/test/glyphrelay_final_egress.c
-new file mode 100644
-index 0000000..9dd5639
---- /dev/null
-+++ b/deps/libjuice/test/glyphrelay_final_egress.c
-@@ -0,0 +1,167 @@
-+/**
-+ * Copyright (c) 2026 GlyphRelay contributors
-+ *
-+ * This Source Code Form is subject to the terms of the Mozilla Public
-+ * License, v. 2.0. If a copy of the MPL was not distributed with this
-+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
-+ */
-+
-+#include "juice/juice.h"
-+
-+#include <stdbool.h>
-+#include <stdatomic.h>
-+#include <stdio.h>
-+#include <string.h>
-+
-+#ifdef _WIN32
-+#include <windows.h>
-+static void wait_millis(unsigned int millis) { Sleep(millis); }
-+#else
-+#include <unistd.h>
-+static void wait_millis(unsigned int millis) { usleep(millis * 1000); }
-+#endif
-+
-+typedef struct peer_context {
-+	juice_agent_t **other;
-+	atomic_int state;
-+	atomic_int received;
-+	atomic_int control_hooks;
-+	atomic_int media_hooks;
-+	atomic_int invalid_hooks;
-+} peer_context_t;
-+
-+static int final_udp_send(const char *data, size_t size, juice_egress_class_t egress_class,
-+	                      juice_datagram_path_t path, juice_datagram_protocol_t protocol,
-+	                      juice_ip_family_t ip_family, juice_cb_native_udp_send_t native_send,
-+	                      void *native_send_ptr, void *user_ptr) {
-+	peer_context_t *context = user_ptr;
-+	if (!data || size == 0 || path != JUICE_DATAGRAM_PATH_DIRECT_UDP ||
-+	    ip_family != JUICE_IP_FAMILY_IPV4) {
-+		atomic_fetch_add(&context->invalid_hooks, 1);
-+	}
-+	if (egress_class == JUICE_EGRESS_CLASS_MEDIA) {
-+		atomic_fetch_add(&context->media_hooks, 1);
-+		if (protocol != JUICE_DATAGRAM_PROTOCOL_SRTP)
-+			atomic_fetch_add(&context->invalid_hooks, 1);
-+	} else {
-+		atomic_fetch_add(&context->control_hooks, 1);
-+		if (protocol != JUICE_DATAGRAM_PROTOCOL_STUN &&
-+		    protocol != JUICE_DATAGRAM_PROTOCOL_UNKNOWN_CONTROL)
-+			atomic_fetch_add(&context->invalid_hooks, 1);
-+	}
-+	return native_send(native_send_ptr);
-+}
-+
-+static void state_changed(juice_agent_t *agent, juice_state_t state, void *user_ptr) {
-+	(void)agent;
-+	peer_context_t *context = user_ptr;
-+	atomic_store(&context->state, (int)state);
-+}
-+
-+static void candidate(juice_agent_t *agent, const char *sdp, void *user_ptr) {
-+	(void)agent;
-+	peer_context_t *context = user_ptr;
-+	if (*context->other)
-+		juice_add_remote_candidate(*context->other, sdp);
-+}
-+
-+static void gathering_done(juice_agent_t *agent, void *user_ptr) {
-+	(void)agent;
-+	peer_context_t *context = user_ptr;
-+	if (*context->other)
-+		juice_set_remote_gathering_done(*context->other);
-+}
-+
-+static void received(juice_agent_t *agent, const char *data, size_t size, void *user_ptr) {
-+	(void)agent;
-+	peer_context_t *context = user_ptr;
-+	static const char expected[] = "glyphrelay-final-egress";
-+	if (size == sizeof(expected) - 1 && memcmp(data, expected, size) == 0)
-+		atomic_store(&context->received, 1);
-+}
-+
-+static int wait_for_connection(peer_context_t *first, peer_context_t *second) {
-+	for (int attempt = 0; attempt < 1000; ++attempt) {
-+		int first_state = atomic_load(&first->state);
-+		int second_state = atomic_load(&second->state);
-+		bool first_ready = first_state == JUICE_STATE_CONNECTED || first_state == JUICE_STATE_COMPLETED;
-+		bool second_ready =
-+		    second_state == JUICE_STATE_CONNECTED || second_state == JUICE_STATE_COMPLETED;
-+		if (first_ready && second_ready)
-+			return 0;
-+		wait_millis(10);
-+	}
-+	return -1;
-+}
-+
-+int main(void) {
-+	juice_set_log_level(JUICE_LOG_LEVEL_WARN);
-+	juice_config_t rejected_mux = {0};
-+	rejected_mux.concurrency_mode = JUICE_CONCURRENCY_MODE_MUX;
-+	rejected_mux.cb_final_udp_send = final_udp_send;
-+	if (juice_create(&rejected_mux) != NULL) {
-+		fprintf(stderr, "final UDP hook did not reject socket mux\n");
-+		return 1;
-+	}
-+
-+	juice_agent_t *first = NULL;
-+	juice_agent_t *second = NULL;
-+	peer_context_t first_context = {.other = &second};
-+	peer_context_t second_context = {.other = &first};
-+	juice_config_t first_config = {0};
-+	juice_config_t second_config = {0};
-+	juice_config_t *configs[] = {&first_config, &second_config};
-+	peer_context_t *contexts[] = {&first_context, &second_context};
-+	for (size_t index = 0; index < 2; ++index) {
-+		configs[index]->concurrency_mode = JUICE_CONCURRENCY_MODE_THREAD;
-+		configs[index]->bind_address = "127.0.0.1";
-+		configs[index]->cb_state_changed = state_changed;
-+		configs[index]->cb_candidate = candidate;
-+		configs[index]->cb_gathering_done = gathering_done;
-+		configs[index]->cb_recv = received;
-+		configs[index]->cb_final_udp_send = final_udp_send;
-+		configs[index]->user_ptr = contexts[index];
-+	}
-+	first = juice_create(&first_config);
-+	second = juice_create(&second_config);
-+	if (!first || !second)
-+		goto failure;
-+
-+	char first_sdp[JUICE_MAX_SDP_STRING_LEN];
-+	char second_sdp[JUICE_MAX_SDP_STRING_LEN];
-+	if (juice_get_local_description(first, first_sdp, sizeof(first_sdp)) != JUICE_ERR_SUCCESS ||
-+	    juice_get_local_description(second, second_sdp, sizeof(second_sdp)) != JUICE_ERR_SUCCESS ||
-+	    juice_set_remote_description(first, second_sdp) != JUICE_ERR_SUCCESS ||
-+	    juice_set_remote_description(second, first_sdp) != JUICE_ERR_SUCCESS ||
-+	    juice_gather_candidates(first) != JUICE_ERR_SUCCESS ||
-+	    juice_gather_candidates(second) != JUICE_ERR_SUCCESS ||
-+	    wait_for_connection(&first_context, &second_context) != 0)
-+		goto failure;
-+
-+	static const char payload[] = "glyphrelay-final-egress";
-+	if (juice_send_diffserv_classified(first, payload, sizeof(payload) - 1, 0,
-+	                                   JUICE_EGRESS_CLASS_MEDIA,
-+	                                   JUICE_DATAGRAM_PROTOCOL_SRTP) != JUICE_ERR_SUCCESS)
-+		goto failure;
-+	for (int attempt = 0; attempt < 500 && !atomic_load(&second_context.received); ++attempt)
-+		wait_millis(10);
-+
-+	if (!atomic_load(&second_context.received) || atomic_load(&first_context.media_hooks) != 1 ||
-+	    atomic_load(&first_context.control_hooks) == 0 ||
-+	    atomic_load(&second_context.control_hooks) == 0 ||
-+	    atomic_load(&first_context.invalid_hooks) != 0 ||
-+	    atomic_load(&second_context.invalid_hooks) != 0)
-+		goto failure;
-+
-+	juice_destroy(first);
-+	juice_destroy(second);
-+	return 0;
-+
-+failure:
-+	if (first)
-+		juice_destroy(first);
-+	if (second)
-+		juice_destroy(second);
-+	fprintf(stderr, "final UDP hook loopback contract failed\n");
-+	return 1;
-+}
-

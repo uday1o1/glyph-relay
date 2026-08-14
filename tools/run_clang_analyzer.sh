@@ -27,12 +27,14 @@ for source in \
   src/media/openh264_encoder.cpp \
   src/media/recording_profile.cpp \
   src/transport/media_egress.cpp \
+  src/transport/rtp_transport.cpp \
   tests/native/test_doctor.cpp \
   tests/native/test_gpu_contracts.cpp \
   tests/native/test_media_contracts.cpp \
   tests/native/test_media_egress.cpp \
   tests/native/test_m0_protocol.cpp \
   tests/native/test_openh264_integration.cpp \
+  tests/native/test_rtp_transport.cpp \
   tools/freeze_m0_protocol.cpp; do
   report="${output_directory}/$(basename "${source}" .cpp).plist"
   "${compiler}" --analyze -std=c++20 -Iinclude \

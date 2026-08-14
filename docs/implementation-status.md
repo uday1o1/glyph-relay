@@ -36,7 +36,7 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 
 | Milestone | State | Reason |
 | --- | --- | --- |
-| 0 | `IN_PROGRESS` | M0-L01 through M0-L07 are locally implemented and all target gates are deferred |
+| 0 | `IN_PROGRESS` | M0-L01 through M0-L08 are locally implemented and all target gates are deferred |
 | 1 | `IN_PROGRESS` | Local work packages remain pending |
 | 2 | `IN_PROGRESS` | Local work packages remain pending |
 | 3 | `IN_PROGRESS` | Local work packages remain pending |
@@ -58,7 +58,7 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 | M0-L05 | `IMPLEMENTED_LOCAL` | Annex B, SPS, SDP, recording-profile, OpenH264, and independent-decode contracts | Strict malformed-input, RFC 6184 profile, Level 3.1 rejection, SPS VUI, and NV12-to-I420 tests; Ubuntu 24.04 system OpenH264 2.4.1 record-only encode; SPS/PPS on startup and forced IDR; independent FFmpeg 6.1.1 decode; FFprobe confirms 1080p Constrained Baseline Level 4.0 limited-range BT.709; final profile remains correctly unfrozen pending exact browser and NVENC target gates |
 | M0-L06 | `IMPLEMENTED_LOCAL` | CUDA context and NVENC feasibility source, ownership state machines, pre-submit rejection, and cleanup | Exact header bootstrap and configure hash gate; primary-context RAII and per-thread push/pop guard; real NVENC function-table capability probe source compiled against the locked 13.1 header; bounded portable source, surface, submission, delayed-output, busy-retry, EOS, abort, and shutdown models; seeded foreign-context, stale-frame, stale-geometry, map-size, pointer-space, event, range, FIFO, retry-mutation, output-alias, retry-limit, and fatal-path tests; target capability and encode gates remain deferred |
 | M0-L07 | `IMPLEMENTED_LOCAL` | Final datagram hook, classifier, egress gate, counter, and deterministic revocation race | Locked MPL source patch at the final `sendto` boundary; exact patched-stack build; loopback generated-control and classified-media hook test; mux, ICE TCP, and TURN TCP or TLS rejection; direct IPv4, direct IPv6, TURN arithmetic, failure, stale-epoch, control-bypass, and all-reason linearization tests; packet-capture equality remains deferred |
-| M0-L08 | `PENDING_LOCAL` | RTP packetization, sole sequence owner, bounded NACK and PLI recovery, and rollover contracts | Source audit only |
+| M0-L08 | `IMPLEMENTED_LOCAL` | RTP packetization, sole sequence owner, bounded NACK and PLI recovery, and rollover contracts | Strict portable and exact pinned-library packetization tests; mixed 3-byte and 4-byte Annex B; single NAL and ordered FU-A; 1,200-byte payload and marker bounds; 64-bit timestamp and sequence wrap; MPL bounded responder; exact plaintext RTP replay; PID and BLP deduplication; active-epoch absent and ambiguous recovery; 500 ms, 2,048 packet, 4 MiB, and two-retransmission cache bounds; 100-identifier and ten-message rolling limits; sustained-flood termination; patched-stack build; protected-payload and browser recovery remain deferred |
 | M0-L09 | `PENDING_LOCAL` | Loopback signaling, receiver, browser oracle, and browser pins | None |
 | M0-L10 | `PENDING_LOCAL` | Local qualification phases, structured result schemas, documentation, and complete local verification | None |
 

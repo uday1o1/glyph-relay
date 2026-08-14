@@ -5,6 +5,10 @@ project(GlyphRelay VERSION 0.1.0 LANGUAGES CXX)
 option(GLYPHRELAY_ENABLE_CUDA "Enable CUDA when a CUDA compiler is available" ON)
 option(GLYPHRELAY_ENABLE_SANITIZERS "Enable supported sanitizers" OFF)
 option(GLYPHRELAY_OPTIMIZE_PROTOCOL_CHECKS "Optimize deterministic protocol hashing" ON)
+option(GLYPHRELAY_ENABLE_WEBRTC_CONTRACTS
+       "Build the exact patched libdatachannel transport contracts" OFF)
+set(GLYPHRELAY_LIBDATACHANNEL_ROOT "" CACHE PATH
+    "Root of the exact patched libdatachannel v0.24.1 checkout")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -75,6 +79,7 @@ add_library(glyphrelay_core
   src/media/openh264_encoder.cpp
   src/media/recording_profile.cpp
   src/transport/media_egress.cpp
+  src/transport/rtp_transport.cpp
 )
 target_include_directories(glyphrelay_core PUBLIC include)
 target_compile_definitions(glyphrelay_core PUBLIC
@@ -125,6 +130,45 @@ if(CMAKE_DL_LIBS)
   target_link_libraries(glyphrelay_core PRIVATE ${CMAKE_DL_LIBS})
 endif()
 
+if(GLYPHRELAY_ENABLE_WEBRTC_CONTRACTS)
+  if(NOT EXISTS "${GLYPHRELAY_LIBDATACHANNEL_ROOT}/CMakeLists.txt")
+    message(FATAL_ERROR
+      "GLYPHRELAY_ENABLE_WEBRTC_CONTRACTS requires the exact patched libdatachannel root")
+  endif()
+  set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+  set(BUILD_SHARED_DEPS_LIBS OFF CACHE BOOL "" FORCE)
+  set(NO_EXAMPLES ON CACHE BOOL "" FORCE)
+  set(NO_MEDIA OFF CACHE BOOL "" FORCE)
+  set(NO_TESTS OFF CACHE BOOL "" FORCE)
+  set(NO_WEBSOCKET OFF CACHE BOOL "" FORCE)
+  set(PREFER_SYSTEM_LIB OFF CACHE BOOL "" FORCE)
+  set(USE_GNUTLS OFF CACHE BOOL "" FORCE)
+  set(USE_MBEDTLS OFF CACHE BOOL "" FORCE)
+  set(USE_NICE OFF CACHE BOOL "" FORCE)
+  set(USE_SYSTEM_JSON OFF CACHE BOOL "" FORCE)
+  set(USE_SYSTEM_JUICE OFF CACHE BOOL "" FORCE)
+  set(USE_SYSTEM_PLOG OFF CACHE BOOL "" FORCE)
+  set(USE_SYSTEM_SRTP OFF CACHE BOOL "" FORCE)
+  set(USE_SYSTEM_USRSCTP OFF CACHE BOOL "" FORCE)
+  set(WARNINGS_AS_ERRORS ON CACHE BOOL "" FORCE)
+  add_subdirectory("${GLYPHRELAY_LIBDATACHANNEL_ROOT}"
+                   "${CMAKE_CURRENT_BINARY_DIR}/libdatachannel-v0.24.1")
+
+  add_library(glyphrelay_libdatachannel_contract
+    vendor/libdatachannel-v0.24.1/glyphrelay_media_handlers.cpp)
+  target_include_directories(glyphrelay_libdatachannel_contract PUBLIC
+    vendor/libdatachannel-v0.24.1)
+  target_include_directories(glyphrelay_libdatachannel_contract SYSTEM PRIVATE
+    "${GLYPHRELAY_LIBDATACHANNEL_ROOT}/include")
+  target_link_libraries(glyphrelay_libdatachannel_contract PUBLIC glyphrelay_core datachannel)
+  if(MSVC)
+    target_compile_options(glyphrelay_libdatachannel_contract PRIVATE /W4 /WX /permissive-)
+  else()
+    target_compile_options(glyphrelay_libdatachannel_contract PRIVATE
+      -Wall -Wconversion -Werror -Wextra -Wpedantic -Wshadow)
+  endif()
+endif()
+
 add_executable(glyphrelay src/app/main.cpp)
 target_link_libraries(glyphrelay PRIVATE glyphrelay_core)
 
@@ -155,6 +199,19 @@ if(BUILD_TESTING)
   add_executable(glyphrelay_egress_contract_tests tests/native/test_media_egress.cpp)
   target_link_libraries(glyphrelay_egress_contract_tests PRIVATE glyphrelay_core)
   add_test(NAME native.media_egress COMMAND glyphrelay_egress_contract_tests)
+
+  add_executable(glyphrelay_rtp_transport_tests tests/native/test_rtp_transport.cpp)
+  target_link_libraries(glyphrelay_rtp_transport_tests PRIVATE glyphrelay_core)
+  add_test(NAME native.rtp_transport COMMAND glyphrelay_rtp_transport_tests)
+
+  if(GLYPHRELAY_ENABLE_WEBRTC_CONTRACTS)
+    add_executable(glyphrelay_libdatachannel_contract_tests
+      tests/native/test_libdatachannel_contract.cpp)
+    target_link_libraries(glyphrelay_libdatachannel_contract_tests PRIVATE
+      glyphrelay_libdatachannel_contract)
+    add_test(NAME integration.libdatachannel_contract
+      COMMAND glyphrelay_libdatachannel_contract_tests)
+  endif()
 
   if(GLYPHRELAY_HAS_OPENH264)
     add_executable(glyphrelay_openh264_integration tests/native/test_openh264_integration.cpp)

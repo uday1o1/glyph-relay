@@ -5,7 +5,7 @@ repository_root="$(git rev-parse --show-toplevel)"
 "${repository_root}/scripts/bootstrap_libdatachannel.sh"
 
 dependency_root="${repository_root}/.deps/libdatachannel-v0.24.1"
-build_root="${repository_root}/build/libdatachannel-v0.24.1"
+build_root="${repository_root}/build/transport-contract"
 if command -v cmake >/dev/null 2>&1; then
   cmake_command=(cmake)
 elif command -v uvx >/dev/null 2>&1; then
@@ -15,7 +15,10 @@ else
   exit 1
 fi
 
-"${cmake_command[@]}" -S "${dependency_root}" -B "${build_root}" \
+"${cmake_command[@]}" -S "${repository_root}" -B "${build_root}" \
+  -DGLYPHRELAY_ENABLE_CUDA=OFF \
+  -DGLYPHRELAY_ENABLE_WEBRTC_CONTRACTS=ON \
+  -DGLYPHRELAY_LIBDATACHANNEL_ROOT="${dependency_root}" \
   -DBUILD_SHARED_LIBS=OFF \
   -DBUILD_SHARED_DEPS_LIBS=OFF \
   -DNO_EXAMPLES=ON \
@@ -33,7 +36,8 @@ fi
   -DUSE_SYSTEM_USRSCTP=OFF \
   -DWARNINGS_AS_ERRORS=ON
 "${cmake_command[@]}" --build "${build_root}" \
-  --target datachannel glyphrelay-juice-egress-tests --parallel
-"${build_root}/deps/libjuice/glyphrelay-juice-egress-tests"
+  --target glyphrelay_libdatachannel_contract_tests glyphrelay-juice-egress-tests --parallel
+"${build_root}/glyphrelay_libdatachannel_contract_tests"
+"${build_root}/libdatachannel-v0.24.1/deps/libjuice/glyphrelay-juice-egress-tests"
 
-echo "patched libdatachannel and final-egress loopback test passed"
+echo "patched libdatachannel packetization, recovery, and final-egress tests passed"

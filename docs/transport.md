@@ -6,7 +6,7 @@ The selected libdatachannel revision is v0.24.1 at commit `a02b751917ac8afc8c58d
 
 The selected libjuice submodule is commit `5948a4162d37bc213d6051b67ee2876ccc5a99a6`.
 
-The repository applies `patches/libdatachannel-v0.24.1/glyphrelay-final-egress.patch`, whose SHA-256 is locked in `dependencies.lock.json`.
+The repository applies `patches/libdatachannel-v0.24.1/glyphrelay-final-egress.patch`, whose SHA-256 is `5679ddf6757fa58c1d4850c97a15349ec5e1dd5b9560138e70fe26c7d7af4731` and is locked in `dependencies.lock.json`.
 
 The patch is isolated to MPL-2.0-covered libdatachannel and libjuice files and includes its loopback contract test as corresponding source.
 
@@ -84,10 +84,56 @@ The local tests validate deterministic direct IPv4, direct IPv6, and synthetic f
 
 Packet-capture equality for direct IPv4, supported IPv6, and loopback coturn remains a target qualification gate and is not claimed by the local arithmetic tests.
 
+## RTP identity and packetization
+
+The patched `RtpPacketizationConfig::extendedSequenceNumber` is the sole sequence allocator used by the pinned library packetizer.
+
+The library writes its low 16 bits on wire, advances the 64-bit value once for each emitted RTP packet, and exposes both identities on the resulting message.
+
+The patched configuration also carries a 64-bit extended timestamp and writes its low 32 bits on wire.
+
+The GlyphRelay adapter serializes packetization so concurrent callers cannot race either extended value.
+
+It rejects zero epochs, zero access-unit identity, missing extended timestamps, nonincreasing extended timestamps, malformed or empty Annex B, unsupported NAL types, and an IDR that is not preceded by individual SPS and PPS NAL units.
+
+Only validated access units enter the pinned `H264RtpPacketizer` with a 1,200-byte maximum RTP payload.
+
+The library emits SPS and PPS as individual packets, does not emit STAP-A, fragments larger NAL units as ordered FU-A, and marks only the final packet of the access unit.
+
+The portable packetizer is an independent contract oracle for deterministic tests and is not a second production allocator.
+
+## Bounded loss recovery
+
+The built-in `RtcpNackResponder` is not used because it keys only on 16-bit sequence number and cannot enforce the declared byte, age, epoch, retransmission, rate, or clearing limits.
+
+`vendor/libdatachannel-v0.24.1/glyphrelay_media_handlers.cpp` is the separately published MPL-2.0 replacement.
+
+It accepts authenticated RTCP Generic NACK and PLI only for the configured media SSRC after the library has removed SRTCP protection.
+
+PID and BLP identifiers are expanded modulo 16 bits and deduplicated before lookup.
+
+The cache key carries media epoch, dependency epoch, SSRC, and extended sequence, while feedback resolves only a unique active-epoch packet matching the 16-bit wire sequence.
+
+An absent, expired, retransmission-limited, or ambiguous match enters the one coalesced IDR-with-SPS-and-PPS recovery limiter instead of guessing.
+
+The cache hard limits are 500 milliseconds, 2,048 packets, 4 MiB, and two retransmissions per packet.
+
+The feedback hard limits are 100 distinct NACK identifiers and ten recovery messages in any rolling second.
+
+Continuous overload for ten seconds terminates the session through one visible callback.
+
+Epoch reset and session stop synchronously erase the retransmission cache.
+
+An admitted retransmission recreates the exact original plaintext RTP bytes and metadata and re-enters the same libdatachannel DTLS-SRTP path.
+
+The pinned libsrtp outbound policy enables repeated transmission of an existing RTP identity.
+
+Byte-identical protected UDP replay, SRTP rollover, and browser recovery remain empirical target qualification gates and are not inferred from the local plaintext test.
+
 ## Verification
 
-Run `make transport-check` to clone every exact submodule commit, verify and apply the locked patch, build libdatachannel with the frozen flags, and run the patched libjuice loopback test.
+Run `make transport-check` to clone every exact submodule commit, verify and apply the locked patch, build libdatachannel with the frozen flags, run the strict packetization and bounded-recovery integration test, and run the patched libjuice loopback test.
 
 The loopback test proves the hook-enabled mux rejection, control classification for generated ICE traffic, direct IPv4 metadata, classified media delivery, and exactly one media hook event.
 
-Run `make check` for the portable classifier, accounting, failure, epoch, control-bypass, and deterministic boundary-race tests.
+Run `make check` for the portable packetization, rollover, cache, feedback, classifier, accounting, failure, epoch, control-bypass, and deterministic boundary-race tests.
