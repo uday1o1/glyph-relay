@@ -193,6 +193,12 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 
 ## Milestone 5 acceptance gates
 
+### Local work packages
+
+| ID | State | Deliverable | Evidence |
+| --- | --- | --- | --- |
+| M5-L01A | `IMPLEMENTED_LOCAL` | Frozen `controller_v1` arithmetic, timing, complete degradation and restoration stack, profiles, transport eligibility, trace contract, qualification matrix, and network fixture | JSON Schema validation; semantic mutation controls; content-addressed protocol lock `0088578978411a9f1705880ca6122e0896037b0f115a298f48376e2caca96701`; `make protocol-check` |
+
 | State | Acceptance item | Evidence |
 | --- | --- | --- |
 | `DEFERRED_HARDWARE` | P95 one-second wire egress remains within 110 percent of cap on the frozen primary matrix | None |

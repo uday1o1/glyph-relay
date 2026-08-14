@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "protocol": "controller_v1",
+  "files": [
+    {
+      "path": "protocols/controller_v1/manifest.json",
+      "sha256": "1be243016eb1d25fbe0b44819d9f351b49cae870a368a47310914d273e0360e3"
+    },
+    {
+      "path": "schemas/controller-v1.schema.json",
+      "sha256": "5f902db8e9805876fc14357e30c79551d11f242d473df6d44f0e55cd0200b520"
+    },
+    {
+      "path": "tools/check_controller_protocol.py",
+      "sha256": "8f9fd8de426149d5f793337982ed946487ef7ff8ba6cf1466bea291064373d11"
+    }
+  ],
+  "protocol_sha256": "0088578978411a9f1705880ca6122e0896037b0f115a298f48376e2caca96701"
+}

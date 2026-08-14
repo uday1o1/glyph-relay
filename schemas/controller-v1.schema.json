@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.local/schemas/controller-v1.schema.json",
+  "title": "GlyphRelay controller_v1 frozen protocol",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "protocol",
+    "arithmetic",
+    "timing",
+    "estimators",
+    "inputs",
+    "bandwidth",
+    "pacer",
+    "knobStack",
+    "presentationProfiles",
+    "profileTransition",
+    "stateMachine",
+    "trace",
+    "qualification"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "protocol": { "const": "controller_v1" },
+    "arithmetic": { "type": "object" },
+    "timing": { "type": "object" },
+    "estimators": { "type": "object" },
+    "inputs": { "type": "object" },
+    "bandwidth": { "type": "object" },
+    "pacer": { "type": "object" },
+    "knobStack": { "type": "object" },
+    "presentationProfiles": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "width", "height", "framesPerSecond"],
+        "properties": {
+          "name": { "enum": ["1080p30", "1080p24", "720p24", "720p15"] },
+          "width": { "type": "integer", "minimum": 1 },
+          "height": { "type": "integer", "minimum": 1 },
+          "framesPerSecond": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "profileTransition": { "type": "object" },
+    "stateMachine": { "type": "object" },
+    "trace": { "type": "object" },
+    "qualification": { "type": "object" }
+  }
+}

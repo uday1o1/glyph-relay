@@ -22,12 +22,12 @@ test: build
 format:
 	$(CLANG_FORMAT) -i $(CXX_FILES)
 	uv run ruff format tools tests/python
-	corepack pnpm exec prettier --write package.json tsconfig.json 'corpus/*.json' 'dashboard/**/*.{html,css,js,ts}' 'signaling/**/*.ts' 'tooling/**/*.ts' 'tests/typescript/**/*.ts' 'receiver/**/*.{html,css,js}' 'protocols/browser_oracle_v1/*.json' 'qualification/*.json' 'schemas/*.json' '.github/**/*.yml'
+	corepack pnpm exec prettier --write package.json tsconfig.json 'corpus/*.json' 'dashboard/**/*.{html,css,js,ts}' 'signaling/**/*.ts' 'tooling/**/*.ts' 'tests/typescript/**/*.ts' 'receiver/**/*.{html,css,js}' 'protocols/browser_oracle_v1/*.json' 'protocols/controller_v1/*.json' 'qualification/*.json' 'schemas/*.json' '.github/**/*.yml'
 
 format-check:
 	$(CLANG_FORMAT) --dry-run --Werror $(CXX_FILES)
 	uv run ruff format --check tools tests/python
-	corepack pnpm exec prettier --check package.json tsconfig.json 'corpus/*.json' 'dashboard/**/*.{html,css,js,ts}' 'signaling/**/*.ts' 'tooling/**/*.ts' 'tests/typescript/**/*.ts' 'receiver/**/*.{html,css,js}' 'protocols/browser_oracle_v1/*.json' 'qualification/*.json' 'schemas/*.json' '.github/**/*.yml'
+	corepack pnpm exec prettier --check package.json tsconfig.json 'corpus/*.json' 'dashboard/**/*.{html,css,js,ts}' 'signaling/**/*.ts' 'tooling/**/*.ts' 'tests/typescript/**/*.ts' 'receiver/**/*.{html,css,js}' 'protocols/browser_oracle_v1/*.json' 'protocols/controller_v1/*.json' 'qualification/*.json' 'schemas/*.json' '.github/**/*.yml'
 
 analyze:
 	bash tools/run_clang_analyzer.sh
@@ -61,6 +61,7 @@ protocol-check:
 	uv run python tools/check_saliency_protocol.py
 	uv run python tools/check_uniform_aq_protocol.py
 	uv run python tools/check_saliency_validation_protocol.py
+	uv run python tools/check_controller_protocol.py
 
 corpus-lossless-check:
 	bash scripts/check_corpus_lossless.sh

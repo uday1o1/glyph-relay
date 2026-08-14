@@ -1,0 +1,265 @@
+{
+  "schemaVersion": 1,
+  "protocol": "controller_v1",
+  "arithmetic": {
+    "numberFormat": "ieee754_binary64",
+    "roundingMode": "round_to_nearest_ties_to_even",
+    "rateUnit": "bits_per_second",
+    "durationUnit": "milliseconds",
+    "byteUnit": "octets"
+  },
+  "timing": {
+    "tickMilliseconds": 100,
+    "feedbackMaximumAgeMilliseconds": 2000,
+    "knobStepMinimumIntervalMilliseconds": 500,
+    "reversalObservationMilliseconds": 2000,
+    "recoveryEntryMilliseconds": 1000,
+    "recoveryStepIntervalMilliseconds": 2000,
+    "stableReturnMilliseconds": 5000,
+    "unusableViolationMilliseconds": 3000
+  },
+  "estimators": {
+    "windowsMilliseconds": [1000, 5000],
+    "update": "alpha=1-exp(-dt/tau);estimate=alpha*sample+(1-alpha)*previous",
+    "counterSample": "maximal_nonnegative_cumulative_delta_divided_by_monotonic_dt",
+    "counterDecrease": "reset_only_affected_estimator",
+    "firstSample": "initialize_counter_baseline_without_rate_sample",
+    "unavailableFeedback": "omit_feedback_predicate_without_substituting_zero"
+  },
+  "inputs": {
+    "cumulativeCounters": [
+      "elementary_stream_bytes",
+      "wire_egress_bytes",
+      "retransmission_bytes",
+      "delivered_frames"
+    ],
+    "gauges": [
+      "oldest_media_age_milliseconds",
+      "pacer_queue_bytes",
+      "pacer_queue_packets",
+      "drop_fraction",
+      "protected_fraction",
+      "map_level_histogram",
+      "encode_latency_milliseconds"
+    ],
+    "feedback": [
+      "loss_fraction",
+      "round_trip_time_milliseconds",
+      "remb_bits_per_second",
+      "receiver_decode_statistics"
+    ],
+    "eventEligibility": "sender_arrival_sequence_strictly_precedes_tick",
+    "equalTimestampOrder": "ascending_sender_arrival_sequence",
+    "rembEligibility": "negotiated_payload_type_and_rtcp_source_valid_and_fresh"
+  },
+  "bandwidth": {
+    "effectiveWireCap": "min(user_cap_bps,0.90*fresh_remb_bps)_else_user_cap_bps",
+    "controlReserve": "max(0.10*effective_wire_cap_bps,64000)",
+    "payloadAndPacerTarget": "max(effective_wire_cap_bps-control_reserve_bps,0)",
+    "wireAccounting": "successful_final_udp_payload_plus_8_udp_bytes_plus_connected_ip_base_header",
+    "ipv4HeaderBytes": 20,
+    "ipv6HeaderBytes": 40,
+    "verifiedTransports": ["direct_udp_ice", "turn_udp"],
+    "unverifiedTransports": ["turn_tcp", "turn_tls"],
+    "rejectedIpFeatures": [
+      "ipv4_options",
+      "ipv6_extension_headers",
+      "ip_fragmentation",
+      "bypass_socket"
+    ]
+  },
+  "pacer": {
+    "refillClock": "sender_monotonic",
+    "burstDurationMilliseconds": 100,
+    "maximumPacketAgeMilliseconds": 100,
+    "hardByteLimit": 4194304,
+    "accessUnitAdmission": "atomic",
+    "capacityFailure": "abandon_dependency_epoch_and_purge_unsent_epoch_packets_and_retransmissions",
+    "controlBypassClasses": [
+      "rtcp",
+      "stun",
+      "dtls",
+      "sctp",
+      "authenticated_stop"
+    ],
+    "controlBypassStillCountedOnWire": true
+  },
+  "knobStack": {
+    "degradationOrder": [
+      "automatic_emphasis_cap",
+      "protected_threshold_delta",
+      "payload_and_vbv_step",
+      "presentation_profile"
+    ],
+    "restorationOrder": [
+      "presentation_profile",
+      "payload_and_vbv_step",
+      "protected_threshold_delta",
+      "automatic_emphasis_cap"
+    ],
+    "initial": {
+      "automaticEmphasisCap": 4,
+      "protectedThresholdDelta": 0.0,
+      "payloadAndVbvStep": 0,
+      "presentationProfile": "1080p30"
+    },
+    "minimum": {
+      "automaticEmphasisCap": 0,
+      "protectedThresholdDelta": 0.15,
+      "payloadTarget": "frozen_profile_minimum",
+      "presentationProfile": "720p15"
+    },
+    "automaticEmphasisCaps": [4, 3, 2, 1, 0],
+    "protectedThresholdDeltas": [0.0, 0.05, 0.1, 0.15],
+    "entryThreshold": "min(base_entry+delta,1.0)",
+    "exitThreshold": "min(base_exit+delta,entry_threshold-0.10)",
+    "payloadAndVbvStep": "max(base_payload_target*pow(0.90,k),profile_minimum_payload_bps)",
+    "payloadStepMultiplier": 0.9,
+    "minimumPayloadBpsByProfile": {
+      "1080p30": 100000,
+      "1080p24": 100000,
+      "720p24": 100000,
+      "720p15": 100000
+    },
+    "staleFrameDrop": "continuous_before_encoder_submission",
+    "pins": "never_lower_user_pinned_or_cursor_minimum_and_surface_violation"
+  },
+  "presentationProfiles": [
+    {
+      "name": "1080p30",
+      "width": 1920,
+      "height": 1080,
+      "framesPerSecond": 30
+    },
+    {
+      "name": "1080p24",
+      "width": 1920,
+      "height": 1080,
+      "framesPerSecond": 24
+    },
+    {
+      "name": "720p24",
+      "width": 1280,
+      "height": 720,
+      "framesPerSecond": 24
+    },
+    {
+      "name": "720p15",
+      "width": 1280,
+      "height": 720,
+      "framesPerSecond": 15
+    }
+  ],
+  "profileTransition": {
+    "startsNewGeometryEpoch": true,
+    "startsNewDependencyEpoch": true,
+    "requiresIdrWithSpsAndPps": true,
+    "maximumOutstandingRecoverySteps": 3
+  },
+  "stateMachine": {
+    "states": ["STABLE", "RATE_PRESSURE", "CONGESTED", "RECOVERY", "UNUSABLE"],
+    "initialState": "STABLE",
+    "ratePressure": {
+      "requiredConsecutiveTicks": 3,
+      "anyPredicate": [
+        "wire_1s_bps>0.95*effective_wire_cap_bps",
+        "oldest_media_age_ms>50",
+        "fresh_loss_fraction>0.03",
+        "fresh_rtt_ms>250",
+        "encoder_target_bps>payload_budget_bps"
+      ]
+    },
+    "congested": {
+      "requiredConsecutiveTicks": 1,
+      "anyPredicate": [
+        "wire_1s_bps>1.10*effective_wire_cap_bps",
+        "oldest_media_age_ms>=100",
+        "pacer_queue_bytes>=4194304"
+      ]
+    },
+    "recovery": {
+      "continuousMilliseconds": 1000,
+      "allPredicates": [
+        "wire_1s_bps<0.85*effective_wire_cap_bps",
+        "fresh_loss_fraction<0.01",
+        "oldest_media_age_ms<one_frame_interval_ms"
+      ],
+      "requiresFreshLoss": true,
+      "entryAction": "request_idr_with_sps_and_pps"
+    },
+    "unusable": {
+      "continuousMilliseconds": 3000,
+      "allLevels": [
+        "presentation_profile=720p15",
+        "automatic_emphasis_cap=0",
+        "payload_target=frozen_profile_minimum"
+      ],
+      "violationPredicate": "wire_1s_bps>1.10*effective_wire_cap_bps_or_oldest_media_age_ms>=100_or_pacer_queue_bytes>=4194304",
+      "action": "stop_media_and_surface_unusable_link"
+    }
+  },
+  "trace": {
+    "serialization": "canonical_json_utf8_one_event_per_line",
+    "ordering": "ascending_sender_arrival_sequence",
+    "requiredFields": [
+      "arrivalSequence",
+      "senderArrivalMilliseconds",
+      "sourceTimeMilliseconds",
+      "dependencyEpoch",
+      "priorState",
+      "estimatorInputs",
+      "roundingResults",
+      "selectedLevelStack",
+      "action",
+      "resultingState"
+    ],
+    "offlineReplay": "byte_for_byte_production_decision_stream_without_future_events",
+    "fixtures": [
+      "stable_link",
+      "emphasis_overshoot",
+      "stale_remb",
+      "missing_remb",
+      "sudden_collapse",
+      "high_rtt_without_loss",
+      "recovery",
+      "unusable"
+    ]
+  },
+  "qualification": {
+    "steady": {
+      "warmupSeconds": 10,
+      "measurementSeconds": 120,
+      "windowMilliseconds": 1000,
+      "windowAdvanceMilliseconds": 100,
+      "capsBps": [500000, 1000000, 2000000, 4000000],
+      "roundTripTimeMilliseconds": 50,
+      "lossPercent": 0.0,
+      "wireP95MaximumCapFraction": 1.1,
+      "minimumCompositorFramesPerSecond": 24,
+      "minimumDeliveryFraction": 0.95,
+      "maximumP95LatencyMilliseconds": 250,
+      "resolutionReductionAllowed": false
+    },
+    "collapse": {
+      "durationSeconds": 30,
+      "recoveryIdrAndFrameAgeDeadlineMilliseconds": 2000,
+      "profileRecoveryDeadline": "min(2000+2000*outstanding_profile_steps,8000)",
+      "maximumPostIdrFreezeMilliseconds": 1000
+    },
+    "counterCrossCheck": {
+      "deterministicFixtureToleranceBytes": 0,
+      "steadyRunMaximumRelativeError": 0.01,
+      "authoritativeMetric": "captured_ip_total_length_filtered_to_session_sockets"
+    },
+    "networkFixture": {
+      "implementation": "linux_tc_netem",
+      "namespaceScope": "one_qdisc_per_direction",
+      "oneWayDelayMilliseconds": 25,
+      "queueLimitPackets": 1000,
+      "zeroLoss": "omit_loss_option",
+      "randomSeed": "required_only_when_a_random_impairment_is_configured",
+      "commandTemplate": "tc qdisc replace dev {device} root netem limit 1000 delay 25ms rate {rate_kbit}kbit",
+      "versionEvidence": "record_tc_V_and_installed_package_before_run"
+    }
+  }
+}
