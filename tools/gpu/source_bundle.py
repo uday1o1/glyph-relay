@@ -540,6 +540,10 @@ def verify_result_checksums(root: Path) -> None:
     checksum_path = root / "SHA256SUMS"
     if not checksum_path.is_file() or checksum_path.is_symlink():
         raise BundleError("result_checksums_missing")
+    for member in root.rglob("*"):
+        mode = member.lstat().st_mode
+        if not stat.S_ISREG(mode) and not stat.S_ISDIR(mode):
+            raise BundleError("result_member_type_invalid")
     declared: set[str] = set()
     for line in checksum_path.read_text(encoding="utf-8").splitlines():
         digest, separator, raw_path = line.partition("  ")

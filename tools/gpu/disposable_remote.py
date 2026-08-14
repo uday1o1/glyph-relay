@@ -54,9 +54,22 @@ def run_disposable_remote(repository_root: Path) -> None:
             namespace / f"exports/{run_id}.tar.sha256",
             extracted_result,
         )
+        extracted_public = Path(temporary) / "verified-public"
+        verify_result_archive(
+            namespace / f"exports/{run_id}-public.tar",
+            namespace / f"exports/{run_id}-public.tar.sha256",
+            extracted_public,
+        )
         status = json.loads((extracted_result / "status.json").read_text(encoding="utf-8"))
         if status.get("status") != "PASSED" or status.get("bundle_id") != bundle.bundle_id:
             raise RuntimeError("disposable_remote_result_invalid")
+        public_summary = json.loads((extracted_public / "summary.json").read_text(encoding="utf-8"))
+        if (
+            public_summary.get("status") != "PASSED"
+            or public_summary.get("bundle_id") != bundle.bundle_id
+            or public_summary.get("publication_review_required") is not True
+        ):
+            raise RuntimeError("disposable_public_evidence_invalid")
         if not any(
             path.read_text(encoding="utf-8") == "verified\n"
             for path in extracted_result.glob("phases/resumable-command/*/evidence.txt")

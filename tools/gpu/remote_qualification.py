@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
 import os
 import platform
 import re
 import shutil
+import signal
 import socket
 import stat
 import subprocess
@@ -21,6 +23,13 @@ from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Any, TextIO
 
+from tools.gpu.public_evidence import PublicEvidenceError, create_public_evidence
+from tools.gpu.resource_policy import (
+    ResourcePolicyError,
+    evaluate_nvenc_performance_samples,
+    metrics_json,
+    parse_gpu_metrics,
+)
 from tools.gpu.source_bundle import BundleError, load_manifest, validate_extracted_source
 
 RUN_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
@@ -63,6 +72,8 @@ class PhaseDefinition:
     commands: tuple[tuple[str, ...], ...]
     environment_names: tuple[str, ...] = ()
     environment_values: tuple[tuple[str, str], ...] = ()
+    timeout_seconds: int = 7_200
+    resource_policy: str = "none"
 
 
 @dataclass
@@ -244,6 +255,7 @@ def capture_environment(context: RunContext) -> dict[str, Any]:
         "corepack": ["corepack", "--version"],
         "uv": ["uv", "--version"],
         "ffmpeg": ["ffmpeg", "-version"],
+        "journalctl": ["journalctl", "--version"],
         "tshark": ["tshark", "--version"],
         "tmux": ["tmux", "-V"],
     }.items():
@@ -288,6 +300,33 @@ def capture_environment(context: RunContext) -> dict[str, Any]:
         "tools": versions,
         "gpus": gpus,
         "gpu_inventory_error": stderr[:1_024] if returncode else "",
+        "bundle_id": context.bundle_id,
+    }
+    fingerprint_value = dict(environment)
+    fingerprint_value.pop("captured_at_utc", None)
+    environment["fingerprint_sha256"] = sha256_bytes(canonical_json(fingerprint_value))
+    return environment
+
+
+def fallback_environment(context: RunContext, reason: str) -> dict[str, Any]:
+    environment = {
+        "schema_version": 1,
+        "captured_at_utc": utc_now(),
+        "hostname_class": "linux_gpu_workstation",
+        "hostname_sha256": sha256_bytes(socket.gethostname().encode()),
+        "os": {},
+        "kernel": platform.release(),
+        "architecture": platform.machine(),
+        "cpu": platform.processor() or "unreported",
+        "desktop": {
+            "session_type": "unavailable",
+            "display_present": False,
+            "wayland_display_present": False,
+            "runtime_directory_present": False,
+        },
+        "tools": {},
+        "gpus": [],
+        "gpu_inventory_error": reason,
         "bundle_id": context.bundle_id,
     }
     fingerprint_value = dict(environment)
@@ -453,6 +492,10 @@ class ResourceSampler:
         self.lock = lock
         self.stop_event = threading.Event()
         self.failure: str | None = None
+        self.active_phase: str | None = None
+        self.phase_samples: dict[str, list[dict[str, Any]]] = {}
+        self.phase_lock = threading.Lock()
+        self.sample_lock = threading.Lock()
         self.thread = threading.Thread(
             target=self._run, name="glyphrelay-gpu-sampler", daemon=False
         )
@@ -462,44 +505,154 @@ class ResourceSampler:
 
     def stop(self) -> None:
         self.stop_event.set()
-        self.thread.join(timeout=15)
+        self.thread.join(timeout=20)
         if self.thread.is_alive():
             raise QualificationError("resource_sampler_did_not_stop")
         if self.failure:
             raise QualificationError(self.failure)
 
-    def _run(self) -> None:
-        sample_path = self.context.run_root / "resource-samples.jsonl"
-        while not self.stop_event.is_set():
-            command = [
+    def begin_performance_phase(self, phase: str) -> None:
+        with self.phase_lock:
+            if self.active_phase is not None:
+                raise QualificationError("resource_sampler_phase_already_active")
+            self.active_phase = phase
+            self.phase_samples[phase] = []
+        self._sample_once()
+
+    def end_performance_phase(self, phase: str) -> list[dict[str, Any]]:
+        self._sample_once()
+        with self.phase_lock:
+            if self.active_phase != phase:
+                raise QualificationError("resource_sampler_phase_identity_mismatch")
+            self.active_phase = None
+            return list(self.phase_samples[phase])
+
+    def process_belongs_to_runner(self, process_id: int) -> bool:
+        runner_id = os.getpid()
+        current = process_id
+        visited: set[int] = set()
+        for _ in range(64):
+            if current == runner_id:
+                return True
+            if current <= 1 or current in visited:
+                return False
+            visited.add(current)
+            try:
+                status = Path(f"/proc/{current}/status").read_text(encoding="utf-8")
+            except OSError:
+                return False
+            parent_line = next(
+                (line for line in status.splitlines() if line.startswith("PPid:")), None
+            )
+            if parent_line is None:
+                return False
+            try:
+                current = int(parent_line.split(":", 1)[1].strip())
+            except ValueError:
+                return False
+        return False
+
+    def foreign_compute_processes(self, output: str) -> list[dict[str, Any]]:
+        foreign: list[dict[str, Any]] = []
+        for line in output.splitlines():
+            fields = [field.strip() for field in line.split(",")]
+            if len(fields) != 4 or fields[3] != self.gpu_uuid:
+                continue
+            try:
+                process_id = int(fields[0])
+            except ValueError:
+                foreign.append({"pid": -1, "name": "unparseable", "used_memory_mib": fields[2]})
+                continue
+            if not self.process_belongs_to_runner(process_id):
+                foreign.append(
+                    {
+                        "pid": process_id,
+                        "name": redact(fields[1][:256], self.context),
+                        "used_memory_mib": fields[2],
+                    }
+                )
+        return foreign
+
+    def _sample_once(self) -> None:
+        with self.sample_lock:
+            gpu_command = [
                 "nvidia-smi",
                 f"--id={self.gpu_uuid}",
-                "--query-gpu=timestamp,uuid,utilization.gpu,memory.used,clocks.sm,temperature.gpu,power.draw,clocks_throttle_reasons.active,ecc.errors.uncorrected.volatile.total",
+                "--query-gpu=timestamp,uuid,utilization.gpu,utilization.encoder,memory.used,"
+                "clocks.sm,clocks.video,temperature.gpu,power.draw,"
+                "clocks_throttle_reasons.active,ecc.errors.uncorrected.volatile.total",
                 "--format=csv,noheader,nounits",
             ]
-            returncode, stdout, stderr = command_output(command, timeout=10)
+            returncode, stdout, stderr = command_output(gpu_command, timeout=5)
+            metrics: dict[str, float | int] | None = None
+            metric_error = ""
+            if returncode == 0:
+                try:
+                    metrics = metrics_json(parse_gpu_metrics(stdout, self.gpu_uuid))
+                except ResourcePolicyError as error:
+                    metric_error = str(error)
             process_code, process_stdout, process_stderr = command_output(
                 [
                     "nvidia-smi",
                     "--query-compute-apps=pid,process_name,used_memory,gpu_uuid",
                     "--format=csv,noheader,nounits",
                 ],
-                timeout=10,
+                timeout=5,
             )
+            foreign_processes = (
+                self.foreign_compute_processes(process_stdout) if process_code == 0 else []
+            )
+            xid_code, xid_stdout, xid_stderr = command_output(
+                [
+                    "journalctl",
+                    "--dmesg",
+                    "--since",
+                    "-10 seconds",
+                    "--no-pager",
+                    "--grep",
+                    "NVRM.*Xid",
+                ],
+                timeout=5,
+            )
+            xid_events = [
+                redact(line[:1_024], self.context)
+                for line in xid_stdout.splitlines()
+                if "Xid" in line
+            ]
+            with self.phase_lock:
+                phase = self.active_phase
             sample = {
                 "captured_at_utc": utc_now(),
-                "returncode": returncode,
-                "gpu": stdout.strip()[:2_048],
-                "gpu_error": stderr.strip()[:1_024],
-                "process_returncode": process_code,
-                "processes": process_stdout.strip().splitlines()[:128],
-                "process_error": process_stderr.strip()[:1_024],
+                "phase": phase,
+                "gpu_query_passed": returncode == 0 and metrics is not None,
+                "metrics": metrics,
+                "gpu_error": redact((metric_error or stderr.strip())[:1_024], self.context),
+                "process_query_passed": process_code == 0,
+                "foreign_compute_processes": foreign_processes,
+                "process_error": redact(process_stderr.strip()[:1_024], self.context),
+                "xid_query_passed": xid_code == 0,
+                "xid_events": xid_events,
+                "xid_error": redact(xid_stderr.strip()[:1_024], self.context),
             }
-            append_durable(sample_path, json.dumps(sample, sort_keys=True) + "\n")
+            append_durable(
+                self.context.run_root / "resource-samples.jsonl",
+                json.dumps(sample, sort_keys=True) + "\n",
+            )
+            if phase is not None:
+                with self.phase_lock:
+                    self.phase_samples.setdefault(phase, []).append(sample)
             try:
                 refresh_lock(self.lock)
             except (OSError, ValueError, json.JSONDecodeError) as error:
                 self.failure = f"resource_sampler_lock_refresh_failed:{type(error).__name__}"
+                self.stop_event.set()
+
+    def _run(self) -> None:
+        while not self.stop_event.is_set():
+            try:
+                self._sample_once()
+            except Exception as error:  # noqa: BLE001 - surfaced by stop as a blocked run
+                self.failure = f"resource_sampler_failed:{type(error).__name__}"
                 self.stop_event.set()
                 return
             self.stop_event.wait(5)
@@ -559,7 +712,7 @@ def load_phases(path: Path) -> tuple[PhaseDefinition, ...]:
             "environment_names",
         }
         if not required_fields.issubset(raw) or not set(raw).issubset(
-            required_fields | {"environment_values"}
+            required_fields | {"environment_values", "resource_policy", "timeout_seconds"}
         ):
             raise QualificationError("qualification_phase_fields_invalid")
         identifier = raw.get("id")
@@ -574,6 +727,8 @@ def load_phases(path: Path) -> tuple[PhaseDefinition, ...]:
         commands = raw.get("commands", [])
         environment_names = raw.get("environment_names", [])
         environment_values = raw.get("environment_values", {})
+        timeout_seconds = raw.get("timeout_seconds", 7_200)
+        resource_policy = raw.get("resource_policy", "none")
         if (
             not isinstance(raw.get("title"), str)
             or raw.get("kind") not in {"command", "gpu_selection", "interactive", "preflight"}
@@ -595,6 +750,12 @@ def load_phases(path: Path) -> tuple[PhaseDefinition, ...]:
                 for key, item in environment_values.items()
             )
             or not set(environment_values).issubset(environment_names)
+            or not isinstance(timeout_seconds, int)
+            or isinstance(timeout_seconds, bool)
+            or not 1 <= timeout_seconds <= 86_400
+            or resource_policy not in {"none", "nvenc-performance-v1"}
+            or (raw.get("kind") == "command" and not commands)
+            or (raw.get("kind") != "command" and resource_policy != "none")
         ):
             raise QualificationError(f"qualification_phase_invalid:{identifier}")
         phases.append(
@@ -607,6 +768,8 @@ def load_phases(path: Path) -> tuple[PhaseDefinition, ...]:
                 commands=tuple(tuple(command) for command in commands),
                 environment_names=tuple(environment_names),
                 environment_values=tuple(sorted(environment_values.items())),
+                timeout_seconds=timeout_seconds,
+                resource_policy=resource_policy,
             )
         )
     ordered: set[str] = set()
@@ -647,6 +810,8 @@ def phase_input_identity(
         ],
         "environment_names": sorted(phase.environment_names),
         "environment_values_sha256": sha256_bytes(canonical_json(dict(phase.environment_values))),
+        "timeout_seconds": phase.timeout_seconds,
+        "resource_policy": phase.resource_policy,
     }
     return sha256_bytes(canonical_json(identity))
 
@@ -694,7 +859,8 @@ def run_bounded_command(
     environment: Mapping[str, str],
     stdout_stream: TextIO,
     stderr_stream: TextIO,
-) -> int:
+    timeout_seconds: float,
+) -> tuple[int, bool]:
     process = subprocess.Popen(  # noqa: S603 - arguments are a validated array without a shell
         list(command),
         cwd=context.source_root,
@@ -703,6 +869,7 @@ def run_bounded_command(
         stderr=subprocess.PIPE,
         text=True,
         errors="replace",
+        start_new_session=True,
     )
     if process.stdout is None or process.stderr is None:
         process.kill()
@@ -736,7 +903,19 @@ def run_bounded_command(
     stderr_thread = threading.Thread(target=drain, args=(process.stderr, stderr_stream))
     stdout_thread.start()
     stderr_thread.start()
-    returncode = process.wait()
+    timed_out = False
+    try:
+        returncode = process.wait(timeout=timeout_seconds)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(process.pid, signal.SIGTERM)
+        try:
+            returncode = process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(process.pid, signal.SIGKILL)
+            returncode = process.wait(timeout=10)
     stdout_thread.join()
     stderr_thread.join()
     if failures:
@@ -745,7 +924,7 @@ def run_bounded_command(
     stderr_stream.flush()
     os.fsync(stdout_stream.fileno())
     os.fsync(stderr_stream.fileno())
-    return returncode
+    return returncode, timed_out
 
 
 def run_command_phase(
@@ -762,7 +941,14 @@ def run_command_phase(
     stdout_path = attempt / "stdout.log"
     stderr_path = attempt / "stderr.log"
     started = time.monotonic()
+    deadline = started + phase.timeout_seconds
     returncodes: list[int] = []
+    timed_out = False
+    performance_samples: list[dict[str, Any]] | None = None
+    if phase.resource_policy == "nvenc-performance-v1":
+        if context.sampler is None or context.selected_gpu is None:
+            raise QualificationError("performance_phase_without_selected_gpu_sampler")
+        context.sampler.begin_performance_phase(phase.identifier)
     with (
         stdout_path.open("w", encoding="utf-8") as stdout_stream,
         stderr_path.open("w", encoding="utf-8") as stderr_stream,
@@ -776,6 +962,8 @@ def run_command_phase(
                 "started_at_utc": utc_now(),
                 "arguments": [redact(argument, context) for argument in command],
                 "environment_names": sorted(phase.environment_names),
+                "resource_policy": phase.resource_policy,
+                "timeout_seconds": phase.timeout_seconds,
             }
             append_durable(context.run_root / "commands.jsonl", json.dumps(command_record) + "\n")
             allowed_environment = BASE_COMMAND_ENVIRONMENT | set(phase.environment_names)
@@ -785,23 +973,48 @@ def run_command_phase(
             environment.update(phase.environment_values)
             if context.selected_gpu:
                 environment["CUDA_VISIBLE_DEVICES"] = str(context.selected_gpu["uuid"])
-            returncode = run_bounded_command(
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                returncodes.append(124)
+                timed_out = True
+                break
+            returncode, command_timed_out = run_bounded_command(
                 command,
                 context,
                 environment,
                 stdout_stream,
                 stderr_stream,
+                remaining,
             )
             returncodes.append(returncode)
-            if returncode != 0:
+            timed_out = timed_out or command_timed_out
+            if returncode != 0 or command_timed_out:
                 break
+    if phase.resource_policy == "nvenc-performance-v1":
+        if context.sampler is None:
+            raise QualificationError("performance_sampler_disappeared")
+        performance_samples = context.sampler.end_performance_phase(phase.identifier)
     duration = time.monotonic() - started
-    status = "PASSED" if returncodes and all(code == 0 for code in returncodes) else "FAILED"
+    status = (
+        "BLOCKED"
+        if timed_out
+        else "PASSED"
+        if returncodes and all(code == 0 for code in returncodes)
+        else "FAILED"
+    )
     reason = (
-        "commands_passed"
+        "phase_timeout"
+        if timed_out
+        else "commands_passed"
         if status == "PASSED"
         else f"command_exit_{returncodes[-1] if returncodes else 127}"
     )
+    if performance_samples is not None:
+        assessment = evaluate_nvenc_performance_samples(performance_samples)
+        atomic_json(attempt / "resource-assessment.json", assessment)
+        if status == "PASSED" and assessment["status"] != "PASSED":
+            status = "FAILED"
+            reason = "performance_environment_invalid"
     output_hashes = {
         stdout_path.relative_to(context.run_root).as_posix(): sha256_file(stdout_path),
         stderr_path.relative_to(context.run_root).as_posix(): sha256_file(stderr_path),
@@ -880,6 +1093,7 @@ def run_preflight_phase(
         "c++",
         "ffmpeg",
         "git",
+        "journalctl",
         "make",
         "ninja",
         "node",
@@ -1110,25 +1324,18 @@ def write_checksums(context: RunContext) -> None:
     atomic_write(context.run_root / "SHA256SUMS", ("\n".join(entries) + "\n").encode())
 
 
-def export_result_bundle(context: RunContext) -> tuple[Path, Path]:
-    exports = context.namespace / "exports"
-    exports.mkdir(mode=0o700, exist_ok=True)
-    os.chmod(exports, 0o700)
-    archive = exports / f"{context.run_id}.tar"
-    checksum = exports / f"{context.run_id}.tar.sha256"
-    if archive.exists() or checksum.exists():
-        raise QualificationError("qualification_export_already_exists")
-    descriptor, temporary_name = tempfile.mkstemp(prefix=f".{context.run_id}.", dir=exports)
+def export_directory(source_root: Path, archive: Path, checksum: Path) -> tuple[Path, Path]:
+    descriptor, temporary_name = tempfile.mkstemp(prefix=f".{archive.name}.", dir=archive.parent)
     os.close(descriptor)
     temporary = Path(temporary_name)
     try:
         with tarfile.open(temporary, "w", format=tarfile.PAX_FORMAT) as output:
-            for path in sorted(context.run_root.rglob("*")):
+            for path in sorted(source_root.rglob("*")):
                 if path.is_dir():
                     continue
                 if path.is_symlink() or not path.is_file():
                     raise QualificationError("qualification_result_special_file")
-                relative = path.relative_to(context.run_root).as_posix()
+                relative = path.relative_to(source_root).as_posix()
                 information = output.gettarinfo(str(path), arcname=relative)
                 information.uid = 0
                 information.gid = 0
@@ -1136,14 +1343,95 @@ def export_result_bundle(context: RunContext) -> tuple[Path, Path]:
                 information.gname = ""
                 with path.open("rb") as stream:
                     output.addfile(information, stream)
+        digest = sha256_file(temporary)
+        expected_checksum = f"{digest}  {archive.name}\n"
+        if archive.exists() or checksum.exists():
+            if (
+                not archive.is_file()
+                or archive.is_symlink()
+                or not checksum.is_file()
+                or checksum.is_symlink()
+                or sha256_file(archive) != digest
+                or checksum.read_text(encoding="utf-8") != expected_checksum
+            ):
+                raise QualificationError("qualification_existing_export_mismatch")
+            return archive, checksum
         os.replace(temporary, archive)
         os.chmod(archive, 0o600)
-        digest = sha256_file(archive)
-        atomic_write(checksum, f"{digest}  {archive.name}\n".encode())
-        fsync_directory(exports)
+        atomic_write(checksum, expected_checksum.encode())
+        fsync_directory(archive.parent)
         return archive, checksum
     finally:
         temporary.unlink(missing_ok=True)
+
+
+def export_result_bundle(context: RunContext) -> tuple[Path, Path]:
+    exports = context.namespace / "exports"
+    exports.mkdir(mode=0o700, exist_ok=True)
+    os.chmod(exports, 0o700)
+    archive = exports / f"{context.run_id}.tar"
+    checksum = exports / f"{context.run_id}.tar.sha256"
+    return export_directory(context.run_root, archive, checksum)
+
+
+def export_public_evidence(context: RunContext) -> tuple[Path, Path]:
+    exports = context.namespace / "exports"
+    exports.mkdir(mode=0o700, exist_ok=True)
+    os.chmod(exports, 0o700)
+    archive = exports / f"{context.run_id}-public.tar"
+    checksum = exports / f"{context.run_id}-public.tar.sha256"
+    return export_directory(context.run_root / "public-evidence", archive, checksum)
+
+
+def record_runner_integrity(
+    context: RunContext,
+    results: dict[str, dict[str, Any]],
+    status: str,
+    reason: str,
+) -> None:
+    phase = PhaseDefinition(
+        identifier="runner-integrity",
+        title="Qualification runner completion and cleanup integrity",
+        kind="command",
+        required=True,
+        dependencies=(),
+        commands=(),
+    )
+    attempt = phase_attempt_directory(context, phase)
+    result = blocked_result(phase, reason)
+    result["status"] = status
+    result["input_sha256"] = sha256_bytes(
+        canonical_json({"bundle_id": context.bundle_id, "reason": reason})
+    )
+    result["reason"] = reason
+    write_phase_result(context, phase, attempt, result)
+    results[phase.identifier] = result
+
+
+def finalize_run(
+    context: RunContext,
+    status: str,
+    results: Mapping[str, Mapping[str, Any]],
+) -> None:
+    commands_path = context.run_root / "commands.jsonl"
+    if not commands_path.exists():
+        atomic_write(commands_path, b"")
+    write_junit(context, results)
+    write_report(context, status, results)
+    write_status(context, status, results)
+    manifest = load_manifest(context.manifest_path)
+    create_public_evidence(
+        context.run_root,
+        context.bundle_id,
+        str(manifest["git_commit"]),
+        status,
+        context.environment,
+        results,
+        (str(context.source_root), str(context.namespace), str(Path.home())),
+    )
+    write_checksums(context)
+    export_public_evidence(context)
+    export_result_bundle(context)
 
 
 def execute(context: RunContext, phase_manifest: Path) -> str:
@@ -1151,14 +1439,23 @@ def execute(context: RunContext, phase_manifest: Path) -> str:
     results: dict[str, dict[str, Any]] = {}
     bundle_lock = acquire_lock(context, f"bundle-{context.bundle_id}")
     bundle_heartbeat = LockHeartbeat(bundle_lock)
-    heartbeat_stopped = False
+    runner_error: Exception | None = None
+    cleanup_errors: list[Exception] = []
     try:
         bundle_heartbeat.start()
-        context.environment = capture_environment(context)
+        try:
+            context.environment = capture_environment(context)
+        except Exception as error:  # noqa: BLE001 - retained as a truthful blocked result
+            runner_error = error
+            context.environment = fallback_environment(
+                context, f"environment_capture_failed:{type(error).__name__}"
+            )
         context.environment_fingerprint = str(context.environment["fingerprint_sha256"])
         atomic_json(context.run_root / "environment.json", context.environment)
         write_status(context, "RUNNING", results)
         for phase in phases:
+            if runner_error is not None:
+                break
             dependency_failure = next(
                 (
                     dependency
@@ -1195,41 +1492,75 @@ def execute(context: RunContext, phase_manifest: Path) -> str:
             write_phase_result(context, phase, attempt, result)
             results[phase.identifier] = result
             write_status(context, "RUNNING", results)
-        status = top_level_status(results, phases)
-        if context.sampler:
-            context.sampler.stop()
-            context.sampler = None
-        bundle_heartbeat.stop()
-        heartbeat_stopped = True
-        write_junit(context, results)
-        write_report(context, status, results)
-        write_status(context, status, results)
-        write_checksums(context)
-        export_result_bundle(context)
-        return status
+    except Exception as error:  # noqa: BLE001 - converted into a complete nonpassing bundle
+        runner_error = error
     finally:
-        cleanup_error: Exception | None = None
         if context.sampler:
             try:
                 context.sampler.stop()
-            except Exception as error:  # noqa: BLE001 - cleanup must release every lock
-                cleanup_error = error
-        if not heartbeat_stopped:
-            try:
-                bundle_heartbeat.stop()
-            except Exception as error:  # noqa: BLE001 - cleanup must release every lock
-                cleanup_error = cleanup_error or error
+            except Exception as error:  # noqa: BLE001 - recorded below
+                cleanup_errors.append(error)
+            context.sampler = None
         if context.gpu_lock:
             try:
                 release_lock(context.gpu_lock)
-            except Exception as error:  # noqa: BLE001 - continue with bundle lock cleanup
-                cleanup_error = cleanup_error or error
+            except Exception as error:  # noqa: BLE001 - recorded below
+                cleanup_errors.append(error)
+            context.gpu_lock = None
+        try:
+            bundle_heartbeat.stop()
+        except Exception as error:  # noqa: BLE001 - recorded below
+            cleanup_errors.append(error)
+        atomic_json(
+            context.run_root / "runner.json",
+            {
+                "schema_version": 1,
+                "pid": os.getpid(),
+                "state": "FINALIZING",
+                "updated_at_utc": utc_now(),
+            },
+        )
         try:
             release_lock(bundle_lock)
-        except Exception as error:  # noqa: BLE001 - report after all cleanup attempts
-            cleanup_error = cleanup_error or error
-        if cleanup_error:
-            raise cleanup_error
+        except Exception as error:  # noqa: BLE001 - recorded below
+            cleanup_errors.append(error)
+
+    failure_reason = ""
+    integrity_status = "PASSED"
+    if runner_error is not None:
+        failure_reason = f"runner_error:{type(runner_error).__name__}"
+        integrity_status = (
+            "BLOCKED"
+            if isinstance(
+                runner_error,
+                (OSError, subprocess.SubprocessError, QualificationError, PublicEvidenceError),
+            )
+            else "FAILED"
+        )
+    if cleanup_errors:
+        failure_reason = "runner_cleanup_failed:" + ",".join(
+            sorted({type(error).__name__ for error in cleanup_errors})
+        )
+        integrity_status = "BLOCKED"
+    for phase in phases:
+        if phase.identifier in results:
+            continue
+        attempt = phase_attempt_directory(context, phase)
+        result = blocked_result(phase, failure_reason or "runner_stopped_before_phase")
+        write_phase_result(context, phase, attempt, result)
+        results[phase.identifier] = result
+    record_runner_integrity(
+        context,
+        results,
+        integrity_status,
+        failure_reason or "runner_completed_and_cleanup_passed",
+    )
+    status = top_level_status(
+        results,
+        (*phases, PhaseDefinition("runner-integrity", "Runner integrity", "command", True, (), ())),
+    )
+    finalize_run(context, status, results)
+    return status
 
 
 def parser() -> argparse.ArgumentParser:
@@ -1251,8 +1582,15 @@ def main() -> int:
             raise QualificationError("qualification_phase_manifest_outside_source")
         status = execute(context, phase_manifest)
         return 0 if status == "PASSED" else 4 if status == "FAILED" else 5
-    except (QualificationError, BundleError, OSError, ValueError, json.JSONDecodeError) as error:
-        if context:
+    except (
+        QualificationError,
+        PublicEvidenceError,
+        BundleError,
+        OSError,
+        ValueError,
+        json.JSONDecodeError,
+    ) as error:
+        if context and not (context.run_root / "status.json").exists():
             atomic_json(
                 context.run_root / "status.json",
                 {
@@ -1271,7 +1609,7 @@ def main() -> int:
             )
         reason = (
             str(error)
-            if isinstance(error, (QualificationError, BundleError))
+            if isinstance(error, (QualificationError, PublicEvidenceError, BundleError))
             else type(error).__name__
         )
         print(f"qualification blocked: {reason}", file=sys.stderr)

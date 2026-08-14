@@ -68,21 +68,49 @@ A lock is reclaimed only after its heartbeat is stale and both its recorded proc
 
 Every phase writes into a timestamped private directory and durably records redacted commands, named environment variables, redacted bounded logs, duration, result state, and output hashes.
 
+Every command phase has a frozen wall-clock bound from one second through 24 hours.
+
+A timeout terminates the complete process group, records `BLOCKED`, and can never become passing evidence.
+
 An interrupted successful phase is reusable only when its result hash, input hash, executable identity, environment fingerprint, and every declared output hash still match.
 
 Independent phases continue after a nonfatal failure so one cycle returns a consolidated action report.
+
+The required `runner-integrity` phase records environment-capture, sampler, GPU-lock, heartbeat, and bundle-lock cleanup failures before final status derivation.
+
+An environment-capture or runner fault produces a complete nonpassing result with blocked remaining phases whenever the private run directory remains writable.
+
+### Performance contamination policy
+
+The GPU sampler begins after deterministic device selection and records structured five-second samples plus synchronous phase-boundary samples.
+
+Each sample contains GPU and NVENC utilization, memory use, SM and video clocks, temperature, power, active throttle reasons, volatile uncorrected ECC totals, competing compute processes, and kernel-journal NVIDIA Xid events.
+
+Process ancestry distinguishes qualification subprocesses from foreign compute workloads on the selected GPU.
+
+The frozen `nvenc-performance-v1` policy requires at least two complete samples, readable GPU, process, and Xid telemetry, observed NVENC activity, no foreign compute process, no Xid event, no increase in volatile uncorrected ECC errors, temperature at or below 83 C, no active throttle reason while NVENC is busy, and an active video-clock minimum at least 75 percent of its active maximum.
+
+A command success with any resource-policy violation becomes `FAILED` with a structured `resource-assessment.json` artifact.
 
 ## Results
 
 The runner always treats absent hardware, missing tools, unsupported NVENC capabilities, unavailable desktop interaction, and infrastructure faults as `BLOCKED` or `FAILED`.
 
-A normal completed result contains `status.json`, `environment.json`, `commands.jsonl`, `junit.xml`, `REPORT.md`, phase records, artifacts, and `SHA256SUMS`.
+A normal completed result contains `status.json`, `environment.json`, `commands.jsonl`, `runner.json`, `junit.xml`, `REPORT.md`, phase records, artifacts, a `public-evidence` candidate, and `SHA256SUMS`.
 
 Blocked runs also contain `USER_ACTION_REQUIRED.md` with the consolidated prerequisites and the stable resume command.
 
-The remote result archive has an external SHA-256 file.
+The remote private result archive and the separate public-evidence archive each have an external SHA-256 file.
 
-The Mac-side entry point downloads both into a newly created ignored directory under `artifacts/gpu-runs/<run-id>`, safely extracts the archive, verifies its complete internal member set, and checks the run and bundle identities.
+The Mac-side entry point downloads both archives and both checksum files into a newly created ignored directory under `artifacts/gpu-runs/<run-id>`, safely extracts them, verifies both complete internal member sets, and checks their run, source, status, and bundle identities.
+
+The public-evidence candidate includes only allowlisted JSON summaries from passing phases plus a reduced platform and phase summary.
+
+Generation rejects user paths, qualification paths, private IPv4 addresses, GPU UUIDs, credential-bearing URIs, and private-key markers.
+
+Automated redaction does not authorize publication.
+
+`PUBLICATION_REVIEW_REQUIRED.md` and the schema-level `publication_review_required` flag require a separate human claim-to-evidence review before any public use.
 
 The entry point prints one JSON summary and returns:
 

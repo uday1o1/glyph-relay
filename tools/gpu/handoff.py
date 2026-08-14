@@ -94,14 +94,20 @@ root, run_id, bundle_id = sys.argv[1:4]
 status_path = os.path.join(root, "runs", run_id, "status.json")
 archive = os.path.join(root, "exports", run_id + ".tar")
 checksum = archive + ".sha256"
+public_archive = os.path.join(root, "exports", run_id + "-public.tar")
+public_checksum = public_archive + ".sha256"
 owner_path = os.path.join(root, "locks", "bundle-" + bundle_id, "owner.json")
+runner_path = os.path.join(root, "runs", run_id, "runner.json")
 runner_alive = False
-if os.path.isfile(owner_path):
+for process_path in (owner_path, runner_path):
+    if not os.path.isfile(process_path):
+        continue
     try:
-        with open(owner_path, encoding="utf-8") as stream:
+        with open(process_path, encoding="utf-8") as stream:
             owner = json.load(stream)
         os.kill(int(owner.get("pid", -1)), 0)
         runner_alive = True
+        break
     except (OSError, TypeError, ValueError, json.JSONDecodeError):
         pass
 value = {"status": "NOT_STARTED", "export_ready": False, "runner_alive": runner_alive}
@@ -109,7 +115,9 @@ if os.path.isfile(status_path):
     with open(status_path, encoding="utf-8") as stream:
         status = json.load(stream)
     value["status"] = status.get("status", "INVALID")
-value["export_ready"] = os.path.isfile(archive) and os.path.isfile(checksum)
+value["export_ready"] = all(
+    os.path.isfile(path) for path in (archive, checksum, public_archive, public_checksum)
+)
 print(json.dumps(value, sort_keys=True))
 """
 
@@ -498,6 +506,7 @@ def retrieve_result(
     destination = artifacts / run_id
     if destination.exists():
         verify_result_checksums(destination / "result")
+        verify_result_checksums(destination / "public-evidence")
         status = json.loads((destination / "result/status.json").read_text(encoding="utf-8"))
         return destination, status
     incoming = artifacts / f".incoming-{run_id}-{uuid.uuid4().hex}"
@@ -505,15 +514,26 @@ def retrieve_result(
     try:
         archive = incoming / f"{run_id}.tar"
         checksum = incoming / f"{run_id}.tar.sha256"
+        public_archive = incoming / f"{run_id}-public.tar"
+        public_checksum = incoming / f"{run_id}-public.tar.sha256"
         scp_from(host, f"{namespace}/exports/{archive.name}", archive)
         scp_from(host, f"{namespace}/exports/{checksum.name}", checksum)
+        scp_from(host, f"{namespace}/exports/{public_archive.name}", public_archive)
+        scp_from(host, f"{namespace}/exports/{public_checksum.name}", public_checksum)
         destination.mkdir(mode=0o700)
         shutil.move(archive, destination / archive.name)
         shutil.move(checksum, destination / checksum.name)
+        shutil.move(public_archive, destination / public_archive.name)
+        shutil.move(public_checksum, destination / public_checksum.name)
         verify_result_archive(
             destination / archive.name,
             destination / checksum.name,
             destination / "result",
+        )
+        verify_result_archive(
+            destination / public_archive.name,
+            destination / public_checksum.name,
+            destination / "public-evidence",
         )
         status = json.loads((destination / "result/status.json").read_text(encoding="utf-8"))
         return destination, status
@@ -615,6 +635,15 @@ def main() -> int:
         state = status.get("status")
         if state not in TERMINAL_STATES:
             raise HandoffError("retrieved_result_status_not_terminal")
+        public_summary = json.loads(
+            (destination / "public-evidence/summary.json").read_text(encoding="utf-8")
+        )
+        if (
+            public_summary.get("status") != state
+            or public_summary.get("bundle_id") != bundle.bundle_id
+            or public_summary.get("publication_review_required") is not True
+        ):
+            raise HandoffError("retrieved_public_evidence_identity_mismatch")
         complete_run_record(run_record, str(state))
         summary = {
             "status": state,

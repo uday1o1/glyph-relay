@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
@@ -14,6 +15,7 @@ from tools.gpu.source_bundle import (
     safe_extract_bundle,
     validate_extracted_source,
     verify_bundle_metadata,
+    verify_result_checksums,
 )
 
 
@@ -108,3 +110,15 @@ def test_bundle_hashes_and_destination_are_fail_closed(tmp_path: Path) -> None:
     destination.mkdir()
     with pytest.raises(BundleError, match="bundle_destination_exists"):
         safe_extract_bundle(bundle.archive, bundle.manifest, destination)
+
+
+def test_result_verification_rejects_unmanifested_symlink(tmp_path: Path) -> None:
+    result = tmp_path / "result"
+    result.mkdir()
+    artifact = result / "status.json"
+    artifact.write_text("{}\n", encoding="utf-8")
+    digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
+    (result / "SHA256SUMS").write_text(f"{digest}  status.json\n", encoding="utf-8")
+    (result / "escape").symlink_to("status.json")
+    with pytest.raises(BundleError, match="result_member_type_invalid"):
+        verify_result_checksums(result)

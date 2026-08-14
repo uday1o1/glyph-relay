@@ -10,6 +10,7 @@ from xml.etree import ElementTree
 from jsonschema import Draft202012Validator, FormatChecker
 
 from tools.gpu.source_bundle import verify_result_checksums
+from tools.validate_public_evidence import validate_public_evidence
 
 
 def load_json(path: Path) -> Any:
@@ -53,6 +54,30 @@ def validate_qualification(result_root: Path, schema_root: Path) -> None:
             raise ValueError("qualification phase result path is invalid")
         result = load_json(result_path)
         validate_schema(result, schema_root / "qualification-phase-v1.schema.json")
+        for raw_output, expected_hash in result["output_hashes"].items():
+            output_posix = PurePosixPath(raw_output)
+            if (
+                output_posix.is_absolute()
+                or ".." in output_posix.parts
+                or str(output_posix) != raw_output
+            ):
+                raise ValueError("qualification phase output path is invalid")
+            output = (root / Path(*output_posix.parts)).resolve(strict=True)
+            if (
+                not output.is_relative_to(root)
+                or not output.is_file()
+                or output.is_symlink()
+                or hashlib.sha256(output.read_bytes()).hexdigest() != expected_hash
+            ):
+                raise ValueError("qualification phase output hash does not match")
+        assessment = result_path.parent / "resource-assessment.json"
+        if assessment.exists():
+            if assessment.is_symlink() or not assessment.is_file():
+                raise ValueError("qualification resource assessment path is invalid")
+            validate_schema(
+                load_json(assessment),
+                schema_root / "qualification-resource-assessment-v1.schema.json",
+            )
         if state != {
             "schema_version": 1,
             "phase": result["phase"],
@@ -81,6 +106,13 @@ def validate_qualification(result_root: Path, schema_root: Path) -> None:
         raise ValueError("qualification environment and status bundle identities differ")
     if not (root / "REPORT.md").is_file() or not (root / "commands.jsonl").is_file():
         raise ValueError("qualification report or command log is missing")
+    validate_public_evidence(root / "public-evidence", schema_root)
+    public_summary = load_json(root / "public-evidence/summary.json")
+    if (
+        public_summary["status"] != status["status"]
+        or public_summary["bundle_id"] != status["bundle_id"]
+    ):
+        raise ValueError("qualification public evidence identity differs from private result")
     document = ElementTree.parse(root / "junit.xml")
     if document.getroot().tag != "testsuite":
         raise ValueError("qualification JUnit document is invalid")

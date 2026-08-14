@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.invalid/schemas/qualification-public-evidence-v1.schema.json",
+  "title": "GlyphRelay reviewed-publication candidate evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "publication_review_required",
+    "status",
+    "bundle_id",
+    "source_commit",
+    "platform",
+    "phases",
+    "evidence_files",
+    "claim_consequence"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "publication_review_required": { "const": true },
+    "status": { "enum": ["PASSED", "FAILED", "BLOCKED"] },
+    "bundle_id": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "source_commit": { "type": "string", "pattern": "^[0-9a-f]{40,64}$" },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "os",
+        "kernel",
+        "architecture",
+        "gpu_models",
+        "driver_versions",
+        "tools"
+      ],
+      "properties": {
+        "os": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "kernel": { "type": "string" },
+        "architecture": { "type": "string" },
+        "gpu_models": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string" }
+        },
+        "driver_versions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string" }
+        },
+        "tools": {
+          "type": "object",
+          "additionalProperties": { "type": "object" }
+        }
+      }
+    },
+    "phases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "status", "reason", "duration_seconds"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+          "status": {
+            "enum": ["PASSED", "FAILED", "BLOCKED", "DEFERRED_INTERACTIVE"]
+          },
+          "reason": { "type": "string", "minLength": 1 },
+          "duration_seconds": { "type": "number", "minimum": 0 }
+        }
+      }
+    },
+    "evidence_files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^evidence/[a-z0-9][a-z0-9-]{0,63}/[A-Za-z0-9._-]+$"
+          },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    },
+    "claim_consequence": {
+      "enum": [
+        "eligible_for_milestone_review_after_publication_review",
+        "no_hardware_performance_interoperability_or_release_claim_is_accepted"
+      ]
+    }
+  }
+}

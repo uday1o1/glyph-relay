@@ -1,29 +1,34 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
-from tools.gpu import handoff
+from tools.gpu import handoff, remote_qualification
 from tools.gpu.handoff import (
     HandoffError,
     complete_run_record,
     qualification_run_record,
     validate_namespace,
 )
+from tools.gpu.public_evidence import PublicEvidenceError, create_public_evidence
 from tools.gpu.remote_qualification import (
     QualificationError,
     RunContext,
     acquire_lock,
     execute,
+    expand_argument,
     load_phases,
     phase_input_identity,
     release_lock,
     reusable_phase,
+    run_bounded_command,
     validate_context,
 )
 from tools.gpu.source_bundle import (
@@ -31,6 +36,7 @@ from tools.gpu.source_bundle import (
     safe_extract_bundle,
     verify_result_archive,
 )
+from tools.validate_public_evidence import validate_public_evidence
 from tools.validate_qualification import validate_qualification
 
 
@@ -41,6 +47,15 @@ def git(repository: Path, *arguments: str) -> str:
         capture_output=True,
         text=True,
     ).stdout.strip()
+
+
+def rewrite_result_checksums(root: Path) -> None:
+    lines = [
+        f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.relative_to(root).as_posix()}"
+        for path in sorted(root.rglob("*"))
+        if path.is_file() and not path.is_symlink() and path.name != "SHA256SUMS"
+    ]
+    (root / "SHA256SUMS").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def extracted_source(tmp_path: Path) -> tuple[Path, Path, str]:
@@ -68,7 +83,14 @@ def extracted_source(tmp_path: Path) -> tuple[Path, Path, str]:
                                 "python3",
                                 "-c",
                                 "print('token=synthetic http://user:pass@10.0.0.1')",
-                            ]
+                            ],
+                            [
+                                "python3",
+                                "-c",
+                                "import json; from pathlib import Path; "
+                                "Path(r'{phase_dir}/gate.json').write_text("
+                                "json.dumps(dict(status='PASSED')) + '\\n')",
+                            ],
                         ],
                         "environment_names": [],
                     },
@@ -146,6 +168,7 @@ def test_runner_continues_independent_phases_and_exports_complete_failure(
         "failing": "FAILED",
         "independent": "PASSED",
         "passing": "PASSED",
+        "runner-integrity": "PASSED",
     }
     assert (context.run_root / "REPORT.md").is_file()
     assert (context.run_root / "commands.jsonl").is_file()
@@ -158,7 +181,10 @@ def test_runner_continues_independent_phases_and_exports_complete_failure(
     assert "10.0.0.1" not in redacted_log
 
     passing_phase = load_phases(source / "qualification/test-phases.json")[0]
-    stable_commands = [tuple(command) for command in passing_phase.commands]
+    stable_commands = [
+        tuple(expand_argument(argument, context, None) for argument in command)
+        for command in passing_phase.commands
+    ]
     identity = phase_input_identity(passing_phase, context, stable_commands)
     assert reusable_phase(passing_phase, context, identity) is not None
     state = json.loads((context.run_root / "phases/passing/state.json").read_text(encoding="utf-8"))
@@ -172,9 +198,60 @@ def test_runner_continues_independent_phases_and_exports_complete_failure(
     assert reusable_phase(passing_phase, context, identity) is None
     archive = namespace / "exports/test-run.tar"
     checksum = namespace / "exports/test-run.tar.sha256"
+    public_archive = namespace / "exports/test-run-public.tar"
+    public_checksum = namespace / "exports/test-run-public.tar.sha256"
     extracted = tmp_path / "verified-result"
+    public = tmp_path / "verified-public"
     verify_result_archive(archive, checksum, extracted)
+    verify_result_archive(public_archive, public_checksum, public)
     assert json.loads((extracted / "status.json").read_text())["status"] == "FAILED"
+    validate_qualification(extracted, Path("schemas").resolve())
+    validate_public_evidence(public, Path("schemas").resolve())
+    public_content = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in public.rglob("*")
+        if path.is_file() and path.name != "SHA256SUMS"
+    )
+    assert str(source) not in public_content
+    assert str(namespace) not in public_content
+    assert "publication_review_required" in public_content
+    assert (public / "evidence/passing/gate.json").is_file()
+
+    tampered_output = next(extracted.glob("phases/passing/*/gate.json"))
+    tampered_output.write_text('{"status":"TAMPERED"}\n', encoding="utf-8")
+    rewrite_result_checksums(extracted)
+    with pytest.raises(ValueError, match="phase output hash does not match"):
+        validate_qualification(extracted, Path("schemas").resolve())
+
+
+def test_runner_exports_complete_blocked_result_when_environment_capture_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source, namespace, bundle_id = extracted_source(tmp_path)
+    context = context_for(source, namespace, bundle_id)
+
+    def fail_capture(_context: RunContext) -> dict[str, object]:
+        raise OSError("seeded environment failure")
+
+    monkeypatch.setattr(remote_qualification, "capture_environment", fail_capture)
+    previous = Path.cwd()
+    os.chdir(source)
+    try:
+        status = execute(context, source / "qualification/test-phases.json")
+    finally:
+        os.chdir(previous)
+    assert status == "BLOCKED"
+    result = json.loads((context.run_root / "status.json").read_text(encoding="utf-8"))
+    assert result["phases"]["runner-integrity"] == "BLOCKED"
+    assert all(state == "BLOCKED" for state in result["phases"].values())
+    assert (namespace / "exports/test-run.tar").is_file()
+    assert (namespace / "exports/test-run-public.tar").is_file()
+    extracted = tmp_path / "blocked-result"
+    verify_result_archive(
+        namespace / "exports/test-run.tar",
+        namespace / "exports/test-run.tar.sha256",
+        extracted,
+    )
     validate_qualification(extracted, Path("schemas").resolve())
 
 
@@ -252,6 +329,87 @@ def test_phase_manifest_rejects_forward_dependencies(tmp_path: Path) -> None:
     )
     with pytest.raises(QualificationError, match="qualification_phase_dependency_unknown"):
         load_phases(manifest)
+
+
+def test_phase_manifest_rejects_unbounded_timeout(tmp_path: Path) -> None:
+    manifest = tmp_path / "phases.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "phases": [
+                    {
+                        "id": "timeout",
+                        "title": "Invalid timeout",
+                        "kind": "command",
+                        "required": True,
+                        "dependencies": [],
+                        "commands": [["true"]],
+                        "environment_names": [],
+                        "timeout_seconds": 0,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(QualificationError, match="qualification_phase_invalid"):
+        load_phases(manifest)
+
+
+def test_bounded_command_terminates_the_process_group_on_timeout(tmp_path: Path) -> None:
+    context = RunContext(
+        source_root=tmp_path,
+        namespace=tmp_path,
+        bundle_id="a" * 64,
+        run_id="timeout-test",
+        run_root=tmp_path,
+        manifest_path=tmp_path / "SOURCE_MANIFEST.json",
+    )
+    with (
+        (tmp_path / "stdout.log").open("w", encoding="utf-8") as stdout,
+        (tmp_path / "stderr.log").open("w", encoding="utf-8") as stderr,
+    ):
+        returncode, timed_out = run_bounded_command(
+            [sys.executable, "-c", "import time; time.sleep(60)"],
+            context,
+            os.environ,
+            stdout,
+            stderr,
+            0.05,
+        )
+    assert timed_out is True
+    assert returncode != 0
+
+
+def test_public_evidence_rejects_allowlisted_json_with_private_values(tmp_path: Path) -> None:
+    run_root = tmp_path / "run"
+    artifact = run_root / "phases/benchmark/attempt/gate.json"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_text(json.dumps({"status": "PASSED", "path": str(tmp_path)}), encoding="utf-8")
+    results = {
+        "benchmark": {
+            "status": "PASSED",
+            "reason": "commands_passed",
+            "duration_seconds": 1.0,
+            "output_hashes": {
+                artifact.relative_to(run_root).as_posix(): hashlib.sha256(
+                    artifact.read_bytes()
+                ).hexdigest()
+            },
+        }
+    }
+    with pytest.raises(PublicEvidenceError, match="public_artifact_contains_private_value"):
+        create_public_evidence(
+            run_root,
+            "a" * 64,
+            "b" * 40,
+            "PASSED",
+            {"os": {}, "tools": {}, "gpus": []},
+            results,
+            (str(tmp_path),),
+        )
+    assert not (run_root / "public-evidence").exists()
 
 
 def test_terminal_run_without_export_is_relaunched(monkeypatch: pytest.MonkeyPatch) -> None:

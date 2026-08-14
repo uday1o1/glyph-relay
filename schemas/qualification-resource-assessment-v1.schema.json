@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.invalid/schemas/qualification-resource-assessment-v1.schema.json",
+  "title": "GlyphRelay qualification resource assessment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "policy",
+    "status",
+    "sample_count",
+    "active_sample_count",
+    "limits",
+    "observed",
+    "violations"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "policy": { "const": "nvenc-performance-v1" },
+    "status": { "enum": ["PASSED", "FAILED"] },
+    "sample_count": { "type": "integer", "minimum": 0 },
+    "active_sample_count": { "type": "integer", "minimum": 0 },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maximum_temperature_c",
+        "minimum_active_video_clock_fraction",
+        "allowed_active_throttle_mask",
+        "maximum_foreign_compute_processes",
+        "maximum_xid_events",
+        "maximum_volatile_uncorrected_ecc_increase"
+      ],
+      "properties": {
+        "maximum_temperature_c": { "type": "number", "minimum": 0 },
+        "minimum_active_video_clock_fraction": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "allowed_active_throttle_mask": { "const": 0 },
+        "maximum_foreign_compute_processes": { "const": 0 },
+        "maximum_xid_events": { "const": 0 },
+        "maximum_volatile_uncorrected_ecc_increase": { "const": 0 }
+      }
+    },
+    "observed": {
+      "type": "object",
+      "additionalProperties": {
+        "type": ["number", "null"]
+      }
+    },
+    "violations": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

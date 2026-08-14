@@ -8,7 +8,8 @@
       "required": true,
       "dependencies": [],
       "commands": [],
-      "environment_names": []
+      "environment_names": [],
+      "timeout_seconds": 300
     },
     {
       "id": "source-integrity",
@@ -28,7 +29,8 @@
           "{source_root}/SOURCE_MANIFEST.json"
         ]
       ],
-      "environment_names": []
+      "environment_names": [],
+      "timeout_seconds": 300
     },
     {
       "id": "native-dependencies",
@@ -40,7 +42,8 @@
         ["bash", "scripts/bootstrap_nvcodec_headers.sh"],
         ["bash", "scripts/bootstrap_libdatachannel.sh"]
       ],
-      "environment_names": ["HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY"]
+      "environment_names": ["HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY"],
+      "timeout_seconds": 1800
     },
     {
       "id": "language-dependencies",
@@ -58,7 +61,8 @@
         "NO_PROXY",
         "PNPM_HOME",
         "UV_CACHE_DIR"
-      ]
+      ],
+      "timeout_seconds": 1800
     },
     {
       "id": "portable-check",
@@ -67,7 +71,8 @@
       "required": true,
       "dependencies": ["language-dependencies"],
       "commands": [["make", "check"]],
-      "environment_names": ["CC", "CXX", "UV_CACHE_DIR"]
+      "environment_names": ["CC", "CXX", "UV_CACHE_DIR"],
+      "timeout_seconds": 7200
     },
     {
       "id": "sanitizers",
@@ -76,7 +81,8 @@
       "required": true,
       "dependencies": ["preflight", "source-integrity"],
       "commands": [["bash", "scripts/ci/check_sanitizers.sh"]],
-      "environment_names": ["CC", "CXX", "ASAN_OPTIONS", "UBSAN_OPTIONS"]
+      "environment_names": ["CC", "CXX", "ASAN_OPTIONS", "UBSAN_OPTIONS"],
+      "timeout_seconds": 7200
     },
     {
       "id": "gpu-build",
@@ -88,7 +94,8 @@
         ["cmake", "--preset", "linux-gpu", "--fresh"],
         ["cmake", "--build", "--preset", "linux-gpu", "--parallel"]
       ],
-      "environment_names": ["CC", "CXX", "CUDAHOSTCXX", "CUDA_PATH"]
+      "environment_names": ["CC", "CXX", "CUDAHOSTCXX", "CUDA_PATH"],
+      "timeout_seconds": 3600
     },
     {
       "id": "gpu-selection",
@@ -97,7 +104,8 @@
       "required": true,
       "dependencies": ["gpu-build"],
       "commands": [],
-      "environment_names": []
+      "environment_names": [],
+      "timeout_seconds": 300
     },
     {
       "id": "doctor-gpu",
@@ -106,7 +114,8 @@
       "required": true,
       "dependencies": ["gpu-selection"],
       "commands": [["build/linux-gpu/glyphrelay", "doctor", "--json"]],
-      "environment_names": []
+      "environment_names": [],
+      "timeout_seconds": 300
     },
     {
       "id": "nvenc-capability",
@@ -115,7 +124,8 @@
       "required": true,
       "dependencies": ["gpu-selection"],
       "commands": [["build/linux-gpu/glyphrelay_probe_nvenc"]],
-      "environment_names": []
+      "environment_names": [],
+      "timeout_seconds": 300
     },
     {
       "id": "openh264-record-only",
@@ -134,7 +144,8 @@
           "integration\\.(openh264_record_only|ffmpeg_decodes_openh264)"
         ]
       ],
-      "environment_names": []
+      "environment_names": [],
+      "timeout_seconds": 1800
     },
     {
       "id": "transport-contracts",
@@ -143,7 +154,8 @@
       "required": true,
       "dependencies": ["native-dependencies"],
       "commands": [["make", "transport-check"]],
-      "environment_names": ["CC", "CXX"]
+      "environment_names": ["CC", "CXX"],
+      "timeout_seconds": 3600
     },
     {
       "id": "browser-install",
@@ -169,7 +181,8 @@
         "PLAYWRIGHT_BROWSERS_PATH",
         "PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT"
       ],
-      "environment_values": { "PLAYWRIGHT_BROWSERS_PATH": "0" }
+      "environment_values": { "PLAYWRIGHT_BROWSERS_PATH": "0" },
+      "timeout_seconds": 3600
     },
     {
       "id": "browser-offers",
@@ -186,7 +199,8 @@
         ]
       ],
       "environment_names": ["PLAYWRIGHT_BROWSERS_PATH"],
-      "environment_values": { "PLAYWRIGHT_BROWSERS_PATH": "0" }
+      "environment_values": { "PLAYWRIGHT_BROWSERS_PATH": "0" },
+      "timeout_seconds": 600
     },
     {
       "id": "m0-fixed-map-quality",
@@ -215,7 +229,9 @@
           "protocols/m0_fixed_map_v1/manifest.lock"
         ]
       ],
-      "environment_names": []
+      "environment_names": [],
+      "timeout_seconds": 28800,
+      "resource_policy": "nvenc-performance-v1"
     }
   ]
 }
