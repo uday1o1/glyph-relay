@@ -106,7 +106,8 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 | M1-L02A | `IMPLEMENTED_LOCAL` | Bounded nonblocking recorder branch, crash-safe journal, durable publication, streaming inspection, and independent filesystem crash model | Real system-OpenH264 access units; independent FFmpeg decode; all 27 recorder persistence-event process crashes; 28-operation filesystem crash model; three seeded ordering defects; Linux analyzer; ASAN and UBSAN; no-clobber and corruption fixtures |
 | M1-L02B | `IMPLEMENTED_LOCAL` | Public CPU record-only and inspect paths, three-frame latest capture pool, frame-rate drops, fixed-profile conversion, and user-facing durable recording | Exact CLI source-override rejection; injected full record service; six real OpenH264 access units; public JSON inspection; independent FFmpeg decode; label non-disclosure; Linux analyzer; ASAN and UBSAN |
 | M1-L02C | `PENDING_LOCAL` | Public share path, bounded transport queues, recorder and transport branch ownership, and disconnect cleanup | None |
-| M1-L03 | `PENDING_LOCAL` | Self-hosted HTTPS and WSS signaling bundle, capabilities, state machine, timers, control protocol, and adversarial security tests | None |
+| M1-L03A | `IMPLEMENTED_LOCAL` | Self-hosted HTTPS and WSS receiver bundle, separate hashed capabilities, role state machine, monotonic timers, strict receiver control protocol, and adversarial service tests | 14 signaling and control tests within the 31-test TypeScript and JavaScript suite; exact timer simulation through eight hours; live HTTP and WebSocket Host, Origin, replay, rotation, size, and flood tests; digest-pinned production image build; hardened TLS container health check; public-route HTTPS and WSS verifier |
+| M1-L03B | `PENDING_LOCAL` | Sender owner-signaling and control-channel integration plus loopback dashboard nonce and CSRF defenses | None |
 | M1-L04 | `PENDING_LOCAL` | Frozen corpus protocol, renderer inputs, manifests, OCR evaluator, metrics, and lossless development gates | None |
 
 | State | Acceptance item | Evidence |
@@ -115,10 +116,10 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 | `DEFERRED_HARDWARE` | Record-only produces an independently decoded profile stream without signaling or a browser offer | The complete local CLI service produces and independently decodes `recording_profile_candidate_v1`; final acceptance waits for target-only `recording_profile_v1` freeze evidence |
 | `DEFERRED_HARDWARE` | Capture cancel, close, revoke, and shutdown paths pass | None |
 | `PENDING_LOCAL` | Every queue has an asserted bound and disconnects leak no session or frame resource | None |
-| `PENDING_LOCAL` | Token replay, hostile Origin and Host, oversized messages, control floods, and insecure non-loopback binds fail closed | None |
-| `PENDING_LOCAL` | Capability swaps, forged actions, impersonation, fixation, and every invalid transition fail closed without revealing capabilities | None |
-| `PENDING_LOCAL` | Signaling closure, heartbeat, partition, ICE, reservation, join, and absolute timers follow exact transitions without extending absolute lifetime | None |
-| `PENDING_LOCAL` | Stale owner generations and same-session owner reconnects fail closed after revocation | None |
+| `IMPLEMENTED_LOCAL` | Token replay, hostile Origin and Host, oversized messages, control floods, and insecure non-loopback binds fail closed | Live loopback service tests plus strict receiver control parser and ten-message rolling-window flood test |
+| `IMPLEMENTED_LOCAL` | Capability swaps, forged actions, impersonation, fixation, and every invalid transition fail closed without revealing capabilities | Domain-separated keyed-hash state tests, exact-field parser tests, one-receiver reservation tests, and role-confusion transition tests |
+| `IMPLEMENTED_LOCAL` | Signaling closure, heartbeat, partition, ICE, reservation, join, and absolute timers follow exact transitions without extending absolute lifetime | Deterministic monotonic-clock tests cover exact five-second, ten-minute, 15-minute, 30-second, and eight-hour boundaries plus live disconnect cleanup |
+| `IMPLEMENTED_LOCAL` | Stale owner generations and same-session owner reconnects fail closed after revocation | Connection-identity and generation-fencing tests plus idempotent post-revocation cleanup |
 | `PENDING_LOCAL` | Self-hosted HTTPS and WSS routing works and an unconfigured sender creates no remote link | None |
 | `PENDING_LOCAL` | Development lossless OCR bounded error is at most 0.02 overall and 0.05 for 8-to-10-pixel glyphs | None |
 | `PENDING_LOCAL` | Corpus and protocol validation passes without opening validation or final-test renderer output | None |

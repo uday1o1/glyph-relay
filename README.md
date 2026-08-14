@@ -10,6 +10,8 @@ Current evidence and deferred gates are recorded in [docs/implementation-status.
 
 The Linux durable recording protocol, failure behavior, and verification commands are documented in [docs/recording.md](docs/recording.md).
 
+The single-tenant receiver and signaling deployment, security model, and TLS workflow are documented in [docs/signaling.md](docs/signaling.md).
+
 ## Foundation workflow
 
 The portable foundation requires Node.js 24, Corepack, `uv`, Apple Clang or Clang, and Make.

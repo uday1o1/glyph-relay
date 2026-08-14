@@ -213,6 +213,35 @@ def validate_lock(lock: dict[str, Any], root: Path = ROOT) -> list[str]:
     _expect_pattern(errors, container.get("digest"), SHA256, "Linux CPU image digest")
     _expect_equal(errors, container.get("platform"), "linux/amd64", "Linux CPU platform")
 
+    signaling = lock.get("signaling", {})
+    _expect_pattern(
+        errors,
+        signaling.get("node_image_digest_amd64"),
+        SHA256,
+        "signaling Node image digest",
+    )
+    _expect_equal(errors, signaling.get("platform"), "linux/amd64", "signaling platform")
+    for package_name, package_path in {
+        "ws": root / "node_modules/ws/LICENSE",
+        "ws_types": root / "node_modules/@types/ws/LICENSE",
+    }.items():
+        package_lock = signaling.get(package_name, {})
+        _expect_pattern(
+            errors,
+            package_lock.get("license_sha256"),
+            HEX64,
+            f"signaling {package_name} license",
+        )
+        if not package_path.is_file():
+            errors.append(f"installed signaling license is missing: {package_path}")
+        else:
+            _expect_equal(
+                errors,
+                hashlib.sha256(package_path.read_bytes()).hexdigest(),
+                package_lock.get("license_sha256"),
+                f"signaling {package_name} installed license SHA-256",
+            )
+
     package = load_json(root / "package.json")
     playwright = lock.get("playwright", {})
     _expect_equal(
@@ -220,6 +249,24 @@ def validate_lock(lock: dict[str, Any], root: Path = ROOT) -> list[str]:
         package.get("devDependencies", {}).get("@playwright/test"),
         playwright.get("version"),
         "package.json Playwright version",
+    )
+    _expect_equal(
+        errors,
+        package.get("packageManager"),
+        f"pnpm@{signaling.get('pnpm')}",
+        "package.json pnpm version",
+    )
+    _expect_equal(
+        errors,
+        package.get("dependencies", {}).get("ws"),
+        signaling.get("ws", {}).get("version"),
+        "package.json ws version",
+    )
+    _expect_equal(
+        errors,
+        package.get("devDependencies", {}).get("@types/ws"),
+        signaling.get("ws_types", {}).get("version"),
+        "package.json ws types version",
     )
 
     browser_manifests = sorted(
@@ -267,6 +314,13 @@ def validate_lock(lock: dict[str, Any], root: Path = ROOT) -> list[str]:
     for package_name, package_version in expected_capture_packages.items():
         if f"{package_name}={package_version}" not in dockerfile:
             errors.append(f"Linux CPU Dockerfile omits locked {package_name} package")
+
+    signaling_dockerfile = (root / "containers/signaling.Dockerfile").read_text(encoding="utf-8")
+    signaling_image = f"{signaling.get('node_image')}@{signaling.get('node_image_digest_amd64')}"
+    if not signaling_dockerfile.startswith(f"FROM {signaling_image}\n"):
+        errors.append("signaling Dockerfile does not use the locked Node image")
+    if f"pnpm@{signaling.get('pnpm')}" not in signaling_dockerfile:
+        errors.append("signaling Dockerfile omits locked pnpm version")
 
     return errors
 

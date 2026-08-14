@@ -14,13 +14,19 @@
     "browser:playback": "node tooling/m0/qualify-browser-playback.ts",
     "browser:oracle:freeze": "node tooling/m0/freeze-browser-oracle.ts",
     "browser:probe": "node tooling/m0/capture-browser-offers.ts --output build/m0-browser-offers.json",
-    "test": "node --test tests/typescript/*.test.ts",
-    "typecheck": "tsc --noEmit && node --check receiver/receiver.js"
+    "signaling:start": "node signaling/main.ts",
+    "signaling:verify": "node tooling/signaling/verify-bundle.ts",
+    "test": "node --test tests/typescript/*.test.ts tests/typescript/*.test.js",
+    "typecheck": "tsc --noEmit && node --check receiver/receiver.js && node --check receiver/control-protocol.js && node --check receiver/v1-receiver.js"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",
     "@types/node": "26.2.0",
+    "@types/ws": "8.18.1",
     "prettier": "3.6.2",
     "typescript": "7.0.2"
+  },
+  "dependencies": {
+    "ws": "8.21.3"
   }
 }

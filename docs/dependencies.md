@@ -59,6 +59,14 @@ TURN over TCP or TLS remains outside the verified-cap state.
 
 Target qualification installs the exact Ubuntu package versions for FFmpeg, Tesseract OCR, and tshark in the lock and records their package hashes and runtime version output.
 
+## Signaling service
+
+The signaling service uses ws 8.21.3 and @types/ws 8.18.1 with exact npm integrity values retained in both dependency locks.
+
+The runtime container uses Node.js 24.16.0 on the exact Linux amd64 image manifest recorded in `dependencies.lock.json`.
+
+pnpm 11.21.0 installs production dependencies from the frozen lockfile with lifecycle scripts disabled.
+
 ## Updating a dependency
 
 Change the machine lock, native constant, package lock, container reference, notices, and relevant patches together.

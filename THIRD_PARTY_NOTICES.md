@@ -62,6 +62,14 @@ coturn is BSD-3-Clause.
 
 The image and its layers are pulled for testing and are not redistributed by this repository.
 
+## ws
+
+The self-hosted signaling bundle uses ws 8.21.3 under the MIT license.
+
+The exact npm package version and integrity are retained in the package and dependency locks.
+
+The TypeScript declarations from @types/ws 8.18.1 are also MIT licensed and are used only during development.
+
 ## Diagnostic tools
 
 Ubuntu package versions for FFmpeg, Tesseract OCR, and tshark are recorded in `dependencies.lock.json` for the target qualification environment.
