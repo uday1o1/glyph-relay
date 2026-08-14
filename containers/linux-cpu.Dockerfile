@@ -6,6 +6,9 @@ RUN apt-get update \
     && apt-get install --yes --no-install-recommends \
       clang=1:18.0-59~exp2 \
       cmake=3.28.3-1build7 \
+      ffmpeg=7:6.1.1-3ubuntu5 \
+      libopenh264-7=2.4.1+dfsg-1 \
+      libopenh264-dev=2.4.1+dfsg-1 \
       make=4.3-4.1build2 \
     && rm -rf /var/lib/apt/lists/*
 
