@@ -96,6 +96,7 @@ add_library(glyphrelay_core
   src/media/recording_profile.cpp
   src/recording/recording_common.cpp
   src/transport/media_egress.cpp
+  src/transport/encoded_fanout.cpp
   src/transport/rtp_transport.cpp
 )
 if(GLYPHRELAY_HAS_LINUX_CAPTURE)
@@ -336,6 +337,10 @@ if(BUILD_TESTING)
   add_executable(glyphrelay_rtp_transport_tests tests/native/test_rtp_transport.cpp)
   target_link_libraries(glyphrelay_rtp_transport_tests PRIVATE glyphrelay_core)
   add_test(NAME native.rtp_transport COMMAND glyphrelay_rtp_transport_tests)
+
+  add_executable(glyphrelay_encoded_fanout_tests tests/native/test_encoded_fanout.cpp)
+  target_link_libraries(glyphrelay_encoded_fanout_tests PRIVATE glyphrelay_core)
+  add_test(NAME native.encoded_fanout COMMAND glyphrelay_encoded_fanout_tests)
 
   if(GLYPHRELAY_ENABLE_WEBRTC_CONTRACTS)
     add_executable(glyphrelay_libdatachannel_contract_tests
