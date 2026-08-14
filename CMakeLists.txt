@@ -74,6 +74,7 @@ add_library(glyphrelay_core
   src/media/i420.cpp
   src/media/openh264_encoder.cpp
   src/media/recording_profile.cpp
+  src/transport/media_egress.cpp
 )
 target_include_directories(glyphrelay_core PUBLIC include)
 target_compile_definitions(glyphrelay_core PUBLIC
@@ -150,6 +151,10 @@ if(BUILD_TESTING)
   add_executable(glyphrelay_gpu_contract_tests tests/native/test_gpu_contracts.cpp)
   target_link_libraries(glyphrelay_gpu_contract_tests PRIVATE glyphrelay_core)
   add_test(NAME native.gpu_contracts COMMAND glyphrelay_gpu_contract_tests)
+
+  add_executable(glyphrelay_egress_contract_tests tests/native/test_media_egress.cpp)
+  target_link_libraries(glyphrelay_egress_contract_tests PRIVATE glyphrelay_core)
+  add_test(NAME native.media_egress COMMAND glyphrelay_egress_contract_tests)
 
   if(GLYPHRELAY_HAS_OPENH264)
     add_executable(glyphrelay_openh264_integration tests/native/test_openh264_integration.cpp)

@@ -24,6 +24,10 @@ The selected ICE implementation is the pinned libjuice submodule in one-thread-p
 
 Its final datagram boundary is `deps/libjuice/src/udp.c::udp_sendto`, which calls `sendto` in this revision.
 
+The exact MPL-2.0 source patch and its SHA-256 are locked in `dependencies.lock.json`.
+
+`make transport-check` verifies the patch against a clean exact checkout, builds with the frozen flags, and runs its loopback final-egress test.
+
 The application must not use libdatachannel's built-in NACK responder because it cannot enforce the V1 age, byte, epoch, rate, and extended-sequence limits.
 
 OpenH264 is dynamically linked from the exact Ubuntu 24.04 system packages recorded in the lock.

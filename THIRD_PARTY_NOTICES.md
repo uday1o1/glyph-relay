@@ -26,6 +26,8 @@ The bundled libjuice dependency is also MPL-2.0.
 
 GlyphRelay keeps required transport modifications isolated to MPL-covered source files so those modified files can be published with notices and corresponding source as required.
 
+The corresponding modified source is retained as `patches/libdatachannel-v0.24.1/glyphrelay-final-egress.patch`, including the patch-owned loopback test.
+
 Unmodified bundled dependencies include nlohmann/json under MIT, libsrtp under BSD-3-Clause, plog under MIT, and usrsctp under BSD-3-Clause.
 
 Exact commits and license-file hashes are recorded in `dependencies.lock.json`.

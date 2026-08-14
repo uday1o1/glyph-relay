@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -92,6 +93,21 @@ def validate_lock(lock: dict[str, Any], root: Path = ROOT) -> list[str]:
     _expect_equal(
         errors, transport.get("final_datagram_patch_required"), True, "final datagram patch"
     )
+    patch_path = transport.get("final_datagram_patch")
+    if not isinstance(patch_path, str):
+        errors.append("final datagram patch path is missing")
+    else:
+        patch_file = root / patch_path
+        if not patch_file.is_file():
+            errors.append(f"final datagram patch is missing: {patch_path}")
+        else:
+            actual_patch_sha256 = hashlib.sha256(patch_file.read_bytes()).hexdigest()
+            _expect_equal(
+                errors,
+                actual_patch_sha256,
+                transport.get("final_datagram_patch_sha256"),
+                "final datagram patch SHA-256",
+            )
     _expect_equal(
         errors, transport.get("builtin_nack_responder_allowed"), False, "built-in NACK responder"
     )

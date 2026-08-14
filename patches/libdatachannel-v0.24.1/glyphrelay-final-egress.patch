@@ -1,0 +1,945 @@
+diff --git a/include/rtc/configuration.hpp b/include/rtc/configuration.hpp
+index f2cb135..da9c213 100644
+--- a/include/rtc/configuration.hpp
++++ b/include/rtc/configuration.hpp
+@@ -63,6 +63,27 @@ enum class CertificateType {
+ 
+ enum class TransportPolicy { All = RTC_TRANSPORT_POLICY_ALL, Relay = RTC_TRANSPORT_POLICY_RELAY };
+ 
++enum class FinalUdpEgressClass { Control = 0, Media };
++enum class FinalUdpDatagramPath { Direct = 0, Turn };
++enum class FinalUdpDatagramProtocol {
++	UnknownControl = 0,
++	Srtp,
++	Srtcp,
++	Dtls,
++	Stun,
++	TurnChannelData,
++	TurnSendIndication,
++	TurnControl,
++};
++enum class FinalUdpIpFamily { Ipv4 = 0, Ipv6 };
++
++using final_udp_native_send = int (*)(void *nativeSendPtr);
++using final_udp_send_callback =
++    std::function<int(const byte *data, size_t size, FinalUdpEgressClass egressClass,
++                      FinalUdpDatagramPath path, FinalUdpDatagramProtocol protocol,
++                      FinalUdpIpFamily ipFamily, final_udp_native_send nativeSend,
++                      void *nativeSendPtr)>;
++
+ struct RTC_CPP_EXPORT Configuration {
+ 	// ICE settings
+ 	std::vector<IceServer> iceServers;
+@@ -78,6 +99,9 @@ struct RTC_CPP_EXPORT Configuration {
+ 	bool disableAutoGathering = false;
+ 	bool forceMediaTransport = false;
+ 	bool disableFingerprintVerification = false;
++	// The callback and native send pointer are synchronous and valid only during the callback.
++	// UDP mux is rejected when this per-session final datagram hook is configured.
++	final_udp_send_callback finalUdpSendCallback;
+ 
+ 	// Port range
+ 	uint16_t portRangeBegin = 1024;
+diff --git a/include/rtc/message.hpp b/include/rtc/message.hpp
+index 52a7dbe..39be07a 100644
+--- a/include/rtc/message.hpp
++++ b/include/rtc/message.hpp
+@@ -19,6 +19,8 @@ namespace rtc {
+ 
+ struct RTC_CPP_EXPORT Message : binary {
+ 	enum Type { Binary, String, Control, Reset };
++	enum class EgressClass { Control, Media };
++	enum class EgressProtocol { UnknownControl, Srtp, Srtcp, Dtls };
+ 
+ 	Message(const Message &message) = default;
+ 	Message(size_t size, Type type_ = Binary) : binary(size), type(type_) {}
+@@ -30,6 +32,8 @@ struct RTC_CPP_EXPORT Message : binary {
+ 	Message(binary &&data, Type type_ = Binary) : binary(std::move(data)), type(type_) {}
+ 
+ 	Type type;
++	EgressClass egressClass = EgressClass::Control;
++	EgressProtocol egressProtocol = EgressProtocol::UnknownControl;
+ 	unsigned int stream = 0; // Stream id (SCTP stream or SSRC)
+ 	unsigned int dscp = 0;   // Differentiated Services Code Point
+ 	shared_ptr<Reliability> reliability;
+diff --git a/src/impl/dtlssrtptransport.cpp b/src/impl/dtlssrtptransport.cpp
+index 24f7383..3627c82 100644
+--- a/src/impl/dtlssrtptransport.cpp
++++ b/src/impl/dtlssrtptransport.cpp
+@@ -103,6 +103,8 @@ bool DtlsSrtpTransport::sendMedia(message_ptr message) {
+ 	message = make_message(size + SRTP_MAX_TRAILER_LEN, message);
+ 
+ 	if (IsRtcp(*message)) { // Demultiplex RTCP and RTP using payload type
++		message->egressClass = Message::EgressClass::Control;
++		message->egressProtocol = Message::EgressProtocol::Srtcp;
+ 		if (srtp_err_status_t err = srtp_protect_rtcp(mSrtpOut, message->data(), &size)) {
+ 			if (err == srtp_err_status_replay_fail)
+ 				throw std::runtime_error("Outgoing SRTCP packet is a replay");
+@@ -113,6 +115,8 @@ bool DtlsSrtpTransport::sendMedia(message_ptr message) {
+ 		PLOG_VERBOSE << "Protected SRTCP packet, size=" << size;
+ 
+ 	} else {
++		message->egressClass = Message::EgressClass::Media;
++		message->egressProtocol = Message::EgressProtocol::Srtp;
+ 		if (srtp_err_status_t err = srtp_protect(mSrtpOut, message->data(), &size)) {
+ 			if (err == srtp_err_status_replay_fail)
+ 				throw std::runtime_error("Outgoing SRTP packet is a replay");
+diff --git a/src/impl/dtlstransport.cpp b/src/impl/dtlstransport.cpp
+index 8b39c50..93fee4a 100644
+--- a/src/impl/dtlstransport.cpp
++++ b/src/impl/dtlstransport.cpp
+@@ -167,6 +167,8 @@ void DtlsTransport::incoming(message_ptr message) {
+ }
+ 
+ bool DtlsTransport::outgoing(message_ptr message) {
++	message->egressClass = Message::EgressClass::Control;
++	message->egressProtocol = Message::EgressProtocol::Dtls;
+ 	message->dscp = mCurrentDscp;
+ 
+ 	bool result = Transport::outgoing(std::move(message));
+@@ -506,6 +508,8 @@ void DtlsTransport::incoming(message_ptr message) {
+ }
+ 
+ bool DtlsTransport::outgoing(message_ptr message) {
++	message->egressClass = Message::EgressClass::Control;
++	message->egressProtocol = Message::EgressProtocol::Dtls;
+ 	message->dscp = mCurrentDscp;
+ 
+ 	bool result = Transport::outgoing(std::move(message));
+@@ -901,6 +905,8 @@ void DtlsTransport::incoming(message_ptr message) {
+ }
+ 
+ bool DtlsTransport::outgoing(message_ptr message) {
++	message->egressClass = Message::EgressClass::Control;
++	message->egressProtocol = Message::EgressProtocol::Dtls;
+ 	message->dscp = mCurrentDscp;
+ 
+ 	bool result = Transport::outgoing(std::move(message));
+diff --git a/src/impl/icetransport.cpp b/src/impl/icetransport.cpp
+index 7701d25..ae9e463 100644
+--- a/src/impl/icetransport.cpp
++++ b/src/impl/icetransport.cpp
+@@ -53,6 +53,7 @@ IceTransport::IceTransport(const Configuration &config, candidate_callback candi
+       mMid("0"), mGatheringState(GatheringState::New),
+       mCandidateCallback(std::move(candidateCallback)),
+       mGatheringStateChangeCallback(std::move(gatheringStateChangeCallback)),
++      mFinalUdpSendCallback(config.finalUdpSendCallback),
+       mAgent(nullptr, nullptr) {
+ 
+ 	PLOG_DEBUG << "Initializing ICE transport (libjuice)";
+@@ -82,17 +83,30 @@ IceTransport::IceTransport(const Configuration &config, candidate_callback candi
+ 	}
+ 	juice_set_log_handler(IceTransport::LogCallback);
+ 	juice_set_log_level(level);
++	if (mFinalUdpSendCallback && config.enableIceTcp)
++		throw std::invalid_argument("The final UDP send hook is incompatible with ICE TCP");
++	if (mFinalUdpSendCallback &&
++	    std::any_of(config.iceServers.begin(), config.iceServers.end(), [](const IceServer &server) {
++		    return server.type == IceServer::Type::Turn &&
++		           server.relayType != IceServer::RelayType::TurnUdp;
++	    }))
++		throw std::invalid_argument("The final UDP send hook supports TURN over UDP only");
+ 
+ 	juice_config_t jconfig = {};
+ 	jconfig.cb_state_changed = IceTransport::StateChangeCallback;
+ 	jconfig.cb_candidate = IceTransport::CandidateCallback;
+ 	jconfig.cb_gathering_done = IceTransport::GatheringDoneCallback;
+ 	jconfig.cb_recv = IceTransport::RecvCallback;
++	jconfig.cb_final_udp_send = mFinalUdpSendCallback ? IceTransport::FinalUdpSendCallback : nullptr;
+ 	jconfig.user_ptr = this;
+ 
+ 	if (config.enableIceUdpMux) {
++		if (mFinalUdpSendCallback)
++			throw std::invalid_argument("The final UDP send hook is incompatible with ICE UDP mux");
+ 		PLOG_DEBUG << "Enabling ICE UDP mux";
+ 		jconfig.concurrency_mode = JUICE_CONCURRENCY_MODE_MUX;
++	} else if (mFinalUdpSendCallback) {
++		jconfig.concurrency_mode = JUICE_CONCURRENCY_MODE_THREAD;
+ 	} else {
+ 		jconfig.concurrency_mode = JUICE_CONCURRENCY_MODE_POLL;
+ 	}
+@@ -295,8 +309,26 @@ bool IceTransport::send(message_ptr message) {
+ bool IceTransport::outgoing(message_ptr message) {
+ 	// Explicit Congestion Notification takes the least-significant 2 bits of the DS field
+ 	int ds = int(message->dscp << 2);
+-	return juice_send_diffserv(mAgent.get(), reinterpret_cast<const char *>(message->data()),
+-	                           message->size(), ds) >= 0;
++	const auto egressClass = message->egressClass == Message::EgressClass::Media
++	                             ? JUICE_EGRESS_CLASS_MEDIA
++	                             : JUICE_EGRESS_CLASS_CONTROL;
++	juice_datagram_protocol_t protocol = JUICE_DATAGRAM_PROTOCOL_UNKNOWN_CONTROL;
++	switch (message->egressProtocol) {
++	case Message::EgressProtocol::Srtp:
++		protocol = JUICE_DATAGRAM_PROTOCOL_SRTP;
++		break;
++	case Message::EgressProtocol::Srtcp:
++		protocol = JUICE_DATAGRAM_PROTOCOL_SRTCP;
++		break;
++	case Message::EgressProtocol::Dtls:
++		protocol = JUICE_DATAGRAM_PROTOCOL_DTLS;
++		break;
++	case Message::EgressProtocol::UnknownControl:
++		break;
++	}
++	return juice_send_diffserv_classified(
++	           mAgent.get(), reinterpret_cast<const char *>(message->data()), message->size(), ds,
++	           egressClass, protocol) >= 0;
+ }
+ 
+ void IceTransport::changeGatheringState(GatheringState state) {
+@@ -368,6 +400,32 @@ void IceTransport::RecvCallback(juice_agent_t *, const char *data, size_t size,
+ 	}
+ }
+ 
++int IceTransport::FinalUdpSendCallback(const char *data, size_t size,
++                                       juice_egress_class_t egressClass,
++                                       juice_datagram_path_t path,
++                                       juice_datagram_protocol_t protocol,
++                                       juice_ip_family_t ipFamily,
++                                       juice_cb_native_udp_send_t nativeSend,
++                                       void *nativeSendPtr, void *userPtr) {
++	auto iceTransport = static_cast<rtc::impl::IceTransport *>(userPtr);
++	if (!iceTransport->mFinalUdpSendCallback)
++		return nativeSend(nativeSendPtr);
++	try {
++		return iceTransport->mFinalUdpSendCallback(
++		    reinterpret_cast<const byte *>(data), size,
++		    static_cast<FinalUdpEgressClass>(egressClass),
++		    static_cast<FinalUdpDatagramPath>(path),
++		    static_cast<FinalUdpDatagramProtocol>(protocol),
++		    static_cast<FinalUdpIpFamily>(ipFamily), nativeSend, nativeSendPtr);
++	} catch (const std::exception &e) {
++		PLOG_ERROR << "Final UDP send callback failed: " << e.what();
++		return -1;
++	} catch (...) {
++		PLOG_ERROR << "Final UDP send callback failed";
++		return -1;
++	}
++}
++
+ void IceTransport::LogCallback(juice_log_level_t level, const char *message) {
+ 	plog::Severity severity;
+ 	switch (level) {
+diff --git a/src/impl/icetransport.hpp b/src/impl/icetransport.hpp
+index 5d74aab..55a912c 100644
+--- a/src/impl/icetransport.hpp
++++ b/src/impl/icetransport.hpp
+@@ -79,6 +79,7 @@ private:
+ 
+ 	candidate_callback mCandidateCallback;
+ 	gathering_state_callback mGatheringStateChangeCallback;
++	final_udp_send_callback mFinalUdpSendCallback;
+ 
+ #if !USE_NICE
+ 	unique_ptr<juice_agent_t, void (*)(juice_agent_t *)> mAgent;
+@@ -88,6 +89,13 @@ private:
+ 	static void CandidateCallback(juice_agent_t *agent, const char *sdp, void *user_ptr);
+ 	static void GatheringDoneCallback(juice_agent_t *agent, void *user_ptr);
+ 	static void RecvCallback(juice_agent_t *agent, const char *data, size_t size, void *user_ptr);
++	static int FinalUdpSendCallback(const char *data, size_t size,
++	                                juice_egress_class_t egressClass,
++	                                juice_datagram_path_t path,
++	                                juice_datagram_protocol_t protocol,
++	                                juice_ip_family_t ipFamily,
++	                                juice_cb_native_udp_send_t nativeSend,
++	                                void *nativeSendPtr, void *userPtr);
+ 	static void LogCallback(juice_log_level_t level, const char *message);
+ #else
+ 	class MainLoopWrapper {
+diff --git a/src/message.cpp b/src/message.cpp
+index 0ce3256..3e714fc 100644
+--- a/src/message.cpp
++++ b/src/message.cpp
+@@ -36,6 +36,8 @@ message_ptr make_message(size_t size, message_ptr orig) {
+ 
+ 	auto message = std::make_shared<Message>(size, orig->type);
+ 	std::copy(orig->begin(), orig->begin() + std::min(size, orig->size()), message->begin());
++	message->egressClass = orig->egressClass;
++	message->egressProtocol = orig->egressProtocol;
+ 	message->stream = orig->stream;
+ 	message->reliability = orig->reliability;
+ 	message->frameInfo = orig->frameInfo;
+diff --git a/deps/libjuice/CMakeLists.txt b/deps/libjuice/CMakeLists.txt
+index aa544d3..6656ced 100644
+--- a/deps/libjuice/CMakeLists.txt
++++ b/deps/libjuice/CMakeLists.txt
+@@ -241,8 +241,13 @@ if(NOT NO_TESTS)
+ 
+ 	target_link_libraries(juice-tests juice Threads::Threads)
+ 
++	add_executable(glyphrelay-juice-egress-tests
++		${CMAKE_CURRENT_SOURCE_DIR}/test/glyphrelay_final_egress.c)
++	target_link_libraries(glyphrelay-juice-egress-tests juice Threads::Threads)
++
+ 	if(WIN32)
+ 		target_link_libraries(juice-tests ws2_32)
++		target_link_libraries(glyphrelay-juice-egress-tests ws2_32)
+ 	endif()
+ endif()
+ 
+diff --git a/deps/libjuice/include/juice/juice.h b/deps/libjuice/include/juice/juice.h
+index e43db6c..b97387d 100644
+--- a/deps/libjuice/include/juice/juice.h
++++ b/deps/libjuice/include/juice/juice.h
+@@ -95,6 +95,42 @@ typedef enum juice_ice_tcp_mode {
+ 	JUICE_ICE_TCP_MODE_ACTIVE,   // ICE-TCP will operate as a client
+ } juice_ice_tcp_mode_t;
+ 
++typedef enum juice_egress_class {
++	JUICE_EGRESS_CLASS_CONTROL = 0,
++	JUICE_EGRESS_CLASS_MEDIA,
++} juice_egress_class_t;
++
++typedef enum juice_datagram_path {
++	JUICE_DATAGRAM_PATH_DIRECT_UDP = 0,
++	JUICE_DATAGRAM_PATH_TURN_UDP,
++} juice_datagram_path_t;
++
++typedef enum juice_datagram_protocol {
++	JUICE_DATAGRAM_PROTOCOL_UNKNOWN_CONTROL = 0,
++	JUICE_DATAGRAM_PROTOCOL_SRTP,
++	JUICE_DATAGRAM_PROTOCOL_SRTCP,
++	JUICE_DATAGRAM_PROTOCOL_DTLS,
++	JUICE_DATAGRAM_PROTOCOL_STUN,
++	JUICE_DATAGRAM_PROTOCOL_TURN_CHANNEL_DATA,
++	JUICE_DATAGRAM_PROTOCOL_TURN_SEND_INDICATION,
++	JUICE_DATAGRAM_PROTOCOL_TURN_CONTROL,
++} juice_datagram_protocol_t;
++
++typedef enum juice_ip_family {
++	JUICE_IP_FAMILY_IPV4 = 0,
++	JUICE_IP_FAMILY_IPV6,
++} juice_ip_family_t;
++
++typedef int (*juice_cb_native_udp_send_t)(void *native_send_ptr);
++
++// The callback and native send pointer are valid only for the duration of the callback.
++// A callback must invoke native_send exactly once to emit the datagram.
++typedef int (*juice_cb_final_udp_send_t)(
++    const char *data, size_t size, juice_egress_class_t egress_class,
++    juice_datagram_path_t path, juice_datagram_protocol_t protocol,
++    juice_ip_family_t ip_family, juice_cb_native_udp_send_t native_send,
++    void *native_send_ptr, void *user_ptr);
++
+ typedef struct juice_config {
+ 	juice_concurrency_mode_t concurrency_mode;
+ 
+@@ -113,6 +149,7 @@ typedef struct juice_config {
+ 	juice_cb_candidate_t cb_candidate;
+ 	juice_cb_gathering_done_t cb_gathering_done;
+ 	juice_cb_recv_t cb_recv;
++	juice_cb_final_udp_send_t cb_final_udp_send;
+ 
+ 	void *user_ptr;
+ 
+@@ -129,6 +166,9 @@ JUICE_EXPORT int juice_add_turn_server(juice_agent_t *agent, const juice_turn_se
+ JUICE_EXPORT int juice_set_remote_gathering_done(juice_agent_t *agent);
+ JUICE_EXPORT int juice_send(juice_agent_t *agent, const char *data, size_t size);
+ JUICE_EXPORT int juice_send_diffserv(juice_agent_t *agent, const char *data, size_t size, int ds);
++JUICE_EXPORT int juice_send_diffserv_classified(juice_agent_t *agent, const char *data, size_t size,
++                                                int ds, juice_egress_class_t egress_class,
++                                                juice_datagram_protocol_t protocol);
+ JUICE_EXPORT juice_state_t juice_get_state(juice_agent_t *agent);
+ JUICE_EXPORT int juice_get_selected_candidates(juice_agent_t *agent, char *local, size_t local_size,
+                                                char *remote, size_t remote_size);
+diff --git a/deps/libjuice/src/agent.c b/deps/libjuice/src/agent.c
+index 00bbecb..785ce5b 100644
+--- a/deps/libjuice/src/agent.c
++++ b/deps/libjuice/src/agent.c
+@@ -76,6 +76,10 @@ static int copy_turn_server(juice_turn_server_t *dst, const juice_turn_server_t
+ 
+ juice_agent_t *agent_create(const juice_config_t *config) {
+ 	JLOG_VERBOSE("Creating agent");
++	if (config->cb_final_udp_send && config->concurrency_mode == JUICE_CONCURRENCY_MODE_MUX) {
++		JLOG_FATAL("The final UDP send hook requires one socket per ICE agent");
++		return NULL;
++	}
+ 
+ #ifdef _WIN32
+ 	WSADATA wsaData;
+@@ -103,6 +107,7 @@ juice_agent_t *agent_create(const juice_config_t *config) {
+ 	agent->config.cb_candidate = config->cb_candidate;
+ 	agent->config.cb_gathering_done = config->cb_gathering_done;
+ 	agent->config.cb_recv = config->cb_recv;
++	agent->config.cb_final_udp_send = config->cb_final_udp_send;
+ 	agent->config.user_ptr = config->user_ptr;
+ 	if (alloc_failed) {
+ 		JLOG_FATAL("Memory allocation for configuration copy failed");
+@@ -663,7 +668,8 @@ int agent_set_remote_gathering_done(juice_agent_t *agent) {
+ 	return 0;
+ }
+ 
+-int agent_send(juice_agent_t *agent, const char *data, size_t size, int ds) {
++int agent_send(juice_agent_t *agent, const char *data, size_t size, int ds,
++               juice_egress_class_t egress_class, juice_datagram_protocol_t protocol) {
+ 	// Try not to lock in the send path
+ 	agent_stun_entry_t *selected_entry = atomic_load(&agent->selected_entry);
+ 	if (!selected_entry) {
+@@ -675,21 +681,24 @@ int agent_send(juice_agent_t *agent, const char *data, size_t size, int ds) {
+ 		// The datagram should be sent through the relay, use a channel to minimize overhead
+ 		conn_lock(agent); // We have to lock
+ 		int ret = agent_channel_send(agent, selected_entry->relay_entry, &selected_entry->record,
+-		                             data, size, ds);
++		                             data, size, ds, egress_class, protocol);
+ 		conn_unlock(agent);
+ 		return ret;
+ 	}
+ 
+-	return agent_direct_send(agent, &selected_entry->record, data, size, ds);
++	return agent_direct_send(agent, &selected_entry->record, data, size, ds, egress_class,
++	                        JUICE_DATAGRAM_PATH_DIRECT_UDP, protocol);
+ }
+ 
+ int agent_direct_send(juice_agent_t *agent, const addr_record_t *dst, const char *data, size_t size,
+-                      int ds) {
+-	return conn_send(agent, dst, data, size, ds);
++                      int ds, juice_egress_class_t egress_class, juice_datagram_path_t path,
++                      juice_datagram_protocol_t protocol) {
++	return conn_send(agent, dst, data, size, ds, egress_class, path, protocol);
+ }
+ 
+ int agent_relay_send(juice_agent_t *agent, agent_stun_entry_t *entry, const addr_record_t *dst,
+-                     const char *data, size_t size, int ds) {
++                     const char *data, size_t size, int ds, juice_egress_class_t egress_class,
++                     juice_datagram_protocol_t protocol) {
+ 	if (!entry->turn) {
+ 		JLOG_ERROR("Missing TURN state on relay entry");
+ 		return -1;
+@@ -720,11 +729,15 @@ int agent_relay_send(juice_agent_t *agent, agent_stun_entry_t *entry, const addr
+ 		return -1;
+ 	}
+ 
+-	return agent_direct_send(agent, &entry->record, buffer, size, ds);
++	(void)protocol;
++	return agent_direct_send(agent, &entry->record, buffer, size, ds, egress_class,
++	                        JUICE_DATAGRAM_PATH_TURN_UDP,
++	                        JUICE_DATAGRAM_PROTOCOL_TURN_SEND_INDICATION);
+ }
+ 
+ int agent_channel_send(juice_agent_t *agent, agent_stun_entry_t *entry, const addr_record_t *record,
+-                       const char *data, size_t size, int ds) {
++                       const char *data, size_t size, int ds, juice_egress_class_t egress_class,
++                       juice_datagram_protocol_t protocol) {
+ 	if (!entry->turn) {
+ 		JLOG_ERROR("Missing TURN state on relay entry");
+ 		return -1;
+@@ -746,7 +759,10 @@ int agent_channel_send(juice_agent_t *agent, agent_stun_entry_t *entry, const ad
+ 		return -1;
+ 	}
+ 
+-	return agent_direct_send(agent, &entry->record, buffer, len, ds);
++	(void)protocol;
++	return agent_direct_send(agent, &entry->record, buffer, len, ds, egress_class,
++	                        JUICE_DATAGRAM_PATH_TURN_UDP,
++	                        JUICE_DATAGRAM_PROTOCOL_TURN_CHANNEL_DATA);
+ }
+ 
+ juice_state_t agent_get_state(juice_agent_t *agent) {
+@@ -1762,9 +1778,11 @@ int agent_send_stun_binding(juice_agent_t *agent, agent_stun_entry_t *entry, stu
+ 		JLOG_DEBUG("Sending STUN message via relay");
+ 		int ret;
+ 		if (entry->pair && entry->pair->nominated)
+-			ret = agent_channel_send(agent, entry->relay_entry, &entry->record, buffer, size, 0);
++			ret = agent_channel_send(agent, entry->relay_entry, &entry->record, buffer, size, 0,
++			                         JUICE_EGRESS_CLASS_CONTROL, JUICE_DATAGRAM_PROTOCOL_STUN);
+ 		else
+-			ret = agent_relay_send(agent, entry->relay_entry, &entry->record, buffer, size, 0);
++			ret = agent_relay_send(agent, entry->relay_entry, &entry->record, buffer, size, 0,
++			                       JUICE_EGRESS_CLASS_CONTROL, JUICE_DATAGRAM_PROTOCOL_STUN);
+ 
+ 		if (ret < 0) {
+ 			JLOG_WARN("STUN message send via relay failed");
+@@ -1774,7 +1792,14 @@ int agent_send_stun_binding(juice_agent_t *agent, agent_stun_entry_t *entry, stu
+ 	}
+ 
+ 	// Direct send
+-	int ret = agent_direct_send(agent, &entry->record, buffer, size, 0);
++	juice_datagram_path_t path = entry->type == AGENT_STUN_ENTRY_TYPE_RELAY
++	                                    ? JUICE_DATAGRAM_PATH_TURN_UDP
++	                                    : JUICE_DATAGRAM_PATH_DIRECT_UDP;
++	juice_datagram_protocol_t protocol = entry->type == AGENT_STUN_ENTRY_TYPE_RELAY
++	                                        ? JUICE_DATAGRAM_PROTOCOL_TURN_CONTROL
++	                                        : JUICE_DATAGRAM_PROTOCOL_STUN;
++	int ret = agent_direct_send(agent, &entry->record, buffer, size, 0,
++	                            JUICE_EGRESS_CLASS_CONTROL, path, protocol);
+ 	if (ret < 0) {
+ 		if (ret == -SENETUNREACH)
+ 			JLOG_INFO("STUN binding failed: Network unreachable");
+@@ -1997,7 +2022,9 @@ int agent_send_turn_allocate_request(juice_agent_t *agent, const agent_stun_entr
+ 		JLOG_ERROR("STUN message write failed");
+ 		return -1;
+ 	}
+-	if (agent_direct_send(agent, &entry->record, buffer, size, 0) < 0) {
++	if (agent_direct_send(agent, &entry->record, buffer, size, 0,
++	                      JUICE_EGRESS_CLASS_CONTROL, JUICE_DATAGRAM_PATH_TURN_UDP,
++	                      JUICE_DATAGRAM_PROTOCOL_TURN_CONTROL) < 0) {
+ 		JLOG_WARN("STUN message send failed");
+ 		return -1;
+ 	}
+@@ -2094,7 +2121,9 @@ int agent_send_turn_create_permission_request(juice_agent_t *agent, agent_stun_e
+ 		JLOG_ERROR("STUN message write failed");
+ 		return -1;
+ 	}
+-	if (agent_direct_send(agent, &entry->record, buffer, size, ds) < 0) {
++	if (agent_direct_send(agent, &entry->record, buffer, size, ds,
++	                      JUICE_EGRESS_CLASS_CONTROL, JUICE_DATAGRAM_PATH_TURN_UDP,
++	                      JUICE_DATAGRAM_PROTOCOL_TURN_CONTROL) < 0) {
+ 		JLOG_WARN("STUN message send failed");
+ 		return -1;
+ 	}
+@@ -2202,7 +2231,9 @@ int agent_send_turn_channel_bind_request(juice_agent_t *agent, agent_stun_entry_
+ 		JLOG_ERROR("STUN message write failed");
+ 		return -1;
+ 	}
+-	if (agent_direct_send(agent, &entry->record, buffer, size, ds) < 0) {
++	if (agent_direct_send(agent, &entry->record, buffer, size, ds,
++	                      JUICE_EGRESS_CLASS_CONTROL, JUICE_DATAGRAM_PATH_TURN_UDP,
++	                      JUICE_DATAGRAM_PROTOCOL_TURN_CONTROL) < 0) {
+ 		JLOG_WARN("STUN message send failed");
+ 		return -1;
+ 	}
+diff --git a/deps/libjuice/src/agent.h b/deps/libjuice/src/agent.h
+index 5429d89..aad6592 100644
+--- a/deps/libjuice/src/agent.h
++++ b/deps/libjuice/src/agent.h
+@@ -166,13 +166,17 @@ int agent_add_remote_candidate(juice_agent_t *agent, const char *sdp);
+ int agent_set_local_ice_attributes(juice_agent_t *agent, const char *ufrag, const char *pwd);
+ int agent_add_turn_server(juice_agent_t *agent, const juice_turn_server_t *turn_server);
+ int agent_set_remote_gathering_done(juice_agent_t *agent);
+-int agent_send(juice_agent_t *agent, const char *data, size_t size, int ds);
++int agent_send(juice_agent_t *agent, const char *data, size_t size, int ds,
++               juice_egress_class_t egress_class, juice_datagram_protocol_t protocol);
+ int agent_direct_send(juice_agent_t *agent, const addr_record_t *dst, const char *data, size_t size,
+-                      int ds);
++                      int ds, juice_egress_class_t egress_class, juice_datagram_path_t path,
++                      juice_datagram_protocol_t protocol);
+ int agent_relay_send(juice_agent_t *agent, agent_stun_entry_t *entry, const addr_record_t *dst,
+-                     const char *data, size_t size, int ds);
++                     const char *data, size_t size, int ds, juice_egress_class_t egress_class,
++                     juice_datagram_protocol_t protocol);
+ int agent_channel_send(juice_agent_t *agent, agent_stun_entry_t *entry, const addr_record_t *dst,
+-                       const char *data, size_t size, int ds);
++                       const char *data, size_t size, int ds, juice_egress_class_t egress_class,
++                       juice_datagram_protocol_t protocol);
+ juice_state_t agent_get_state(juice_agent_t *agent);
+ int agent_get_selected_candidate_pair(juice_agent_t *agent, ice_candidate_t *local,
+                                       ice_candidate_t *remote);
+diff --git a/deps/libjuice/src/conn.c b/deps/libjuice/src/conn.c
+index 307d5b2..59bc2ed 100644
+--- a/deps/libjuice/src/conn.c
++++ b/deps/libjuice/src/conn.c
+@@ -246,11 +246,13 @@ int conn_interrupt(juice_agent_t *agent) {
+ }
+ 
+ int conn_send(juice_agent_t *agent, const addr_record_t *dst, const char *data, size_t size,
+-              int ds) {
++              int ds, juice_egress_class_t egress_class, juice_datagram_path_t path,
++              juice_datagram_protocol_t protocol) {
+ 	if (!agent->conn_impl)
+ 		return -1;
+ 
+-	return get_agent_mode_entry(agent)->send_func(agent, dst, data, size, ds);
++	return get_agent_mode_entry(agent)->send_func(agent, dst, data, size, ds, egress_class, path,
++	                                              protocol);
+ }
+ 
+ void conn_tcp_connect(juice_agent_t *agent, const addr_record_t *dst) {
+diff --git a/deps/libjuice/src/conn.h b/deps/libjuice/src/conn.h
+index d86b672..b5845c5 100644
+--- a/deps/libjuice/src/conn.h
++++ b/deps/libjuice/src/conn.h
+@@ -43,7 +43,8 @@ typedef struct conn_mode_entry {
+ 	void (*unlock_func)(juice_agent_t *agent);
+ 	int (*interrupt_func)(juice_agent_t *agent);
+ 	int (*send_func)(juice_agent_t *agent, const addr_record_t *dst, const char *data, size_t size,
+-	                 int ds);
++	                 int ds, juice_egress_class_t egress_class, juice_datagram_path_t path,
++	                 juice_datagram_protocol_t protocol);
+ 	void (*tcp_connect_func)(juice_agent_t *agent, const addr_record_t *dst);
+ 	int (*get_addrs_func)(juice_agent_t *agent, addr_record_t *records, size_t size);
+ 	int (*mux_listen_func)(conn_registry_t *registry, juice_cb_mux_incoming_t cb, void *user_ptr);
+@@ -61,7 +62,8 @@ void conn_lock(juice_agent_t *agent);
+ void conn_unlock(juice_agent_t *agent);
+ int conn_interrupt(juice_agent_t *agent);
+ int conn_send(juice_agent_t *agent, const addr_record_t *dst, const char *data, size_t size,
+-              int ds);
++              int ds, juice_egress_class_t egress_class, juice_datagram_path_t path,
++              juice_datagram_protocol_t protocol);
+ void conn_tcp_connect(juice_agent_t *agent, const addr_record_t *dst);
+ int conn_get_addrs(juice_agent_t *agent, addr_record_t *records, size_t size);
+ 
+diff --git a/deps/libjuice/src/conn_mux.c b/deps/libjuice/src/conn_mux.c
+index 6af8833..9d95192 100644
+--- a/deps/libjuice/src/conn_mux.c
++++ b/deps/libjuice/src/conn_mux.c
+@@ -617,7 +617,11 @@ int conn_mux_interrupt(juice_agent_t *agent) {
+ }
+ 
+ int conn_mux_send(juice_agent_t *agent, const addr_record_t *dst, const char *data, size_t size,
+-                  int ds) {
++                  int ds, juice_egress_class_t egress_class, juice_datagram_path_t path,
++                  juice_datagram_protocol_t protocol) {
++	(void)egress_class;
++	(void)path;
++	(void)protocol;
+ 	conn_impl_t *conn_impl = agent->conn_impl;
+ 	registry_impl_t *registry_impl = conn_impl->registry->impl;
+ 
+diff --git a/deps/libjuice/src/conn_mux.h b/deps/libjuice/src/conn_mux.h
+index bfd6501..42070a8 100644
+--- a/deps/libjuice/src/conn_mux.h
++++ b/deps/libjuice/src/conn_mux.h
+@@ -27,7 +27,8 @@ void conn_mux_unlock(juice_agent_t *agent);
+ int conn_mux_interrupt_registry(conn_registry_t *registry);
+ int conn_mux_interrupt(juice_agent_t *agent);
+ int conn_mux_send(juice_agent_t *agent, const addr_record_t *dst, const char *data, size_t size,
+-                        int ds);
++                  int ds, juice_egress_class_t egress_class, juice_datagram_path_t path,
++                  juice_datagram_protocol_t protocol);
+ int conn_mux_get_addrs(juice_agent_t *agent, addr_record_t *records, size_t size);
+ int conn_mux_listen(conn_registry_t *registry, juice_cb_mux_incoming_t cb, void *user_ptr);
+ conn_registry_t *conn_mux_get_registry(udp_socket_config_t *config);
+diff --git a/deps/libjuice/src/conn_poll.c b/deps/libjuice/src/conn_poll.c
+index da8472c..1ad6745 100644
+--- a/deps/libjuice/src/conn_poll.c
++++ b/deps/libjuice/src/conn_poll.c
+@@ -46,6 +46,34 @@ typedef struct conn_impl {
+ 	timestamp_t next_timestamp;
+ } conn_impl_t;
+ 
++typedef struct native_udp_send_context {
++	socket_t sock;
++	const char *data;
++	size_t size;
++	const addr_record_t *dst;
++	bool called;
++} native_udp_send_context_t;
++
++static int native_udp_send(void *ptr) {
++	native_udp_send_context_t *context = ptr;
++	if (context->called)
++		return -1;
++	context->called = true;
++	return udp_sendto(context->sock, context->data, context->size, context->dst);
++}
++
++static int final_udp_send(juice_agent_t *agent, socket_t sock, const addr_record_t *dst,
++	                      const char *data, size_t size, juice_egress_class_t egress_class,
++	                      juice_datagram_path_t path, juice_datagram_protocol_t protocol) {
++	native_udp_send_context_t context = {sock, data, size, dst, false};
++	if (!agent->config.cb_final_udp_send)
++		return native_udp_send(&context);
++	juice_ip_family_t family = dst->addr.ss_family == AF_INET6 ? JUICE_IP_FAMILY_IPV6
++	                                                          : JUICE_IP_FAMILY_IPV4;
++	return agent->config.cb_final_udp_send(data, size, egress_class, path, protocol, family,
++	                                      native_udp_send, &context, agent->config.user_ptr);
++}
++
+ typedef struct pfds_record {
+ 	struct pollfd *pfds;
+ 	nfds_t size;
+@@ -603,7 +631,8 @@ int conn_poll_interrupt(juice_agent_t *agent) {
+ }
+ 
+ int conn_poll_send(juice_agent_t *agent, const addr_record_t *dst, const char *data, size_t size,
+-                   int ds) {
++                   int ds, juice_egress_class_t egress_class, juice_datagram_path_t path,
++                   juice_datagram_protocol_t protocol) {
+ 	conn_impl_t *conn_impl = agent->conn_impl;
+ 
+ 	mutex_lock(&conn_impl->send_mutex);
+@@ -630,7 +659,8 @@ int conn_poll_send(juice_agent_t *agent, const addr_record_t *dst, const char *d
+ 				conn_impl->send_ds = -1; // disable for next time
+ 		}
+ 
+-		ret = udp_sendto(conn_impl->udp_sock, data, size, dst);
++		ret = final_udp_send(agent, conn_impl->udp_sock, dst, data, size, egress_class, path,
++		                     protocol);
+ 		if (ret < 0)
+ 			ret = -sockerrno;
+ 	}
+diff --git a/deps/libjuice/src/conn_poll.h b/deps/libjuice/src/conn_poll.h
+index b850089..7e4ef0c 100644
+--- a/deps/libjuice/src/conn_poll.h
++++ b/deps/libjuice/src/conn_poll.h
+@@ -26,7 +26,8 @@ void conn_poll_lock(juice_agent_t *agent);
+ void conn_poll_unlock(juice_agent_t *agent);
+ int conn_poll_interrupt(juice_agent_t *agent);
+ int conn_poll_send(juice_agent_t *agent, const addr_record_t *dst, const char *data, size_t size,
+-                        int ds);
++                   int ds, juice_egress_class_t egress_class, juice_datagram_path_t path,
++                   juice_datagram_protocol_t protocol);
+ void conn_poll_tcp_connect(juice_agent_t *agent, const addr_record_t *dst);
+ int conn_poll_get_addrs(juice_agent_t *agent, addr_record_t *records, size_t size);
+ 
+diff --git a/deps/libjuice/src/conn_thread.c b/deps/libjuice/src/conn_thread.c
+index 1b05458..f3dd5ef 100644
+--- a/deps/libjuice/src/conn_thread.c
++++ b/deps/libjuice/src/conn_thread.c
+@@ -28,6 +28,34 @@ typedef struct conn_impl {
+ 	bool stopped;
+ } conn_impl_t;
+ 
++typedef struct native_udp_send_context {
++	socket_t sock;
++	const char *data;
++	size_t size;
++	const addr_record_t *dst;
++	bool called;
++} native_udp_send_context_t;
++
++static int native_udp_send(void *ptr) {
++	native_udp_send_context_t *context = ptr;
++	if (context->called)
++		return -1;
++	context->called = true;
++	return udp_sendto(context->sock, context->data, context->size, context->dst);
++}
++
++static int final_udp_send(juice_agent_t *agent, socket_t sock, const addr_record_t *dst,
++	                      const char *data, size_t size, juice_egress_class_t egress_class,
++	                      juice_datagram_path_t path, juice_datagram_protocol_t protocol) {
++	native_udp_send_context_t context = {sock, data, size, dst, false};
++	if (!agent->config.cb_final_udp_send)
++		return native_udp_send(&context);
++	juice_ip_family_t family = dst->addr.ss_family == AF_INET6 ? JUICE_IP_FAMILY_IPV6
++	                                                          : JUICE_IP_FAMILY_IPV4;
++	return agent->config.cb_final_udp_send(data, size, egress_class, path, protocol, family,
++	                                      native_udp_send, &context, agent->config.user_ptr);
++}
++
+ int conn_thread_run(juice_agent_t *agent);
+ int conn_thread_prepare(juice_agent_t *agent, struct pollfd *pfd, timestamp_t *next_timestamp);
+ int conn_thread_process(juice_agent_t *agent, struct pollfd *pfd);
+@@ -243,7 +271,8 @@ int conn_thread_interrupt(juice_agent_t *agent) {
+ }
+ 
+ int conn_thread_send(juice_agent_t *agent, const addr_record_t *dst, const char *data, size_t size,
+-                     int ds) {
++                     int ds, juice_egress_class_t egress_class, juice_datagram_path_t path,
++                     juice_datagram_protocol_t protocol) {
+ 	conn_impl_t *conn_impl = agent->conn_impl;
+ 
+ 	mutex_lock(&conn_impl->send_mutex);
+@@ -258,7 +287,7 @@ int conn_thread_send(juice_agent_t *agent, const addr_record_t *dst, const char
+ 
+ 	JLOG_VERBOSE("Sending datagram, size=%d", size);
+ 
+-	int ret = udp_sendto(conn_impl->sock, data, size, dst);
++	int ret = final_udp_send(agent, conn_impl->sock, dst, data, size, egress_class, path, protocol);
+ 	if (ret < 0) {
+ 		ret = -sockerrno;
+ 		if (sockerrno == SEAGAIN || sockerrno == SEWOULDBLOCK)
+diff --git a/deps/libjuice/src/conn_thread.h b/deps/libjuice/src/conn_thread.h
+index ceb23a4..9bcf3ca 100644
+--- a/deps/libjuice/src/conn_thread.h
++++ b/deps/libjuice/src/conn_thread.h
+@@ -26,7 +26,8 @@ void conn_thread_lock(juice_agent_t *agent);
+ void conn_thread_unlock(juice_agent_t *agent);
+ int conn_thread_interrupt(juice_agent_t *agent);
+ int conn_thread_send(juice_agent_t *agent, const addr_record_t *dst, const char *data, size_t size,
+-                     int ds);
++                     int ds, juice_egress_class_t egress_class, juice_datagram_path_t path,
++                     juice_datagram_protocol_t protocol);
+ int conn_thread_get_addrs(juice_agent_t *agent, addr_record_t *records, size_t size);
+ 
+ #endif
+diff --git a/deps/libjuice/src/juice.c b/deps/libjuice/src/juice.c
+index 074823c..3ac2be9 100644
+--- a/deps/libjuice/src/juice.c
++++ b/deps/libjuice/src/juice.c
+@@ -89,10 +89,19 @@ JUICE_EXPORT int juice_send(juice_agent_t *agent, const char *data, size_t size)
+ }
+ 
+ JUICE_EXPORT int juice_send_diffserv(juice_agent_t *agent, const char *data, size_t size, int ds) {
++	return juice_send_diffserv_classified(agent, data, size, ds, JUICE_EGRESS_CLASS_CONTROL,
++	                                      JUICE_DATAGRAM_PROTOCOL_UNKNOWN_CONTROL);
++}
++
++JUICE_EXPORT int juice_send_diffserv_classified(juice_agent_t *agent, const char *data, size_t size,
++                                                int ds, juice_egress_class_t egress_class,
++                                                juice_datagram_protocol_t protocol) {
+ 	if (!agent || (!data && size))
+ 		return JUICE_ERR_INVALID;
++	if (egress_class != JUICE_EGRESS_CLASS_CONTROL && egress_class != JUICE_EGRESS_CLASS_MEDIA)
++		return JUICE_ERR_INVALID;
+ 
+-	int ret = agent_send(agent, data, size, ds);
++	int ret = agent_send(agent, data, size, ds, egress_class, protocol);
+ 	if(ret >= 0)
+ 		return JUICE_ERR_SUCCESS;
+ 	if(ret == -SEAGAIN || ret == -SEWOULDBLOCK)
+diff --git a/deps/libjuice/test/glyphrelay_final_egress.c b/deps/libjuice/test/glyphrelay_final_egress.c
+new file mode 100644
+index 0000000..9dd5639
+--- /dev/null
++++ b/deps/libjuice/test/glyphrelay_final_egress.c
+@@ -0,0 +1,167 @@
++/**
++ * Copyright (c) 2026 GlyphRelay contributors
++ *
++ * This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this
++ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
++ */
++
++#include "juice/juice.h"
++
++#include <stdbool.h>
++#include <stdatomic.h>
++#include <stdio.h>
++#include <string.h>
++
++#ifdef _WIN32
++#include <windows.h>
++static void wait_millis(unsigned int millis) { Sleep(millis); }
++#else
++#include <unistd.h>
++static void wait_millis(unsigned int millis) { usleep(millis * 1000); }
++#endif
++
++typedef struct peer_context {
++	juice_agent_t **other;
++	atomic_int state;
++	atomic_int received;
++	atomic_int control_hooks;
++	atomic_int media_hooks;
++	atomic_int invalid_hooks;
++} peer_context_t;
++
++static int final_udp_send(const char *data, size_t size, juice_egress_class_t egress_class,
++	                      juice_datagram_path_t path, juice_datagram_protocol_t protocol,
++	                      juice_ip_family_t ip_family, juice_cb_native_udp_send_t native_send,
++	                      void *native_send_ptr, void *user_ptr) {
++	peer_context_t *context = user_ptr;
++	if (!data || size == 0 || path != JUICE_DATAGRAM_PATH_DIRECT_UDP ||
++	    ip_family != JUICE_IP_FAMILY_IPV4) {
++		atomic_fetch_add(&context->invalid_hooks, 1);
++	}
++	if (egress_class == JUICE_EGRESS_CLASS_MEDIA) {
++		atomic_fetch_add(&context->media_hooks, 1);
++		if (protocol != JUICE_DATAGRAM_PROTOCOL_SRTP)
++			atomic_fetch_add(&context->invalid_hooks, 1);
++	} else {
++		atomic_fetch_add(&context->control_hooks, 1);
++		if (protocol != JUICE_DATAGRAM_PROTOCOL_STUN &&
++		    protocol != JUICE_DATAGRAM_PROTOCOL_UNKNOWN_CONTROL)
++			atomic_fetch_add(&context->invalid_hooks, 1);
++	}
++	return native_send(native_send_ptr);
++}
++
++static void state_changed(juice_agent_t *agent, juice_state_t state, void *user_ptr) {
++	(void)agent;
++	peer_context_t *context = user_ptr;
++	atomic_store(&context->state, (int)state);
++}
++
++static void candidate(juice_agent_t *agent, const char *sdp, void *user_ptr) {
++	(void)agent;
++	peer_context_t *context = user_ptr;
++	if (*context->other)
++		juice_add_remote_candidate(*context->other, sdp);
++}
++
++static void gathering_done(juice_agent_t *agent, void *user_ptr) {
++	(void)agent;
++	peer_context_t *context = user_ptr;
++	if (*context->other)
++		juice_set_remote_gathering_done(*context->other);
++}
++
++static void received(juice_agent_t *agent, const char *data, size_t size, void *user_ptr) {
++	(void)agent;
++	peer_context_t *context = user_ptr;
++	static const char expected[] = "glyphrelay-final-egress";
++	if (size == sizeof(expected) - 1 && memcmp(data, expected, size) == 0)
++		atomic_store(&context->received, 1);
++}
++
++static int wait_for_connection(peer_context_t *first, peer_context_t *second) {
++	for (int attempt = 0; attempt < 1000; ++attempt) {
++		int first_state = atomic_load(&first->state);
++		int second_state = atomic_load(&second->state);
++		bool first_ready = first_state == JUICE_STATE_CONNECTED || first_state == JUICE_STATE_COMPLETED;
++		bool second_ready =
++		    second_state == JUICE_STATE_CONNECTED || second_state == JUICE_STATE_COMPLETED;
++		if (first_ready && second_ready)
++			return 0;
++		wait_millis(10);
++	}
++	return -1;
++}
++
++int main(void) {
++	juice_set_log_level(JUICE_LOG_LEVEL_WARN);
++	juice_config_t rejected_mux = {0};
++	rejected_mux.concurrency_mode = JUICE_CONCURRENCY_MODE_MUX;
++	rejected_mux.cb_final_udp_send = final_udp_send;
++	if (juice_create(&rejected_mux) != NULL) {
++		fprintf(stderr, "final UDP hook did not reject socket mux\n");
++		return 1;
++	}
++
++	juice_agent_t *first = NULL;
++	juice_agent_t *second = NULL;
++	peer_context_t first_context = {.other = &second};
++	peer_context_t second_context = {.other = &first};
++	juice_config_t first_config = {0};
++	juice_config_t second_config = {0};
++	juice_config_t *configs[] = {&first_config, &second_config};
++	peer_context_t *contexts[] = {&first_context, &second_context};
++	for (size_t index = 0; index < 2; ++index) {
++		configs[index]->concurrency_mode = JUICE_CONCURRENCY_MODE_THREAD;
++		configs[index]->bind_address = "127.0.0.1";
++		configs[index]->cb_state_changed = state_changed;
++		configs[index]->cb_candidate = candidate;
++		configs[index]->cb_gathering_done = gathering_done;
++		configs[index]->cb_recv = received;
++		configs[index]->cb_final_udp_send = final_udp_send;
++		configs[index]->user_ptr = contexts[index];
++	}
++	first = juice_create(&first_config);
++	second = juice_create(&second_config);
++	if (!first || !second)
++		goto failure;
++
++	char first_sdp[JUICE_MAX_SDP_STRING_LEN];
++	char second_sdp[JUICE_MAX_SDP_STRING_LEN];
++	if (juice_get_local_description(first, first_sdp, sizeof(first_sdp)) != JUICE_ERR_SUCCESS ||
++	    juice_get_local_description(second, second_sdp, sizeof(second_sdp)) != JUICE_ERR_SUCCESS ||
++	    juice_set_remote_description(first, second_sdp) != JUICE_ERR_SUCCESS ||
++	    juice_set_remote_description(second, first_sdp) != JUICE_ERR_SUCCESS ||
++	    juice_gather_candidates(first) != JUICE_ERR_SUCCESS ||
++	    juice_gather_candidates(second) != JUICE_ERR_SUCCESS ||
++	    wait_for_connection(&first_context, &second_context) != 0)
++		goto failure;
++
++	static const char payload[] = "glyphrelay-final-egress";
++	if (juice_send_diffserv_classified(first, payload, sizeof(payload) - 1, 0,
++	                                   JUICE_EGRESS_CLASS_MEDIA,
++	                                   JUICE_DATAGRAM_PROTOCOL_SRTP) != JUICE_ERR_SUCCESS)
++		goto failure;
++	for (int attempt = 0; attempt < 500 && !atomic_load(&second_context.received); ++attempt)
++		wait_millis(10);
++
++	if (!atomic_load(&second_context.received) || atomic_load(&first_context.media_hooks) != 1 ||
++	    atomic_load(&first_context.control_hooks) == 0 ||
++	    atomic_load(&second_context.control_hooks) == 0 ||
++	    atomic_load(&first_context.invalid_hooks) != 0 ||
++	    atomic_load(&second_context.invalid_hooks) != 0)
++		goto failure;
++
++	juice_destroy(first);
++	juice_destroy(second);
++	return 0;
++
++failure:
++	if (first)
++		juice_destroy(first);
++	if (second)
++		juice_destroy(second);
++	fprintf(stderr, "final UDP hook loopback contract failed\n");
++	return 1;
++}
+

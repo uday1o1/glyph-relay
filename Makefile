@@ -4,7 +4,7 @@ HOST_SYSTEM := $(shell uname -s)
 PRESET := $(if $(filter Darwin,$(HOST_SYSTEM)),macos-local,linux-cpu)
 CXX_FILES := $(shell find include src tests tools -type f \( -name '*.cpp' -o -name '*.hpp' \) | sort)
 
-.PHONY: all analyze build check clean clean-tree-check configure dependency-check format format-check lint linux-cpu-check protocol-check python-check secret-scan test typecheck
+.PHONY: all analyze build check clean clean-tree-check configure dependency-check format format-check lint linux-cpu-check protocol-check python-check secret-scan test transport-check typecheck
 
 all: build
 
@@ -44,6 +44,9 @@ dependency-check:
 
 protocol-check:
 	uv run python tools/check_m0_protocol.py
+
+transport-check:
+	bash scripts/verify_libdatachannel_patch.sh
 
 secret-scan:
 	uv run python tools/check_repository.py

@@ -26,9 +26,11 @@ for source in \
   src/media/i420.cpp \
   src/media/openh264_encoder.cpp \
   src/media/recording_profile.cpp \
+  src/transport/media_egress.cpp \
   tests/native/test_doctor.cpp \
   tests/native/test_gpu_contracts.cpp \
   tests/native/test_media_contracts.cpp \
+  tests/native/test_media_egress.cpp \
   tests/native/test_m0_protocol.cpp \
   tests/native/test_openh264_integration.cpp \
   tools/freeze_m0_protocol.cpp; do

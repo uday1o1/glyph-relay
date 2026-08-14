@@ -5,3 +5,4 @@
 *.jpeg binary
 *.woff2 binary
 *.h264 binary
+*.patch -whitespace
