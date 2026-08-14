@@ -62,7 +62,7 @@ The selector minimizes the equal-weight mean of fitted character error at the fi
 
 The same winner supplies both co-primary uniform endpoints, while controlled uniform wins an exact endpoint comparator tie.
 
-The complete execution path, schemas, source schedule, encoder configuration, OCR tools, browser tools, qualification phase, and selector are bound by protocol SHA-256 `40774e385cae46e2b45a06d9de2fd94715e819928875257887f6560fdb1e5c1a`.
+The complete execution path, schemas, source schedule, encoder configuration, OCR tools, browser tools, qualification phase, and selector are bound by protocol SHA-256 `fabcba7efe362d2f4c8359441527b9b728e165b56d7f933cfc89950a2e766a3c`.
 
 Run the local lock and algorithm checks with:
 

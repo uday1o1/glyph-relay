@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "protocol": "saliency_validation_v1",
+  "files": [
+    { "path": "CMakeLists.txt", "sha256": "ba05844e9a4e8b22ebdd733a46a1b7cf34aef5acd605747d8fde763a140d3aca" },
+    { "path": "corpus/manifests/validation.json", "sha256": "418a7d53214d12d8393774b69e94392c81564bb754932378a7eb8f0d822c3c0e" },
+    { "path": "include/glyphrelay/cuda_preprocess.hpp", "sha256": "d12904517f95fb4e4d1cef12f031725553ff53d83b664d3f5a43593af39440e0" },
+    { "path": "include/glyphrelay/saliency.hpp", "sha256": "42f135f5f2b9d32967c7056a8926ea088526c83cfac9db8916dbdab169ee712b" },
+    { "path": "include/glyphrelay/saliency_development.hpp", "sha256": "b0ec46a26ebc4c920adb4083ba68181807bae895d0783d852befd4598a843df4" },
+    { "path": "protocols/saliency_validation_v1/execution-contract.json", "sha256": "724af62fcd7fd90a2456c3338f7072694d4ca217fc5aa24decf1e642bc4cf7d7" },
+    { "path": "qualification/m0-phases.json", "sha256": "ed89c03db6039a319186ad3cf6507e814f2d27328aa9ad9c4b03f8bc38119d39" },
+    { "path": "schemas/saliency-selection-v1.schema.json", "sha256": "a68dd7a6227a3764c364ff18a4c8280f82bef25594e2b8e1e9df6571c28df291" },
+    { "path": "schemas/saliency-validation-evidence-v1.schema.json", "sha256": "4cc02e55fdb5925176fdb62ef9012596394e5a2750e2e5e182c3caf887248759" },
+    { "path": "schemas/uniform-aq-selection-v1.schema.json", "sha256": "be0f9809fb841863c92a851a2f6771aa3d1aa7d7ca7eaa276ea33e58fba52149" },
+    { "path": "src/gpu/cuda_preprocess.cu", "sha256": "d062e6c85d0d12aeec735352fb4d7b97eefdd1f8681bbd5b78c8115dd93e52aa" },
+    { "path": "src/gpu/saliency.cpp", "sha256": "a2f4b3f80088b11d2c356716829e0c4526dd6ea55c72ae6207a4d81928327a8f" },
+    { "path": "src/gpu/saliency_development.cpp", "sha256": "eab952ec43680521bd195501fde6c8e1918b370681911a3b368c1b32a136fe06" },
+    { "path": "tooling/corpus/corpus-model.ts", "sha256": "900cbf2664dd34ff9e196b0970d3043634fdaabd8f4cfdcac781d27bdc5de6d9" },
+    { "path": "tooling/corpus/render-validation.ts", "sha256": "96e2a96ed094bd6d102dd6e482718065fe40f63f77236d40fcd3798087596850" },
+    { "path": "tools/check_saliency_validation_protocol.py", "sha256": "f610272e55ef1884bb5f9d358aa0a5f419ec7b5b785c316785bfc2277abe039d" },
+    { "path": "tools/corpus/evaluate_ocr.py", "sha256": "2bde2f91ba8ef675ba65e449287109f194a1d439309eb2590e12f538df15d2ca" },
+    { "path": "tools/corpus/evaluate_validation_ocr.py", "sha256": "658db297084bf9dc4ad12e06ef2ad89eb3d070885592accd137a7c6a3108403a" },
+    { "path": "tools/corpus/prepare_saliency_development.py", "sha256": "7f2fd39c18562a07127b3179d8d88ffbdc3e326fd328b2f3bbcbd30e057ed3cc" },
+    { "path": "tools/corpus/prepare_saliency_validation.py", "sha256": "a31dec414a4181b51a7111f4a0580c7a3e7832327097018a910759866e4a057a" },
+    { "path": "tools/evaluate_saliency_validation.cpp", "sha256": "5f853739d0a7776485b87dc527ea01fd89422c9ad7ed6f35d703a4149e272a4e" },
+    { "path": "tools/run_saliency_validation.py", "sha256": "e098213a6e20ccdba4bc0a2f510f7d46841de428dbaab67f40af999c32bb88a7" }
+  ],
+  "protocol_sha256": "38e03148303c2085ca1dc987a16da9ad6b8818cdae0d8be03c03742827542b00"
+}

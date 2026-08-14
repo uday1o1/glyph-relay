@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "protocol": "saliency_validation_v1",
+  "split": "validation",
+  "access": {
+    "firstRunRequiresCommittedSelections": [
+      "protocols/saliency_v1/selected-configuration.json",
+      "protocols/uniform_aq_v1/selected-configuration.json"
+    ],
+    "ledgerPrecedesRendering": true,
+    "rendererRequiresLedgerAndCommittedSelectionHashes": true,
+    "ordinaryRerunAfterCompletion": "rejected",
+    "reproductionMode": "verify_original_artifacts_without_replacement"
+  },
+  "rendering": {
+    "nodeVersion": "v24.18.1",
+    "chromiumVersion": "151.0.7922.34",
+    "tesseractVersion": "5.3.4",
+    "sampleFrameIds": [0, 60, 120, 180],
+    "staticWarmupFrames": 5
+  },
+  "thresholds": {
+    "losslessOverallBoundedCerMaximum": 0.02,
+    "losslessSmallGlyphBoundedCerMaximum": 0.05,
+    "overallGlyphRecallMinimum": 0.9,
+    "smallGlyphRecallMinimum": 0.8,
+    "protectedFractionMaximum": 0.35,
+    "falseProtectedFractionMaximum": 0.15,
+    "staticMapChangeFractionMaximum": 0.02
+  },
+  "reporting": {
+    "corpusAggregation": "equal_weight_per_stratum",
+    "sequencePercentile": "nearest_rank_p95",
+    "failureSceneCount": 8,
+    "failureSceneUse": "diagnostic_only_no_parameter_selection"
+  }
+}

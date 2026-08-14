@@ -28,7 +28,7 @@
     },
     {
       "path": "tools/corpus/prepare_saliency_development.py",
-      "sha256": "b9e5047bcf04eb99d88e506bbc9cd9f0cb64a430d20637d503b3a0574d215bba"
+      "sha256": "7f2fd39c18562a07127b3179d8d88ffbdc3e326fd328b2f3bbcbd30e057ed3cc"
     },
     {
       "path": "tools/corpus/saliency_selector.py",
@@ -47,5 +47,5 @@
       "sha256": "8f31bf4b9d70bc99c2130d198d2e66452f2f08181e7fb6763db01cfd7134ce4e"
     }
   ],
-  "protocol_sha256": "08b2d4fd9af71292b890b26c0c1fdb8fb664e09e7b7337927fcb29e049ddabe7"
+  "protocol_sha256": "9d11f1621b5174e985f520ee060c8e55371773131725cd0df65a7b8c96042cce"
 }

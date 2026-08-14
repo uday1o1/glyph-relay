@@ -195,12 +195,18 @@
   },
   "saliency_protocol": {
     "name": "saliency_v1",
-    "protocol_sha256": "08b2d4fd9af71292b890b26c0c1fdb8fb664e09e7b7337927fcb29e049ddabe7",
-    "manifest_lock_sha256": "d9a075ac29c8b58cf99ed24ae3e075b320b3a6d6395507a99d7270687fb077b1",
+    "protocol_sha256": "9d11f1621b5174e985f520ee060c8e55371773131725cd0df65a7b8c96042cce",
+    "manifest_lock_sha256": "2b2f09b17023c94ca52dc2b34a1cd84df5d62fd77cd22d4e8da7a7801ee0d034",
     "grid_sha256": "ab3a0b13e40cf5006e75f70bf76b530ebd5cf40f4cb79ddbb2b63b3f7764f8fb",
     "candidate_count": 2511,
     "development_render_index_sha256": "fff675307ba713ad83f366ec2c19c9eb60b208b2883349ffd603d707c70d845e",
     "selection_status": "pending_target_development_evidence"
+  },
+  "saliency_validation_protocol": {
+    "name": "saliency_validation_v1",
+    "protocol_sha256": "38e03148303c2085ca1dc987a16da9ad6b8818cdae0d8be03c03742827542b00",
+    "manifest_lock_sha256": "f3155baafa2168164bdce36c12d1aedb47c911c4d224c7a0e66e83f1ff531afc",
+    "access_status": "sealed_pending_target_selections"
   },
   "coturn": {
     "image": "coturn/coturn:4.15.0-r0",

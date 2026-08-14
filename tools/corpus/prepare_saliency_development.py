@@ -119,9 +119,11 @@ def glyph_pixels(
     }
 
 
-def truth_masks(manifest: dict[str, Any]) -> dict[tuple[str, int], tuple[bytes, bytes, bytes]]:
-    if manifest.get("split") != "development" or manifest.get("protocol") != "corpus_protocol_v1":
-        raise DevelopmentPreparationError("development_manifest_identity_invalid")
+def truth_masks(
+    manifest: dict[str, Any], *, expected_split: str = "development"
+) -> dict[tuple[str, int], tuple[bytes, bytes, bytes]]:
+    if manifest.get("split") != expected_split or manifest.get("protocol") != "corpus_protocol_v1":
+        raise DevelopmentPreparationError(f"{expected_split}_manifest_identity_invalid")
     raw_catalog = manifest.get("glyphRasterCatalog")
     if not isinstance(raw_catalog, list):
         raise DevelopmentPreparationError("glyph_catalog_invalid")

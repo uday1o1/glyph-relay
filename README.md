@@ -157,6 +157,12 @@ After the saliency configuration is frozen, the target evaluates controlled unif
 
 The source schedule, rate search, independent decode, OCR, pinned-browser checks, selection order, and current hardware boundary are documented in [the uniform AQ development protocol](docs/uniform-aq.md).
 
+After both development selections are committed, the consolidated target workflow owns the only authorized first access to the frozen validation renderer.
+
+It durably records access before rendering, runs the frozen lossless OCR gate, evaluates only the committed automatic map, and preserves aggregate, per-stratum, P95 sequence, processing, coverage, and failure-scene evidence.
+
+The local repository tests this one-shot and reproduction contract without opening validation pixels.
+
 Exercise the static loopback receiver in the exact pinned Chromium build with:
 
 ```bash

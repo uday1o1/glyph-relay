@@ -121,7 +121,7 @@ An exact canonical JSON byte serialization supplies the final lexicographic tie-
 
 The public selector refuses to run if validation or final-test renderer output exists and refuses to overwrite an existing selection.
 
-The protocol identity is `08b2d4fd9af71292b890b26c0c1fdb8fb664e09e7b7337927fcb29e049ddabe7`.
+The protocol identity is `9d11f1621b5174e985f520ee060c8e55371773131725cd0df65a7b8c96042cce`.
 
 Verify the frozen grid and selector without opening either held-out split with:
 
@@ -147,6 +147,44 @@ That target dependency is a deferred acceptance gate, not a passing result.
 The consolidated target phase runs the full grid and returns a preserved `BLOCKED` freeze handoff after independently reproducing the selected configuration.
 
 The selected artifact must then be committed before any held-out renderer output may be opened, after which the same consolidated command verifies the committed freeze and proceeds.
+
+## One-shot validation
+
+`saliency_validation_v1` is a validation-only execution package and is not a tuning path.
+
+Its protocol identity is `38e03148303c2085ca1dc987a16da9ad6b8818cdae0d8be03c03742827542b00`.
+
+It refuses to start until the selected `saliency_v1` configuration and selected `uniform_aq_v1` comparator artifact both exist byte-for-byte in the current Git commit.
+
+The command rejects validation pixels that exist before its durable access ledger.
+
+On first access, it writes and synchronizes the ledger before launching the pinned renderer, then seals the resulting render-index hash without modifying the ledger.
+
+An interrupted first run may resume only when the repository commit, source bundle, processing platform, protocol, manifest, implementation, and both selection identities match exactly.
+
+An ordinary rerun after final evidence exists is rejected.
+
+Explicit reproduction mode verifies the original ledger, render seal, render index, and evidence without replacing the original result.
+
+The lossless OCR gate reuses the frozen bounded-CER implementation and reports equal-stratum overall and small-glyph results before any later compressed readability claim is admissible.
+
+The selected automatic configuration alone is evaluated through the production CUDA preprocessor on all 64 validation sequences.
+
+Aggregate, per-stratum, nearest-rank P95 sequence, per-sequence, and processing-P95 values are preserved for recall, small-glyph recall, protected fraction, protected-truth precision, false-protected fraction, false-discovery fraction, and static map change.
+
+The evidence records both frozen themes, rapid scrolling, caret samples, mixed video and text, and the exact small-glyph count.
+
+The eight highest diagnostic failure scores are reported as failure scenes and cannot feed back into parameter selection.
+
+Manual correction behavior remains the bounded pin, exclusion, cursor, geometry-reset, and conflict contract documented above.
+
+The consolidated target phase is `saliency-validation`.
+
+It owns the only authorized first-open path and runs after both development-selection phases.
+
+The local host verifies the renderer, ledger, schemas, seeded threshold failures, frozen OCR reuse, native public help path, and protocol lock without rendering validation pixels.
+
+The actual one-shot measurements remain a designated-target acceptance gate.
 
 ## Local verification
 

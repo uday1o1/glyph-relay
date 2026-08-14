@@ -344,6 +344,55 @@ def validate_lock(lock: dict[str, Any], root: Path = ROOT) -> list[str]:
         "saliency selection status",
     )
 
+    validation = lock.get("saliency_validation_protocol", {})
+    _expect_equal(
+        errors,
+        validation.get("name"),
+        "saliency_validation_v1",
+        "saliency validation protocol name",
+    )
+    _expect_pattern(
+        errors,
+        validation.get("protocol_sha256"),
+        HEX64,
+        "saliency validation protocol SHA-256",
+    )
+    _expect_pattern(
+        errors,
+        validation.get("manifest_lock_sha256"),
+        HEX64,
+        "saliency validation manifest lock SHA-256",
+    )
+    validation_manifest_path = root / "protocols/saliency_validation_v1/manifest.lock"
+    validation_manifest = load_json(validation_manifest_path)
+    _expect_equal(
+        errors,
+        validation_manifest.get("protocol_sha256"),
+        validation.get("protocol_sha256"),
+        "saliency validation protocol aggregate SHA-256",
+    )
+    _expect_equal(
+        errors,
+        hashlib.sha256(validation_manifest_path.read_bytes()).hexdigest(),
+        validation.get("manifest_lock_sha256"),
+        "saliency validation protocol manifest lock SHA-256",
+    )
+    selection_files = (
+        root / "protocols/saliency_v1/selected-configuration.json",
+        root / "protocols/uniform_aq_v1/selected-configuration.json",
+    )
+    expected_access_status = (
+        "sealed_ready_for_target"
+        if all(path.exists() for path in selection_files)
+        else "sealed_pending_target_selections"
+    )
+    _expect_equal(
+        errors,
+        validation.get("access_status"),
+        expected_access_status,
+        "saliency validation access status",
+    )
+
     renderer_lock = load_json(root / "corpus/renderer.lock.json")
     expected_renderer = {
         "image_digest": renderer_lock.get("imageDigest"),

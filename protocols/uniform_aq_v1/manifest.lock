@@ -4,7 +4,7 @@
   "files": [
     {
       "path": "CMakeLists.txt",
-      "sha256": "e41723c081fa585340ef12d9ae9d4cb5330a69996c3b73ab109f1ebb989c436d"
+      "sha256": "ba05844e9a4e8b22ebdd733a46a1b7cf34aef5acd605747d8fde763a140d3aca"
     },
     {
       "path": "corpus/uniform-aq-v1.json",
@@ -20,7 +20,7 @@
     },
     {
       "path": "qualification/m0-phases.json",
-      "sha256": "d0ad0984ceb5ab9a539260a9c66e847b51f770779b911a581758edad680d2b50"
+      "sha256": "ed89c03db6039a319186ad3cf6507e814f2d27328aa9ad9c4b03f8bc38119d39"
     },
     {
       "path": "schemas/uniform-aq-development-evidence-v1.schema.json",
@@ -36,7 +36,7 @@
     },
     {
       "path": "src/gpu/nvenc_encoder.cpp",
-      "sha256": "a58d72ee68090fbf341a72f07ad36bcee90741fb54d92f763eb53dc1035cbc2c"
+      "sha256": "e0fc8b482740a9edaeff662f18464ba66692020acfe0b209b3672a3428023add"
     },
     {
       "path": "tooling/corpus/prepare-decoded-ocr.ts",
@@ -75,5 +75,5 @@
       "sha256": "580eb5f1c99b136502c4da9b960903615dff009540c1eb4153fcf70c344d8535"
     }
   ],
-  "protocol_sha256": "40774e385cae46e2b45a06d9de2fd94715e819928875257887f6560fdb1e5c1a"
+  "protocol_sha256": "fabcba7efe362d2f4c8359441527b9b728e165b56d7f933cfc89950a2e766a3c"
 }

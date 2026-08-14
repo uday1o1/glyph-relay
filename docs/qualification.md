@@ -62,6 +62,7 @@ The target-only acceptance mapping is:
 | M3-H04 | `m0-fixed-map-quality` |
 | M3-H05 | `nvenc-enhanced-runtime` |
 | M4 AQ development freeze | `uniform-aq-development-selection` |
+| M4 one-shot map validation | `saliency-validation` |
 
 The final Milestone 2 phase renders only the frozen development split, prepares hash-bound macroblock truth, evaluates all 2,511 configurations through the actual CUDA pipeline, and durably checkpoints each candidate.
 
@@ -78,6 +79,12 @@ It requires multiple simultaneous owned submissions, a dedicated output thread, 
 Its independent validator checks each stream hash, fully decodes all three streams with FFmpeg, and verifies H.264, 1920 by 1080 geometry, Level 4.0, 8-bit 4:2:0 limited-range BT.709 output, and the exact 300-frame count with FFprobe.
 
 The Milestone 4 AQ phase evaluates controlled uniform plus all 11 frozen AQ candidates at five measured payload targets.
+
+The Milestone 4 validation phase starts only after both selection phases pass and their artifacts are committed.
+
+It writes a durable access ledger before the first validation render, seals that render, runs the lossless OCR floor, evaluates only the committed saliency configuration through CUDA, and emits immutable threshold and failure-scene evidence.
+
+After completion, ordinary reruns are rejected and explicit reproduction mode verifies the original artifacts without replacing them.
 
 It preserves every valid and invalid rate-search trial, independently decodes every selected stream, evaluates all frozen OCR regions, and seek-decodes the actual remuxed stream through both pinned browsers.
 

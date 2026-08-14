@@ -1,0 +1,365 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.invalid/schemas/saliency-validation-evidence-v1.schema.json",
+  "title": "GlyphRelay one-shot saliency validation evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "protocol",
+    "split",
+    "status",
+    "sourceBundleId",
+    "processingPlatformSha256",
+    "validationProtocolSha256",
+    "corpusProtocolSha256",
+    "validationManifestSha256",
+    "validationRenderIndexSha256",
+    "accessLedgerSha256",
+    "renderSealSha256",
+    "saliencySelectionSha256",
+    "saliencyConfigurationSha256",
+    "uniformAqSelectionSha256",
+    "uniformAqEffectiveEncoderFieldsSha256",
+    "losslessOcr",
+    "mapEvaluation",
+    "coverage",
+    "failureScenes"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "protocol": { "const": "saliency_validation_v1" },
+    "split": { "const": "validation" },
+    "status": { "enum": ["PASSED", "INSUFFICIENT_EVIDENCE"] },
+    "sourceBundleId": { "$ref": "#/$defs/hash" },
+    "processingPlatformSha256": { "$ref": "#/$defs/hash" },
+    "validationProtocolSha256": { "$ref": "#/$defs/hash" },
+    "corpusProtocolSha256": { "$ref": "#/$defs/hash" },
+    "validationManifestSha256": { "$ref": "#/$defs/hash" },
+    "validationRenderIndexSha256": { "$ref": "#/$defs/hash" },
+    "accessLedgerSha256": { "$ref": "#/$defs/hash" },
+    "renderSealSha256": { "$ref": "#/$defs/hash" },
+    "saliencySelectionSha256": { "$ref": "#/$defs/hash" },
+    "saliencyConfigurationSha256": { "$ref": "#/$defs/hash" },
+    "uniformAqSelectionSha256": { "$ref": "#/$defs/hash" },
+    "uniformAqEffectiveEncoderFieldsSha256": { "$ref": "#/$defs/hash" },
+    "losslessOcr": { "$ref": "#/$defs/ocrEvidence" },
+    "mapEvaluation": { "$ref": "#/$defs/mapEvidence" },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "themeIds",
+        "rapidScrollSequenceCount",
+        "cursorOrCaretSampleCount",
+        "embeddedVideoSequenceCount",
+        "smallGlyphCount"
+      ],
+      "properties": {
+        "themeIds": {
+          "type": "array",
+          "prefixItems": [
+            { "const": "validation_dark_amber" },
+            { "const": "validation_light_violet" }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "rapidScrollSequenceCount": { "minimum": 1, "type": "integer" },
+        "cursorOrCaretSampleCount": { "minimum": 1, "type": "integer" },
+        "embeddedVideoSequenceCount": { "minimum": 8, "type": "integer" },
+        "smallGlyphCount": { "const": 5120 }
+      }
+    },
+    "failureScenes": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "items": { "$ref": "#/$defs/sequenceMapMetrics" }
+    }
+  },
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "unitMetric": { "type": "number", "minimum": 0, "maximum": 1 },
+    "stratum": {
+      "enum": [
+        "animated_typing_scrolling",
+        "browser_documentation",
+        "code_editor",
+        "mixed_video_text",
+        "slide_diagram",
+        "spreadsheet_table",
+        "terminal"
+      ]
+    },
+    "mapMetrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "falseDiscoveryFraction",
+        "falseProtectedFraction",
+        "overallGlyphRecall",
+        "protectedFraction",
+        "protectedTruthPrecision",
+        "smallGlyphRecall",
+        "staticMapChangeFraction"
+      ],
+      "properties": {
+        "falseDiscoveryFraction": { "$ref": "#/$defs/unitMetric" },
+        "falseProtectedFraction": { "$ref": "#/$defs/unitMetric" },
+        "overallGlyphRecall": { "$ref": "#/$defs/unitMetric" },
+        "protectedFraction": { "$ref": "#/$defs/unitMetric" },
+        "protectedTruthPrecision": { "$ref": "#/$defs/unitMetric" },
+        "smallGlyphRecall": { "$ref": "#/$defs/unitMetric" },
+        "staticMapChangeFraction": { "$ref": "#/$defs/unitMetric" }
+      }
+    },
+    "sequenceMapMetrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metrics", "sequenceId", "stratum"],
+      "properties": {
+        "metrics": { "$ref": "#/$defs/mapMetrics" },
+        "sequenceId": {
+          "type": "string",
+          "pattern": "^validation-[a-z0-9_-]+$"
+        },
+        "stratum": { "$ref": "#/$defs/stratum" }
+      }
+    },
+    "perStratumMap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "animated_typing_scrolling",
+        "browser_documentation",
+        "code_editor",
+        "mixed_video_text",
+        "slide_diagram",
+        "spreadsheet_table",
+        "terminal"
+      ],
+      "properties": {
+        "animated_typing_scrolling": { "$ref": "#/$defs/mapMetrics" },
+        "browser_documentation": { "$ref": "#/$defs/mapMetrics" },
+        "code_editor": { "$ref": "#/$defs/mapMetrics" },
+        "mixed_video_text": { "$ref": "#/$defs/mapMetrics" },
+        "slide_diagram": { "$ref": "#/$defs/mapMetrics" },
+        "spreadsheet_table": { "$ref": "#/$defs/mapMetrics" },
+        "terminal": { "$ref": "#/$defs/mapMetrics" }
+      }
+    },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contrastWeight",
+        "dilationRadiusTiles",
+        "edgePairWeight",
+        "entryThreshold",
+        "exitThreshold",
+        "gradientWeight",
+        "previousScoreCoefficient",
+        "smallStructureWeight"
+      ],
+      "properties": {
+        "contrastWeight": { "type": "number" },
+        "dilationRadiusTiles": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "edgePairWeight": { "type": "number" },
+        "entryThreshold": { "type": "number" },
+        "exitThreshold": { "type": "number" },
+        "gradientWeight": { "type": "number" },
+        "previousScoreCoefficient": { "type": "number" },
+        "smallStructureWeight": { "type": "number" }
+      }
+    },
+    "mapEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "automaticMapImplementationSha256",
+        "bundleSha256",
+        "configuration",
+        "configurationSha256",
+        "corpusProtocolSha256",
+        "metrics",
+        "processingPlatformSha256",
+        "protocol",
+        "schemaVersion",
+        "sourceBundleId",
+        "split",
+        "status",
+        "thresholds",
+        "validationManifestSha256",
+        "validationRenderIndexSha256"
+      ],
+      "properties": {
+        "automaticMapImplementationSha256": { "$ref": "#/$defs/hash" },
+        "bundleSha256": { "$ref": "#/$defs/hash" },
+        "configuration": { "$ref": "#/$defs/configuration" },
+        "configurationSha256": { "$ref": "#/$defs/hash" },
+        "corpusProtocolSha256": { "$ref": "#/$defs/hash" },
+        "metrics": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "falseDiscoveryFraction",
+            "falseProtectedFraction",
+            "overallGlyphRecall",
+            "p95Sequence",
+            "perSequence",
+            "perStratum",
+            "processingP95Ns",
+            "protectedFraction",
+            "protectedTruthPrecision",
+            "smallGlyphRecall",
+            "staticMapChangeFraction"
+          ],
+          "properties": {
+            "falseDiscoveryFraction": { "$ref": "#/$defs/unitMetric" },
+            "falseProtectedFraction": { "$ref": "#/$defs/unitMetric" },
+            "overallGlyphRecall": { "$ref": "#/$defs/unitMetric" },
+            "p95Sequence": { "$ref": "#/$defs/mapMetrics" },
+            "perSequence": {
+              "type": "array",
+              "minItems": 64,
+              "maxItems": 64,
+              "items": { "$ref": "#/$defs/sequenceMapMetrics" }
+            },
+            "perStratum": { "$ref": "#/$defs/perStratumMap" },
+            "processingP95Ns": { "type": "integer", "minimum": 1 },
+            "protectedFraction": { "$ref": "#/$defs/unitMetric" },
+            "protectedTruthPrecision": { "$ref": "#/$defs/unitMetric" },
+            "smallGlyphRecall": { "$ref": "#/$defs/unitMetric" },
+            "staticMapChangeFraction": { "$ref": "#/$defs/unitMetric" }
+          }
+        },
+        "processingPlatformSha256": { "$ref": "#/$defs/hash" },
+        "protocol": { "const": "saliency_validation_v1" },
+        "schemaVersion": { "const": 1 },
+        "sourceBundleId": { "$ref": "#/$defs/hash" },
+        "split": { "const": "validation" },
+        "status": { "enum": ["PASSED", "INSUFFICIENT_EVIDENCE"] },
+        "thresholds": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "falseProtectedFractionMaximum",
+            "overallGlyphRecallMinimum",
+            "protectedFractionMaximum",
+            "smallGlyphRecallMinimum",
+            "staticMapChangeFractionMaximum"
+          ],
+          "properties": {
+            "falseProtectedFractionMaximum": { "const": 0.15 },
+            "overallGlyphRecallMinimum": { "const": 0.9 },
+            "protectedFractionMaximum": { "const": 0.35 },
+            "smallGlyphRecallMinimum": { "const": 0.8 },
+            "staticMapChangeFractionMaximum": { "const": 0.02 }
+          }
+        },
+        "validationManifestSha256": { "$ref": "#/$defs/hash" },
+        "validationRenderIndexSha256": { "$ref": "#/$defs/hash" }
+      }
+    },
+    "ocrSequence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "boundedCer",
+        "sequenceId",
+        "smallGlyphBoundedCer",
+        "stratum"
+      ],
+      "properties": {
+        "boundedCer": { "$ref": "#/$defs/unitMetric" },
+        "sequenceId": {
+          "type": "string",
+          "pattern": "^validation-[a-z0-9_-]+$"
+        },
+        "smallGlyphBoundedCer": { "$ref": "#/$defs/unitMetric" },
+        "stratum": { "$ref": "#/$defs/stratum" }
+      }
+    },
+    "ocrStratum": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["boundedCer", "sequences", "smallGlyphBoundedCer"],
+      "properties": {
+        "boundedCer": { "$ref": "#/$defs/unitMetric" },
+        "sequences": { "type": "integer", "minimum": 8 },
+        "smallGlyphBoundedCer": { "$ref": "#/$defs/unitMetric" }
+      }
+    },
+    "ocrEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "protocol",
+        "split",
+        "status",
+        "overallBoundedCer",
+        "smallGlyphBoundedCer",
+        "thresholds",
+        "missingRegions",
+        "perStratum",
+        "perSequence"
+      ],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "protocol": { "const": "corpus_protocol_v1" },
+        "split": { "const": "validation" },
+        "status": { "enum": ["PASSED", "INSUFFICIENT_EVIDENCE"] },
+        "overallBoundedCer": { "$ref": "#/$defs/unitMetric" },
+        "smallGlyphBoundedCer": { "$ref": "#/$defs/unitMetric" },
+        "thresholds": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "overallBoundedCerMaximum",
+            "smallGlyphBoundedCerMaximum"
+          ],
+          "properties": {
+            "overallBoundedCerMaximum": { "const": 0.02 },
+            "smallGlyphBoundedCerMaximum": { "const": 0.05 }
+          }
+        },
+        "missingRegions": { "type": "integer", "minimum": 0 },
+        "perStratum": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "animated_typing_scrolling",
+            "browser_documentation",
+            "code_editor",
+            "mixed_video_text",
+            "slide_diagram",
+            "spreadsheet_table",
+            "terminal"
+          ],
+          "properties": {
+            "animated_typing_scrolling": { "$ref": "#/$defs/ocrStratum" },
+            "browser_documentation": { "$ref": "#/$defs/ocrStratum" },
+            "code_editor": { "$ref": "#/$defs/ocrStratum" },
+            "mixed_video_text": { "$ref": "#/$defs/ocrStratum" },
+            "slide_diagram": { "$ref": "#/$defs/ocrStratum" },
+            "spreadsheet_table": { "$ref": "#/$defs/ocrStratum" },
+            "terminal": { "$ref": "#/$defs/ocrStratum" }
+          }
+        },
+        "perSequence": {
+          "type": "array",
+          "minItems": 64,
+          "maxItems": 64,
+          "items": { "$ref": "#/$defs/ocrSequence" }
+        }
+      }
+    }
+  }
+}

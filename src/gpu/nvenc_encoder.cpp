@@ -300,7 +300,16 @@ struct NvencEncoder::Implementation {
         std::max(1U, configuration.maximum_bitrate_bps / configuration.frames_per_second);
     config.rcParams.vbvInitialDelay = config.rcParams.vbvBufferSize;
     config.rcParams.enableAQ = configuration.enable_aq ? 1U : 0U;
+// The SDK exposes aqStrength as a four-bit bitfield.
+// valid_configuration has already proved this value is in the inclusive range zero through 15.
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#endif
     config.rcParams.aqStrength = configuration.aq_strength;
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
     config.rcParams.enableTemporalAQ = configuration.enable_temporal_aq ? 1U : 0U;
     config.rcParams.enableLookahead = 0U;
     config.rcParams.lookaheadDepth = 0U;

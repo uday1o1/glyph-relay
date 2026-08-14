@@ -635,6 +635,42 @@
       ],
       "timeout_seconds": 86400,
       "resource_policy": "nvenc-performance-v1"
+    },
+    {
+      "id": "saliency-validation",
+      "title": "Run the immutable one-shot saliency validation gate",
+      "kind": "command",
+      "required": true,
+      "dependencies": [
+        "saliency-development-selection",
+        "uniform-aq-development-selection"
+      ],
+      "commands": [
+        [
+          "uv",
+          "run",
+          "python",
+          "tools/run_saliency_validation.py",
+          "--native",
+          "build/linux-gpu/glyphrelay_saliency_validation",
+          "--checkpoint-root",
+          "{phase_root}/validation-checkpoint",
+          "--phase-output",
+          "{phase_dir}",
+          "--source-bundle-id",
+          "{source_bundle_id}",
+          "--processing-platform-sha256",
+          "{environment_fingerprint}"
+        ]
+      ],
+      "environment_names": [
+        "HTTPS_PROXY",
+        "HTTP_PROXY",
+        "NO_PROXY",
+        "UV_CACHE_DIR"
+      ],
+      "timeout_seconds": 7200,
+      "resource_policy": "cuda-performance-v1"
     }
   ]
 }
