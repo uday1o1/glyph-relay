@@ -92,6 +92,7 @@ add_library(glyphrelay_core
   src/gpu/gpu_contracts.cpp
   src/gpu/nvenc_benchmark.cpp
   src/gpu/nvenc_browser_fixture.cpp
+  src/gpu/nvenc_encoder.cpp
   src/gpu/nvenc_probe.cpp
   src/gpu/preprocess_pool.cpp
   src/gpu/saliency.cpp
@@ -296,13 +297,18 @@ if(GLYPHRELAY_HAS_CUDA_COMPILER)
   target_link_libraries(glyphrelay_cuda_saliency_qualify PRIVATE glyphrelay_core)
   add_executable(glyphrelay_saliency_development tools/evaluate_saliency_development.cpp)
   target_link_libraries(glyphrelay_saliency_development PRIVATE glyphrelay_core)
+  add_executable(glyphrelay_nvenc_encoder_qualify tools/qualify_nvenc_encoder.cpp)
+  target_link_libraries(glyphrelay_nvenc_encoder_qualify PRIVATE glyphrelay_core)
   if(MSVC)
     target_compile_options(glyphrelay_cuda_saliency_qualify PRIVATE /W4 /WX /permissive-)
     target_compile_options(glyphrelay_saliency_development PRIVATE /W4 /WX /permissive-)
+    target_compile_options(glyphrelay_nvenc_encoder_qualify PRIVATE /W4 /WX /permissive-)
   else()
     target_compile_options(glyphrelay_cuda_saliency_qualify PRIVATE
       -Wall -Wconversion -Werror -Wextra -Wpedantic -Wshadow)
     target_compile_options(glyphrelay_saliency_development PRIVATE
+      -Wall -Wconversion -Werror -Wextra -Wpedantic -Wshadow)
+    target_compile_options(glyphrelay_nvenc_encoder_qualify PRIVATE
       -Wall -Wconversion -Werror -Wextra -Wpedantic -Wshadow)
   endif()
 endif()
@@ -338,6 +344,10 @@ if(BUILD_TESTING)
   add_executable(glyphrelay_gpu_contract_tests tests/native/test_gpu_contracts.cpp)
   target_link_libraries(glyphrelay_gpu_contract_tests PRIVATE glyphrelay_core)
   add_test(NAME native.gpu_contracts COMMAND glyphrelay_gpu_contract_tests)
+
+  add_executable(glyphrelay_nvenc_encoder_tests tests/native/test_nvenc_encoder.cpp)
+  target_link_libraries(glyphrelay_nvenc_encoder_tests PRIVATE glyphrelay_core)
+  add_test(NAME native.nvenc_encoder COMMAND glyphrelay_nvenc_encoder_tests)
 
   add_executable(glyphrelay_preprocess_pool_tests tests/native/test_preprocess_pool.cpp)
   target_link_libraries(glyphrelay_preprocess_pool_tests PRIVATE glyphrelay_core)

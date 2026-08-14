@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <span>
 #include <string>
 #include <utility>
@@ -583,13 +584,12 @@ struct CudaPreprocessor::Implementation {
     std::size_t macroblock_height = 0U;
   };
 
-  Implementation(int device_ordinal, std::size_t requested_width, std::size_t requested_height,
-                 std::size_t source_capacity, std::size_t surface_capacity,
-                 SaliencyConfiguration selected_configuration)
+  Implementation(std::shared_ptr<CudaPrimaryContext> selected_context, std::size_t requested_width,
+                 std::size_t requested_height, std::size_t source_capacity,
+                 std::size_t surface_capacity, SaliencyConfiguration selected_configuration)
       : ownership(source_capacity, surface_capacity), maximum_visible_width(requested_width),
         maximum_visible_height(requested_height), configuration(selected_configuration),
-        context(std::make_unique<CudaPrimaryContext>(device_ordinal)), sources(source_capacity),
-        surfaces(surface_capacity) {
+        context(std::move(selected_context)), sources(source_capacity), surfaces(surface_capacity) {
     initialize();
   }
 
@@ -602,8 +602,8 @@ struct CudaPreprocessor::Implementation {
       reason = "cuda_preprocess_configuration_invalid";
       return;
     }
-    if (!context->available()) {
-      reason = context->reason();
+    if (!context || !context->available()) {
+      reason = context ? context->reason() : "cuda_primary_context_missing";
       return;
     }
     ScopedCudaContext guard(*context);
@@ -765,7 +765,6 @@ struct CudaPreprocessor::Implementation {
       }
     }
     ready = false;
-    static_cast<void>(context->shutdown());
   }
 
   bool record_event(SurfaceSlot &surface, TimingEvent event) {
@@ -813,7 +812,7 @@ struct CudaPreprocessor::Implementation {
   std::size_t maximum_macroblocks = 0U;
   std::size_t maximum_nv12_bytes = 0U;
   SaliencyConfiguration configuration;
-  std::unique_ptr<CudaPrimaryContext> context;
+  std::shared_ptr<CudaPrimaryContext> context;
   cudaStream_t stream = nullptr;
   std::vector<SourceSlot> sources;
   std::vector<SurfaceSlot> surfaces;
@@ -829,6 +828,7 @@ struct CudaPreprocessor::Implementation {
   std::size_t previous_width = 0U;
   std::size_t previous_height = 0U;
   ColorRange previous_range = ColorRange::limited;
+  mutable std::mutex state_mutex;
 };
 
 CudaPreprocessor::CudaPreprocessor(int device_ordinal, std::size_t maximum_visible_width,
@@ -836,7 +836,16 @@ CudaPreprocessor::CudaPreprocessor(int device_ordinal, std::size_t maximum_visib
                                    std::size_t surface_capacity,
                                    SaliencyConfiguration configuration)
     : implementation_(std::make_unique<Implementation>(
-          device_ordinal, maximum_visible_width, maximum_visible_height, source_capacity,
+          std::make_shared<CudaPrimaryContext>(device_ordinal), maximum_visible_width,
+          maximum_visible_height, source_capacity, surface_capacity, std::move(configuration))) {}
+
+CudaPreprocessor::CudaPreprocessor(std::shared_ptr<CudaPrimaryContext> context,
+                                   std::size_t maximum_visible_width,
+                                   std::size_t maximum_visible_height, std::size_t source_capacity,
+                                   std::size_t surface_capacity,
+                                   SaliencyConfiguration configuration)
+    : implementation_(std::make_unique<Implementation>(
+          std::move(context), maximum_visible_width, maximum_visible_height, source_capacity,
           surface_capacity, std::move(configuration))) {}
 
 CudaPreprocessor::~CudaPreprocessor() = default;
@@ -855,6 +864,7 @@ CudaContextIdentity CudaPreprocessor::context_identity() const {
 CudaPreprocessTicket CudaPreprocessor::enqueue(const CapturedFrame &frame, ColorRange range,
                                                const SaliencyProcessOptions &options,
                                                bool capture_debug_output) {
+  std::scoped_lock state_lock(implementation_->state_mutex);
   auto reject = [&](std::string reason) {
     return CudaPreprocessTicket{false, std::move(reason), {}};
   };
@@ -1107,6 +1117,7 @@ CudaPreprocessTicket CudaPreprocessor::enqueue(const CapturedFrame &frame, Color
 }
 
 CudaPreprocessCompletion CudaPreprocessor::wait(const CudaPreprocessTicket &ticket) {
+  std::scoped_lock state_lock(implementation_->state_mutex);
   CudaPreprocessCompletion result;
   result.reason = "cuda_preprocess_ticket_invalid";
   if (!ticket.passed || ticket.token.surface_slot >= implementation_->surfaces.size() ||
@@ -1250,6 +1261,7 @@ CudaPreprocessCompletion CudaPreprocessor::wait(const CudaPreprocessTicket &tick
 }
 
 CudaPreprocessOperation CudaPreprocessor::mark_submitted(const CudaPreprocessTicket &ticket) {
+  std::scoped_lock state_lock(implementation_->state_mutex);
   if (!ticket.passed || ticket.token.surface_slot >= implementation_->surfaces.size() ||
       !implementation_->surfaces[ticket.token.surface_slot].waited) {
     return {false, "cuda_preprocess_submit_ticket_invalid"};
@@ -1260,6 +1272,7 @@ CudaPreprocessOperation CudaPreprocessor::mark_submitted(const CudaPreprocessTic
 
 CudaPreprocessOperation
 CudaPreprocessor::mark_encoder_input_released(const CudaPreprocessTicket &ticket) {
+  std::scoped_lock state_lock(implementation_->state_mutex);
   if (!ticket.passed || ticket.token.surface_slot >= implementation_->surfaces.size()) {
     return {false, "cuda_preprocess_encoder_release_ticket_invalid"};
   }
@@ -1268,6 +1281,7 @@ CudaPreprocessor::mark_encoder_input_released(const CudaPreprocessTicket &ticket
 }
 
 CudaPreprocessOperation CudaPreprocessor::release(const CudaPreprocessTicket &ticket) {
+  std::scoped_lock state_lock(implementation_->state_mutex);
   if (!ticket.passed || ticket.token.surface_slot >= implementation_->surfaces.size()) {
     return {false, "cuda_preprocess_release_ticket_invalid"};
   }
@@ -1282,12 +1296,36 @@ CudaPreprocessOperation CudaPreprocessor::release(const CudaPreprocessTicket &ti
   return {operation.passed, operation.reason};
 }
 
-void CudaPreprocessor::close_admission() { implementation_->ownership.close_admission(); }
+CudaPreprocessOperation CudaPreprocessor::abort(const CudaPreprocessTicket &ticket) {
+  std::scoped_lock state_lock(implementation_->state_mutex);
+  if (!ticket.passed || ticket.token.surface_slot >= implementation_->surfaces.size() ||
+      ticket.token.source_slot >= implementation_->sources.size()) {
+    return {false, "cuda_preprocess_abort_ticket_invalid"};
+  }
+  auto &surface = implementation_->surfaces[ticket.token.surface_slot];
+  const auto operation = implementation_->ownership.abort(ticket.token);
+  if (operation.passed) {
+    surface.in_use = false;
+    surface.waited = false;
+    surface.capture_debug = false;
+    surface.token = {};
+  }
+  return {operation.passed, operation.reason};
+}
+
+void CudaPreprocessor::close_admission() {
+  std::scoped_lock state_lock(implementation_->state_mutex);
+  implementation_->ownership.close_admission();
+}
 
 PreprocessPoolDiagnostics CudaPreprocessor::diagnostics() const {
+  std::scoped_lock state_lock(implementation_->state_mutex);
   return implementation_->ownership.diagnostics();
 }
 
-bool CudaPreprocessor::all_free() const { return implementation_->ownership.all_free(); }
+bool CudaPreprocessor::all_free() const {
+  std::scoped_lock state_lock(implementation_->state_mutex);
+  return implementation_->ownership.all_free();
+}
 
 } // namespace glyphrelay

@@ -31,6 +31,8 @@ struct RequestFixture {
         .submission_slot_id = slot_id,
         .submission_sequence = sequence,
         .output_bitstream = output,
+        .mode = glyphrelay::NvencFrameMode::automatic_emphasis,
+        .force_idr = sequence == 1U,
         .surface =
             {
                 .frame_id = sequence + 100U,
@@ -67,6 +69,16 @@ void test_pre_submit_validation() {
   const auto valid = fixture.request(0U, 1U, 0xB100U);
   require(glyphrelay::validate_nvenc_submission(valid).passed,
           "the complete NVENC request contract must pass");
+
+  auto uniform = valid;
+  uniform.mode = glyphrelay::NvencFrameMode::uniform;
+  uniform.emphasis_map = {};
+  require(glyphrelay::validate_nvenc_submission(uniform).passed,
+          "uniform NVENC must be representable without a fabricated emphasis map");
+  uniform.emphasis_map = valid.emphasis_map;
+  require(glyphrelay::validate_nvenc_submission(uniform).reason ==
+              "nvenc_uniform_submission_has_emphasis_map",
+          "uniform NVENC must reject a silently retained map");
 
   auto reject = [&valid](auto mutate, const char *reason) {
     auto request = valid;
@@ -137,6 +149,17 @@ void test_submission_fifo_and_retry() {
               mutation.reason == "nvenc_busy_retry_mutated" && calls == 1U,
           "a mutated busy retry must fail before the driver call");
 
+  auto mutated_map_retry = first;
+  fixture.map.front() = 4;
+  const auto map_mutation = coordinator.submit(mutated_map_retry, [&calls]() {
+    ++calls;
+    return glyphrelay::NvencSubmitStatus::success;
+  });
+  require(!map_mutation.passed && !map_mutation.driver_invoked &&
+              map_mutation.reason == "nvenc_busy_retry_mutated" && calls == 1U,
+          "an in-place map mutation must invalidate an ENCODER_BUSY retry");
+  fixture.map.front() = 0;
+
   const auto delayed = coordinator.submit(first, [&calls]() {
     ++calls;
     return glyphrelay::NvencSubmitStatus::need_more_input;
@@ -145,13 +168,21 @@ void test_submission_fifo_and_retry() {
               !coordinator.begin_bitstream_lock() && calls == 2U,
           "NEED_MORE_INPUT must append exactly once and remain non-lockable");
 
-  auto second = fixture.request(1U, 2U, 0xB200U);
-  const auto accepted = coordinator.submit(second, [&calls]() {
+  auto second_delayed = fixture.request(1U, 2U, 0xB200U);
+  const auto still_delayed = coordinator.submit(second_delayed, [&calls]() {
+    ++calls;
+    return glyphrelay::NvencSubmitStatus::need_more_input;
+  });
+  require(still_delayed.passed && !coordinator.begin_bitstream_lock() && calls == 3U,
+          "consecutive NEED_MORE_INPUT statuses must not fabricate ready output");
+
+  auto third = fixture.request(2U, 3U, 0xB300U);
+  const auto accepted = coordinator.submit(third, [&calls]() {
     ++calls;
     return glyphrelay::NvencSubmitStatus::success;
   });
-  require(accepted.passed && coordinator.pending_fifo() == std::vector<std::size_t>({0U, 1U}) &&
-              calls == 3U,
+  require(accepted.passed && coordinator.pending_fifo() == std::vector<std::size_t>({0U, 1U, 2U}) &&
+              calls == 4U,
           "a later accepted submission must preserve FIFO order");
   const auto locked_first = coordinator.begin_bitstream_lock();
   require(locked_first && *locked_first == 0U,
@@ -163,16 +194,20 @@ void test_submission_fifo_and_retry() {
   const auto locked_second = coordinator.begin_bitstream_lock();
   require(locked_second && *locked_second == 1U,
           "the next ready submission must advance after head release");
-  require(coordinator.complete_bitstream(1U).passed && coordinator.active_slots() == 0U,
+  require(coordinator.complete_bitstream(1U).passed,
+          "the second delayed submission must release in FIFO order");
+  const auto locked_third = coordinator.begin_bitstream_lock();
+  require(locked_third && *locked_third == 2U && coordinator.complete_bitstream(2U).passed &&
+              coordinator.active_slots() == 0U,
           "completed submissions must return every slot to FREE");
 
-  auto duplicate_output_a = fixture.request(0U, 3U, 0xB300U);
+  auto duplicate_output_a = fixture.request(0U, 4U, 0xB300U);
   require(coordinator
               .submit(duplicate_output_a,
                       []() { return glyphrelay::NvencSubmitStatus::need_more_input; })
               .passed,
           "the output-ownership fixture must accept its first submission");
-  auto duplicate_output_b = fixture.request(1U, 4U, 0xB300U);
+  auto duplicate_output_b = fixture.request(1U, 5U, 0xB300U);
   const auto duplicate = coordinator.submit(
       duplicate_output_b, []() { return glyphrelay::NvencSubmitStatus::success; });
   require(!duplicate.passed && !duplicate.driver_invoked &&
@@ -216,6 +251,22 @@ void test_fatal_abort_and_preflight_call_boundary() {
   require(fatal_coordinator.confirm_abort(0U).passed &&
               fatal_coordinator.confirm_abort(1U).passed && fatal_coordinator.active_slots() == 0U,
           "driver-confirmed aborts must release all submission ownership");
+
+  glyphrelay::NvencSubmissionCoordinator lock_in_flight(2U);
+  require(
+      lock_in_flight.submit(first, []() { return glyphrelay::NvencSubmitStatus::success; }).passed,
+      "the in-flight lock fixture must accept its FIFO head");
+  const auto locked = lock_in_flight.begin_bitstream_lock();
+  require(locked && *locked == 0U, "the in-flight lock fixture must own its head");
+  const auto fatal_while_locked =
+      lock_in_flight.submit(second, []() { return glyphrelay::NvencSubmitStatus::fatal; });
+  require(!fatal_while_locked.passed && lock_in_flight.fatal() &&
+              lock_in_flight.state(0U) == glyphrelay::SubmissionState::bitstream_locked &&
+              lock_in_flight.state(1U) == glyphrelay::SubmissionState::abort_pending,
+          "fatal submission must not revoke a bitstream lock still owned by the output worker");
+  require(!lock_in_flight.confirm_abort(0U).passed && lock_in_flight.confirm_abort(1U).passed &&
+              lock_in_flight.complete_bitstream(0U).passed && lock_in_flight.active_slots() == 0U,
+          "fatal cleanup must release the driver-owned lock before its slot becomes free");
 
   glyphrelay::NvencSubmissionCoordinator bounded_busy(1U, 2U);
   auto busy_request = fixture.request(0U, 1U, 0xB100U);

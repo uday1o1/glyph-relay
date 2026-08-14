@@ -39,7 +39,7 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 | 0 | `WAITING_HARDWARE` | M0-L01 through M0-L10 are locally implemented and all target gates are deferred |
 | 1 | `WAITING_HARDWARE` | M1-L01A through M1-L04 are locally implemented and all remaining acceptance items require the designated target |
 | 2 | `WAITING_HARDWARE` | M2-L01 through M2-L03B are locally implemented, while the real development-grid selection and CUDA runtime gates require the designated target |
-| 3 | `IN_PROGRESS` | Local work packages remain pending |
+| 3 | `WAITING_HARDWARE` | M3-L01 through M3-L03 are locally implemented, while browser, real multi-flight, quality, and target teardown gates require the designated target |
 | 4 | `IN_PROGRESS` | Local work packages and irreversible freezes remain pending |
 | 5 | `IN_PROGRESS` | Local work packages remain pending |
 | 6 | `IN_PROGRESS` | Local work packages remain pending |
@@ -150,13 +150,21 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 
 ## Milestone 3 acceptance gates
 
+### Local work packages
+
+| ID | State | Deliverable | Evidence |
+| --- | --- | --- | --- |
+| M3-L01 | `IMPLEMENTED_LOCAL` | Exact per-frame uniform, fixed-emphasis, and automatic-emphasis submission contracts with bounded busy retry, delayed output, FIFO ownership, EOS, and fatal cleanup | Exhaustive `native.gpu_contracts` status transitions; complete immutable retry fingerprint including map bytes; consecutive delayed-output and locked-head fatal controls; seeded mutation, alias, order, and retry-limit defects |
+| M3-L02 | `IMPLEMENTED_LOCAL` | Production synchronous-output NVENC session sharing one retained CUDA primary context with the CUDA preprocessor | Exact 13.1 API build; one registered NV12 surface and bitstream buffer per slot; dedicated output thread; single map and surface ownership chain; strict IDR and Annex B callback identity; pinned CUDA image compiles the complete 50-target graph |
+| M3-L03 | `IMPLEMENTED_LOCAL` | Target enhanced-encoder qualification, independent decode validator, and repeated teardown harness | Exact committed saliency-selection and configuration hash binding; three exact 300-frame modes; at least two simultaneous owned submissions; ten create-submit-drain-destroy cycles; foreign-generation rejection control; hash-bound streams; independent FFmpeg and FFprobe validation; target runtime remains deferred |
+
 | State | Acceptance item | Evidence |
 | --- | --- | --- |
 | `DEFERRED_HARDWARE` | Browser and independent decoders accept the enhanced stream | None |
 | `DEFERRED_HARDWARE` | Multiple in-flight frames show no map or surface corruption | None |
-| `PENDING_LOCAL` | Injected normal and fatal status simulations preserve slot ownership and order | None |
+| `IMPLEMENTED_LOCAL` | Injected normal and fatal status simulations preserve slot ownership and order | `native.gpu_contracts`; success, consecutive need-more-input, encoder-busy, retry mutation, fatal, locked-head fatal, EOS, and cleanup controls |
 | `DEFERRED_HARDWARE` | Uniform and fixed maps reproduce the Milestone 0 quality shift | None |
-| `PENDING_LOCAL` | Portable error and teardown stress tests pass | None |
+| `IMPLEMENTED_LOCAL` | Portable error and teardown stress tests pass | `native.gpu_contracts`; `native.nvenc_encoder`; repeated shutdown and exact release-order models |
 | `DEFERRED_HARDWARE` | Target error and teardown stress tests pass | None |
 
 ## Milestone 4 acceptance gates

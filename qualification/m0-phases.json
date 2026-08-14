@@ -554,6 +554,47 @@
       ],
       "timeout_seconds": 86400,
       "resource_policy": "cuda-performance-v1"
+    },
+    {
+      "id": "nvenc-enhanced-runtime",
+      "title": "Enhanced NVENC multi-flight output and teardown qualification",
+      "kind": "command",
+      "required": true,
+      "dependencies": [
+        "language-dependencies",
+        "gpu-selection",
+        "nvenc-capability",
+        "m0-fixed-map-quality",
+        "cuda-saliency-correctness",
+        "saliency-development-selection"
+      ],
+      "commands": [
+        [
+          "uv",
+          "run",
+          "python",
+          "tools/run_nvenc_enhanced.py",
+          "--native",
+          "build/linux-gpu/glyphrelay_nvenc_encoder_qualify",
+          "--selection",
+          "protocols/saliency_v1/selected-configuration.json",
+          "--output",
+          "{phase_dir}/encoder"
+        ],
+        [
+          "uv",
+          "run",
+          "python",
+          "tools/validate_nvenc_enhanced.py",
+          "{phase_dir}/encoder/evidence.json",
+          "schemas/nvenc-enhanced-qualification-v1.schema.json",
+          "protocols/saliency_v1/selected-configuration.json",
+          "{phase_dir}/validation.json"
+        ]
+      ],
+      "environment_names": ["UV_CACHE_DIR"],
+      "timeout_seconds": 1800,
+      "resource_policy": "nvenc-performance-v1"
     }
   ]
 }

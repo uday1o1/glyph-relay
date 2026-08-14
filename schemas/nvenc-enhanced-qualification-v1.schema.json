@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.local/schemas/nvenc-enhanced-qualification-v1.schema.json",
+  "title": "GlyphRelay enhanced NVENC qualification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "status",
+    "width",
+    "height",
+    "sessions",
+    "teardownCycles",
+    "saliencyConfiguration",
+    "saliencyConfigurationSha256",
+    "saliencySelectionSha256"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "status": { "const": "PASSED" },
+    "width": { "const": 1920 },
+    "height": { "const": 1080 },
+    "teardownCycles": { "const": 10 },
+    "saliencyConfiguration": { "$ref": "#/$defs/configuration" },
+    "saliencyConfigurationSha256": { "$ref": "#/$defs/sha256" },
+    "saliencySelectionSha256": { "$ref": "#/$defs/sha256" },
+    "sessions": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": { "$ref": "#/$defs/session" }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contrastWeight",
+        "dilationRadiusTiles",
+        "edgePairWeight",
+        "entryThreshold",
+        "exitThreshold",
+        "gradientWeight",
+        "previousScoreCoefficient",
+        "smallStructureWeight"
+      ],
+      "properties": {
+        "contrastWeight": { "type": "number" },
+        "dilationRadiusTiles": { "type": "integer", "minimum": 0 },
+        "edgePairWeight": { "type": "number" },
+        "entryThreshold": { "type": "number" },
+        "exitThreshold": { "type": "number" },
+        "gradientWeight": { "type": "number" },
+        "previousScoreCoefficient": { "type": "number" },
+        "smallStructureWeight": { "type": "number" }
+      }
+    },
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "frames",
+        "peakInFlight",
+        "outputThreadDedicated",
+        "firstAccessUnitKeyframe",
+        "firstAccessUnitParameterSets",
+        "resourcesReleased",
+        "streamBytes",
+        "streamSha256"
+      ],
+      "properties": {
+        "mode": {
+          "enum": ["uniform", "fixed_emphasis", "automatic_emphasis"]
+        },
+        "frames": { "const": 300 },
+        "peakInFlight": { "type": "integer", "minimum": 2, "maximum": 4 },
+        "outputThreadDedicated": { "const": true },
+        "firstAccessUnitKeyframe": { "const": true },
+        "firstAccessUnitParameterSets": { "const": true },
+        "resourcesReleased": { "const": true },
+        "streamBytes": { "type": "integer", "minimum": 1 },
+        "streamSha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

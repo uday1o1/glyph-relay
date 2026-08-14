@@ -19,23 +19,46 @@ bool checked_product(std::size_t left, std::size_t right, std::size_t &result) {
 struct SubmissionFingerprint {
   std::uint64_t sequence = 0;
   std::uintptr_t output_bitstream = 0;
+  NvencFrameMode mode = NvencFrameMode::uniform;
+  bool force_idr = false;
   std::uint64_t frame_id = 0;
   std::uint64_t geometry_epoch = 0;
   CudaContextIdentity context;
   std::uintptr_t surface_pointer = 0;
+  std::size_t surface_width = 0U;
+  std::size_t surface_height = 0U;
+  std::size_t surface_pitch = 0U;
+  std::size_t surface_allocation_bytes = 0U;
   std::uintptr_t map_pointer = 0;
-  std::size_t map_size = 0;
+  std::vector<std::int8_t> map_values;
 
   friend bool operator==(const SubmissionFingerprint &, const SubmissionFingerprint &) = default;
 };
 
 SubmissionFingerprint fingerprint(const NvencSubmissionRequest &request) {
   return {
-      request.submission_sequence,       request.output_bitstream,
-      request.surface.frame_id,          request.surface.geometry_epoch,
-      request.surface.context,           request.surface.device_pointer,
-      request.emphasis_map.host_pointer, request.emphasis_map.byte_size,
+      request.submission_sequence,
+      request.output_bitstream,
+      request.mode,
+      request.force_idr,
+      request.surface.frame_id,
+      request.surface.geometry_epoch,
+      request.surface.context,
+      request.surface.device_pointer,
+      request.surface.coded_width,
+      request.surface.coded_height,
+      request.surface.pitch,
+      request.surface.allocation_bytes,
+      request.emphasis_map.host_pointer,
+      {request.emphasis_map.values.begin(), request.emphasis_map.values.end()},
   };
+}
+
+bool absent_emphasis_map(const EmphasisMapDescriptor &map) {
+  return map.frame_id == 0U && map.geometry_epoch == 0U && !map.context.valid() &&
+         map.memory_space == MemorySpace::unknown && map.host_pointer == 0U &&
+         map.macroblock_width == 0U && map.macroblock_height == 0U && map.byte_size == 0U &&
+         map.values.empty() && !map.device_to_host_ready;
 }
 
 } // namespace
@@ -57,14 +80,8 @@ ContractValidation validate_nvenc_submission(const NvencSubmissionRequest &reque
   if (request.output_bitstream == 0U) {
     return {false, "nvenc_output_bitstream_missing"};
   }
-  if (!surface.context.valid() || !map.context.valid() || surface.context != map.context) {
+  if (!surface.context.valid()) {
     return {false, "nvenc_foreign_cuda_context"};
-  }
-  if (surface.frame_id != map.frame_id) {
-    return {false, "nvenc_stale_emphasis_map_frame"};
-  }
-  if (surface.geometry_epoch != map.geometry_epoch) {
-    return {false, "nvenc_stale_emphasis_map_geometry"};
   }
   if (surface.memory_space != MemorySpace::cuda_device || surface.device_pointer == 0U ||
       !surface.contiguous) {
@@ -83,6 +100,20 @@ ContractValidation validate_nvenc_submission(const NvencSubmissionRequest &reque
   }
   if (!surface.cuda_ready) {
     return {false, "nvenc_surface_cuda_event_not_ready"};
+  }
+  if (request.mode == NvencFrameMode::uniform) {
+    return absent_emphasis_map(map)
+               ? ContractValidation{true, "nvenc_uniform_submission_contract_valid"}
+               : ContractValidation{false, "nvenc_uniform_submission_has_emphasis_map"};
+  }
+  if (!map.context.valid() || surface.context != map.context) {
+    return {false, "nvenc_foreign_cuda_context"};
+  }
+  if (surface.frame_id != map.frame_id) {
+    return {false, "nvenc_stale_emphasis_map_frame"};
+  }
+  if (surface.geometry_epoch != map.geometry_epoch) {
+    return {false, "nvenc_stale_emphasis_map_geometry"};
   }
   const auto expected_mb_width = (surface.coded_width + 15U) / 16U;
   const auto expected_mb_height = (surface.coded_height + 15U) / 16U;
@@ -107,7 +138,7 @@ ContractValidation validate_nvenc_submission(const NvencSubmissionRequest &reque
                   [](std::int8_t level) { return level < 0 || level > 5; })) {
     return {false, "nvenc_emphasis_level_out_of_range"};
   }
-  return {true, "nvenc_submission_contract_valid"};
+  return {true, "nvenc_emphasis_submission_contract_valid"};
 }
 
 bool valid_device_source_transition(DeviceSourceState from, DeviceSourceState to) {
@@ -216,10 +247,6 @@ NvencSubmissionCoordinator::submit(const NvencSubmissionRequest &request,
     enter_fatal_state();
     return {false, true, "nvenc_submission_fatal", slot.state};
   case NvencSubmitStatus::need_more_input: {
-    const bool had_pending_submission = !fifo_.empty();
-    if (had_pending_submission) {
-      slots_[fifo_.front()].output_ready = true;
-    }
     slot.state = SubmissionState::submitted_pending_output;
     slot.output_ready = false;
     fifo_.push_back(request.submission_slot_id);
@@ -227,8 +254,8 @@ NvencSubmissionCoordinator::submit(const NvencSubmissionRequest &request,
     return {true, true, "nvenc_submission_needs_more_input", slot.state};
   }
   case NvencSubmitStatus::success:
-    if (!fifo_.empty()) {
-      slots_[fifo_.front()].output_ready = true;
+    for (const auto slot_id : fifo_) {
+      slots_[slot_id].output_ready = true;
     }
     slot.state = SubmissionState::submitted_pending_output;
     slot.output_ready = true;
@@ -256,6 +283,14 @@ SubmissionOperation NvencSubmissionCoordinator::begin_end_of_stream() {
           fifo_.empty() ? SubmissionState::free : slots_[fifo_.front()].state};
 }
 
+SubmissionOperation NvencSubmissionCoordinator::fail() {
+  if (fatal_) {
+    return {true, false, "nvenc_coordinator_already_fatal", SubmissionState::abort_pending};
+  }
+  enter_fatal_state();
+  return {true, false, "nvenc_coordinator_entered_fatal", SubmissionState::abort_pending};
+}
+
 std::optional<std::size_t> NvencSubmissionCoordinator::begin_bitstream_lock() {
   if (fifo_.empty()) {
     return std::nullopt;
@@ -276,7 +311,9 @@ SubmissionOperation NvencSubmissionCoordinator::complete_bitstream(std::size_t s
   auto &slot = slots_[submission_slot_id];
   slot = {};
   fifo_.pop_front();
-  make_fifo_head_lockable();
+  if (!fatal_) {
+    make_fifo_head_lockable();
+  }
   return {true, false, "nvenc_bitstream_slot_released", SubmissionState::free};
 }
 
@@ -323,11 +360,19 @@ void NvencSubmissionCoordinator::make_fifo_head_lockable() {
 
 void NvencSubmissionCoordinator::enter_fatal_state() {
   fatal_ = true;
+  const auto locked_head =
+      !fifo_.empty() && slots_[fifo_.front()].state == SubmissionState::bitstream_locked
+          ? std::optional<std::size_t>(fifo_.front())
+          : std::nullopt;
   fifo_.clear();
-  for (auto &slot : slots_) {
-    if (slot.state != SubmissionState::free) {
+  for (std::size_t slot_id = 0U; slot_id < slots_.size(); ++slot_id) {
+    auto &slot = slots_[slot_id];
+    if (slot.state != SubmissionState::free && slot_id != locked_head) {
       slot.state = SubmissionState::abort_pending;
     }
+  }
+  if (locked_head) {
+    fifo_.push_back(*locked_head);
   }
 }
 
@@ -358,6 +403,18 @@ std::string memory_space_name(MemorySpace memory_space) {
     return "cuda_device";
   case MemorySpace::imported_dmabuf:
     return "imported_dmabuf";
+  }
+  return "unknown";
+}
+
+std::string nvenc_frame_mode_name(NvencFrameMode mode) {
+  switch (mode) {
+  case NvencFrameMode::uniform:
+    return "uniform";
+  case NvencFrameMode::fixed_emphasis:
+    return "fixed_emphasis";
+  case NvencFrameMode::automatic_emphasis:
+    return "automatic_emphasis";
   }
   return "unknown";
 }

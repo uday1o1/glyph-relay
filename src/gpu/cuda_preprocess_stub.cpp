@@ -1,5 +1,7 @@
 #include "glyphrelay/cuda_preprocess.hpp"
 
+#include "glyphrelay/cuda_context.hpp"
+
 #include <utility>
 
 namespace glyphrelay {
@@ -16,6 +18,11 @@ struct CudaPreprocessor::Implementation {
 
 CudaPreprocessor::CudaPreprocessor(int, std::size_t, std::size_t, std::size_t source_capacity,
                                    std::size_t surface_capacity, SaliencyConfiguration)
+    : implementation_(std::make_unique<Implementation>(source_capacity, surface_capacity)) {}
+
+CudaPreprocessor::CudaPreprocessor(std::shared_ptr<CudaPrimaryContext>, std::size_t, std::size_t,
+                                   std::size_t source_capacity, std::size_t surface_capacity,
+                                   SaliencyConfiguration)
     : implementation_(std::make_unique<Implementation>(source_capacity, surface_capacity)) {}
 
 CudaPreprocessor::~CudaPreprocessor() = default;
@@ -46,6 +53,10 @@ CudaPreprocessor::mark_encoder_input_released(const CudaPreprocessTicket &) {
 }
 
 CudaPreprocessOperation CudaPreprocessor::release(const CudaPreprocessTicket &) {
+  return {false, implementation_->reason};
+}
+
+CudaPreprocessOperation CudaPreprocessor::abort(const CudaPreprocessTicket &) {
   return {false, implementation_->reason};
 }
 

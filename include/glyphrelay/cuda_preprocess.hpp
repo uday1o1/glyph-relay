@@ -14,6 +14,8 @@
 
 namespace glyphrelay {
 
+class CudaPrimaryContext;
+
 struct CudaPreprocessTimingsNs {
   std::uint64_t input_upload = 0U;
   std::uint64_t color_conversion = 0U;
@@ -57,6 +59,9 @@ public:
   CudaPreprocessor(int device_ordinal, std::size_t maximum_visible_width,
                    std::size_t maximum_visible_height, std::size_t source_capacity = 3U,
                    std::size_t surface_capacity = 3U, SaliencyConfiguration configuration = {});
+  CudaPreprocessor(std::shared_ptr<CudaPrimaryContext> context, std::size_t maximum_visible_width,
+                   std::size_t maximum_visible_height, std::size_t source_capacity = 3U,
+                   std::size_t surface_capacity = 3U, SaliencyConfiguration configuration = {});
   ~CudaPreprocessor();
   CudaPreprocessor(CudaPreprocessor &&) noexcept;
   CudaPreprocessor &operator=(CudaPreprocessor &&) noexcept = delete;
@@ -73,6 +78,7 @@ public:
   CudaPreprocessOperation mark_submitted(const CudaPreprocessTicket &ticket);
   CudaPreprocessOperation mark_encoder_input_released(const CudaPreprocessTicket &ticket);
   CudaPreprocessOperation release(const CudaPreprocessTicket &ticket);
+  CudaPreprocessOperation abort(const CudaPreprocessTicket &ticket);
   void close_admission();
   PreprocessPoolDiagnostics diagnostics() const;
   bool all_free() const;

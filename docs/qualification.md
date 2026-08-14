@@ -30,7 +30,7 @@ The phase retains raw captures privately and exports only the safe reduced valid
 
 ### Qualification phase coverage
 
-The committed graph contains 18 required Milestone 0 phases and four required Milestone 2 CUDA saliency phases.
+The committed graph contains 18 required Milestone 0 phases, four required Milestone 2 CUDA saliency phases, and one required Milestone 3 enhanced-encoder phase.
 
 The graph validates the source and exact dependencies, runs the complete portable and sanitizer suites, builds the Linux GPU targets, selects a device, validates doctor output, probes H.264, NV12, and emphasis-map support, and repeats the pre-submit and ownership contracts ten times with CTest `until-fail` semantics.
 
@@ -57,12 +57,24 @@ The target-only acceptance mapping is:
 | M2-H02 | `cuda-saliency-performance` |
 | M2-H03 | `cuda-saliency-compute-sanitizer` |
 | M2-H04 | `saliency-development-selection` |
+| M3-H01, M3-H02, and M3-H06 | `nvenc-enhanced-runtime`, `nvenc-browser-fixture` |
+| M3-H03 | `nvenc-ownership-failure-contracts`, `nvenc-enhanced-runtime` |
+| M3-H04 | `m0-fixed-map-quality` |
+| M3-H05 | `nvenc-enhanced-runtime` |
 
 The final Milestone 2 phase renders only the frozen development split, prepares hash-bound macroblock truth, evaluates all 2,511 configurations through the actual CUDA pipeline, and durably checkpoints each candidate.
 
 Its first complete run returns `BLOCKED` with a repository-freeze artifact rather than opening validation data or treating an uncommitted configuration as accepted.
 
 After that selected artifact is reviewed and committed, the same phase independently reproduces the selection and verifies the immutable fields before it can pass.
+
+The Milestone 3 phase runs the production synchronous-output encoder through 300 frames in each of uniform, fixed-emphasis, and automatic-emphasis mode under one shared retained CUDA primary context.
+
+The phase cannot run before the selected `saliency_v1` artifact is committed, and its wrapper verifies and supplies that exact configuration while the native evidence records both immutable hashes.
+
+It requires multiple simultaneous owned submissions, a dedicated output thread, exact FIFO frame identity, IDR plus SPS and PPS startup, complete resource release, and ten additional teardown cycles with a rejected foreign-context generation.
+
+Its independent validator checks each stream hash, fully decodes all three streams with FFmpeg, and verifies H.264, 1920 by 1080 geometry, Level 4.0, 8-bit 4:2:0 limited-range BT.709 output, and the exact 300-frame count with FFprobe.
 
 ## Designated GPU workflow
 

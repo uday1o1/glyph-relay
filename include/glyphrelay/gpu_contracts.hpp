@@ -55,10 +55,18 @@ struct EmphasisMapDescriptor {
   bool device_to_host_ready = false;
 };
 
+enum class NvencFrameMode {
+  uniform,
+  fixed_emphasis,
+  automatic_emphasis,
+};
+
 struct NvencSubmissionRequest {
   std::size_t submission_slot_id = 0;
   std::uint64_t submission_sequence = 0;
   std::uintptr_t output_bitstream = 0;
+  NvencFrameMode mode = NvencFrameMode::automatic_emphasis;
+  bool force_idr = false;
   Nv12SurfaceDescriptor surface;
   EmphasisMapDescriptor emphasis_map;
 };
@@ -133,6 +141,7 @@ public:
 
   SubmissionOperation submit(const NvencSubmissionRequest &request,
                              const std::function<NvencSubmitStatus()> &driver_submit);
+  SubmissionOperation fail();
   SubmissionOperation begin_end_of_stream();
   std::optional<std::size_t> begin_bitstream_lock();
   SubmissionOperation complete_bitstream(std::size_t submission_slot_id);
@@ -183,6 +192,7 @@ private:
 };
 
 std::string memory_space_name(MemorySpace memory_space);
+std::string nvenc_frame_mode_name(NvencFrameMode mode);
 std::string submission_state_name(SubmissionState state);
 std::string cuda_shutdown_phase_name(CudaShutdownPhase phase);
 
