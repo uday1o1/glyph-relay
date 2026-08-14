@@ -204,11 +204,13 @@ if(GLYPHRELAY_ENABLE_WEBRTC_CONTRACTS)
   endif()
 
   add_library(glyphrelay_libdatachannel_contract
+    src/transport/owner_signaling.cpp
     vendor/libdatachannel-v0.24.1/glyphrelay_media_handlers.cpp)
   target_include_directories(glyphrelay_libdatachannel_contract PUBLIC
     vendor/libdatachannel-v0.24.1)
   target_include_directories(glyphrelay_libdatachannel_contract SYSTEM PRIVATE
-    "${GLYPHRELAY_LIBDATACHANNEL_ROOT}/include")
+    "${GLYPHRELAY_LIBDATACHANNEL_ROOT}/include"
+    "${GLYPHRELAY_LIBDATACHANNEL_ROOT}/deps/json/single_include")
   target_link_libraries(glyphrelay_libdatachannel_contract PUBLIC glyphrelay_core datachannel)
   if(MSVC)
     target_compile_options(glyphrelay_libdatachannel_contract PRIVATE /W4 /WX /permissive-)
@@ -238,6 +240,19 @@ if(GLYPHRELAY_ENABLE_WEBRTC_CONTRACTS)
     target_compile_options(glyphrelay_m0_transport_fixture PRIVATE /W4 /WX /permissive-)
   else()
     target_compile_options(glyphrelay_m0_transport_fixture PRIVATE
+      -Wall -Wconversion -Werror -Wextra -Wpedantic -Wshadow)
+  endif()
+
+  add_executable(glyphrelay_owner_signaling_fixture
+    tools/owner_signaling_fixture.cpp)
+  target_include_directories(glyphrelay_owner_signaling_fixture SYSTEM PRIVATE
+    "${GLYPHRELAY_LIBDATACHANNEL_ROOT}/deps/json/single_include")
+  target_link_libraries(glyphrelay_owner_signaling_fixture PRIVATE
+    glyphrelay_libdatachannel_contract)
+  if(MSVC)
+    target_compile_options(glyphrelay_owner_signaling_fixture PRIVATE /W4 /WX /permissive-)
+  else()
+    target_compile_options(glyphrelay_owner_signaling_fixture PRIVATE
       -Wall -Wconversion -Werror -Wextra -Wpedantic -Wshadow)
   endif()
 endif()
@@ -352,8 +367,18 @@ if(BUILD_TESTING)
       "${GLYPHRELAY_LIBDATACHANNEL_ROOT}/src")
     add_test(NAME integration.libdatachannel_contract
       COMMAND glyphrelay_libdatachannel_contract_tests)
+    add_executable(glyphrelay_owner_signaling_tests
+      tests/native/test_owner_signaling.cpp)
+    target_include_directories(glyphrelay_owner_signaling_tests SYSTEM PRIVATE
+      "${GLYPHRELAY_LIBDATACHANNEL_ROOT}/deps/json/single_include")
+    target_link_libraries(glyphrelay_owner_signaling_tests PRIVATE
+      glyphrelay_libdatachannel_contract)
+    add_test(NAME integration.owner_signaling_protocol
+      COMMAND glyphrelay_owner_signaling_tests)
     add_test(NAME cli.m0_webrtc_sender_help COMMAND glyphrelay_m0_webrtc_sender --help)
     add_test(NAME cli.m0_transport_fixture_help COMMAND glyphrelay_m0_transport_fixture --help)
+    add_test(NAME cli.owner_signaling_fixture_help
+      COMMAND glyphrelay_owner_signaling_fixture --help)
   endif()
 
   if(GLYPHRELAY_HAS_OPENH264)

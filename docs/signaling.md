@@ -87,6 +87,26 @@ The primary browser URL is the exact public origin.
 
 The sender creates the fragment-bearing join URL only after it has established the authenticated owner WebSocket and explicitly requested a new join capability.
 
+## Native owner client
+
+The native sender client uses the exact configured HTTPS origin as the WebSocket `Origin` header and connects to its corresponding WSS endpoint.
+
+Unencrypted WS is accepted only for canonical literal IPv4 or IPv6 loopback origins.
+
+Remote origins require HTTPS, certificate verification is always enabled, and a private CA file may be configured without disabling hostname verification.
+
+The client rejects noncanonical origins, credentials, paths, query strings, fragments, header injection characters, binary messages, messages larger than 64 KiB, JSON comments, duplicate JSON keys, unknown fields, stale sequences, session swaps, and forged join URLs.
+
+The owner capability stays in native process memory, is excluded from events and diagnostics, and is overwritten when the session stops or fails.
+
+Serialized authenticated messages and received signaling buffers are also overwritten after use.
+
+The client responds to server heartbeats and independently closes the transport after five seconds without valid server activity.
+
+It does not reconnect or rebind an owner session because the service binds the capability to the WebSocket connection generation that created it.
+
+After a receiver disconnects, the live owner must explicitly request a new single-use link.
+
 ## Local verification
 
 Loopback HTTP and WS are allowed only on the literal loopback bind addresses for automated tests and development.
@@ -98,6 +118,12 @@ corepack pnpm test
 ```
 
 The live tests exercise the public HTTP and WebSocket routes, capability consumption, receiver replacement, connection cleanup, hostile Host and Origin values, oversized messages, and rate floods.
+
+The pinned native transport verification exercises the owner state machine against the real service over both loopback WS and certificate-verified WSS:
+
+```bash
+make transport-check
+```
 
 Verify a running HTTPS bundle through its real public route with:
 
