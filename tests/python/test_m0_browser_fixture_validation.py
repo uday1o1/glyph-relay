@@ -12,7 +12,7 @@ from tools.validate_m0_browser_fixture import (
 )
 
 SCHEMA = Path("schemas/m0-browser-fixture-v1.schema.json")
-MANIFEST = "532c2961261f8d20b24559cd5f1461a84b8adfd1d6a2f584354638e7b09c0f06"
+MANIFEST = "5443417595e3ccb88c89adc3a2d22842fde3206c736d3069042b62cd1c8ab708"
 
 
 def digest(value: bytes) -> str:

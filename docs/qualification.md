@@ -28,6 +28,32 @@ The production phase graph includes an exact final-datagram packet-capture phase
 It requires an accessible local Docker daemon, tshark access to the Linux loopback interface, the locked coturn image, and the built DTLS-SRTP fixture.
 The phase retains raw captures privately and exports only the safe reduced validation summary after exact per-payload and aggregate byte agreement.
 
+### Milestone 0 phase coverage
+
+The committed Milestone 0 graph contains 18 required phases.
+
+The graph validates the source and exact dependencies, runs the complete portable and sanitizer suites, builds the Linux GPU targets, selects a device, validates doctor output, probes H.264, NV12, and emphasis-map support, and repeats the pre-submit and ownership contracts ten times with CTest `until-fail` semantics.
+
+It then validates system OpenH264 record-only output, the patched transport contracts, direct IPv4 and supported IPv6 packet capture, loopback TURN over UDP, exact browser installation and offers, the 18-run NVENC browser recovery matrix, and the 20-run frozen quality experiment.
+
+The browser-offer phase cannot pass on a capture tool's exit status alone.
+
+Its report must independently satisfy the strict browser-offer schema and locked identity, profile, packetization, NACK, and PLI checks.
+
+The fixed-map phase cannot pass on producer summaries alone.
+
+Its independent validator recalculates every raw gate and decodes each measured stream again before writing its exclusive validation record.
+
+The target-only acceptance mapping is:
+
+| Gate | Required phases |
+| --- | --- |
+| M0-H01 | `gpu-selection`, `doctor-gpu`, `nvenc-capability`, `nvenc-ownership-failure-contracts` |
+| M0-H02 and M0-H03 | `m0-fixed-map-quality` |
+| M0-H04 and M0-H05 | `browser-offers`, `openh264-record-only`, `nvenc-browser-fixture` |
+| M0-H06 | `transport-contracts`, `transport-packet-capture` |
+| M0-H07 | `portable-check`, `sanitizers`, and every evidence-producing phase above |
+
 ## Designated GPU workflow
 
 After every locally executable milestone package is ready, run one command from the repository root:

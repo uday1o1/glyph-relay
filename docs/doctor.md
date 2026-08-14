@@ -16,7 +16,11 @@ On Linux it queries ScreenCast portal source and cursor flags through the sessio
 
 The NVENC API decision rejects a driver-reported maximum below the compiled 13.1 API and rejects a discovered NVIDIA driver below the locked 610 minimum.
 
-H.264, emphasis-map, input-format, geometry, and session-count fields remain `not_probed` until the device-level encoder capability adapter implemented by the NVENC feasibility path supplies real results.
+The Linux GPU build then retains the selected visible device's CUDA primary context and queries the actual NVENC H.264 GUID, emphasis-map capability, NV12 input format, and maximum geometry through the locked function table.
+
+The context guard exits before the diagnostic releases the primary context.
+
+Builds without the locked NVENC adapter retain `not_probed` for device-level fields instead of inferring support from the driver library.
 
 The system OpenH264 probe requires the versioned runtime symbol and reports only its numeric version.
 

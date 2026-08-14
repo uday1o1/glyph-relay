@@ -64,14 +64,6 @@ int run_benchmark(int argc, char **argv) {
   }
   std::cout << "Verified m0_fixed_map_v1 manifest " << verification.lock.manifest_sha256 << '\n';
 
-  const auto report = glyphrelay::build_doctor_report(glyphrelay::collect_environment_snapshot());
-  if (report.mode != "enhanced_nvenc") {
-    std::cerr << "benchmark requires enhanced_nvenc; doctor selected " << report.mode << '\n';
-    for (const auto &reason : report.reasons) {
-      std::cerr << "reason: " << reason << '\n';
-    }
-    return 3;
-  }
   const auto result = glyphrelay::run_m0_nvenc_benchmark({verification.lock, arguments.output});
   if (result.status == glyphrelay::M0BenchmarkStatus::passed) {
     std::cout << "Milestone 0 NVENC benchmark completed: " << arguments.output << '\n';
@@ -93,14 +85,6 @@ int run_browser_fixture(int argc, char **argv) {
   }
   std::cout << "Verified m0_fixed_map_v1 manifest " << verification.lock.manifest_sha256 << '\n';
 
-  const auto report = glyphrelay::build_doctor_report(glyphrelay::collect_environment_snapshot());
-  if (report.mode != "enhanced_nvenc") {
-    std::cerr << "browser-fixture requires enhanced_nvenc; doctor selected " << report.mode << '\n';
-    for (const auto &reason : report.reasons) {
-      std::cerr << "reason: " << reason << '\n';
-    }
-    return 3;
-  }
   const auto result =
       glyphrelay::run_m0_nvenc_browser_fixture({verification.lock, arguments.output});
   if (result.status == glyphrelay::M0BenchmarkStatus::passed) {

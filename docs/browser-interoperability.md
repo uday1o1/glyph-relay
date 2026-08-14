@@ -50,6 +50,10 @@ Exit code 5 means browser launch, version identity, or capture infrastructure fa
 
 An infrastructure failure is never converted into compatibility evidence.
 
+The target phase passes the captured report through `tools/validate_m0_browser_offers.py` before any NVENC playback phase starts.
+
+That independent validator applies the strict schema, rechecks the locked package and browser identities, requires exactly Chromium and Firefox, verifies the derived RFC 6184 profile bytes, and requires NACK plus PLI feedback on a compatible packetization-mode 1 format.
+
 ## Current local preflight observation
 
 The 2026-08-13 macOS arm64 preflight launched both exact pinned browser versions and produced a valid report with status `INCOMPATIBLE`.

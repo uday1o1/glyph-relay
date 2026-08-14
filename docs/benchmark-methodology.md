@@ -72,12 +72,14 @@ The fixed condition must improve protected-region PSNR by at least 1.0 dB and th
 
 The manifest hashes the source declaration, both masks, map, run configuration, metric declaration, all frame hashes, the generator, the metric implementation, the portable gate, the complete NVENC benchmark backend, both result schemas, the independent evidence validator, the SHA-256 implementation, the protocol verifier, and the freeze tool.
 
-Its immutable identity is `532c2961261f8d20b24559cd5f1461a84b8adfd1d6a2f584354638e7b09c0f06`.
+Its immutable identity is `5443417595e3ccb88c89adc3a2d22842fde3206c736d3069042b62cd1c8ab708`.
 
 Changing any locked byte produces benchmark-gate exit code 7 before hardware use.
 
 An unsupported host exits with capability code 3 only after the complete lock passes and does not create a benchmark result directory.
 
 The qualification workflow independently recalculates every payload, latency percentile, pending-work value, quality mean, configuration hash, condition mean, and cross-condition gate from the raw result set before it writes a no-clobber validation record.
+
+It also independently decodes all 20 measured elementary streams through FFprobe frame counting and requires exactly 2,100 Constrained Baseline Level 4.0 1080p limited-range BT.709 frames in each stream.
 
 An infrastructure error, timeout, unsupported encoder feature, failed independent decode, incomplete run, or evidence mismatch never counts as passing evidence.

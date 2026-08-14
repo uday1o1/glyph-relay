@@ -112,8 +112,17 @@
       "title": "Truthful selected-target doctor report",
       "kind": "command",
       "required": true,
-      "dependencies": ["gpu-selection"],
-      "commands": [["build/linux-gpu/glyphrelay", "doctor", "--json"]],
+      "dependencies": ["language-dependencies", "gpu-selection"],
+      "commands": [
+        [
+          "uv",
+          "run",
+          "python",
+          "tools/validate_doctor.py",
+          "build/linux-gpu/glyphrelay",
+          "schemas/doctor-v1.schema.json"
+        ]
+      ],
       "environment_names": [],
       "timeout_seconds": 300
     },
@@ -126,6 +135,28 @@
       "commands": [["build/linux-gpu/glyphrelay_probe_nvenc"]],
       "environment_names": [],
       "timeout_seconds": 300
+    },
+    {
+      "id": "nvenc-ownership-failure-contracts",
+      "title": "Repeated NVENC pre-submit, ownership, failure, and cleanup contracts",
+      "kind": "command",
+      "required": true,
+      "dependencies": ["gpu-build", "nvenc-capability"],
+      "commands": [
+        [
+          "ctest",
+          "--test-dir",
+          "build/linux-gpu",
+          "--output-on-failure",
+          "--no-tests=error",
+          "--repeat",
+          "until-fail:10",
+          "-R",
+          "^native\\.gpu_contracts$"
+        ]
+      ],
+      "environment_names": [],
+      "timeout_seconds": 1800
     },
     {
       "id": "openh264-record-only",
@@ -235,6 +266,17 @@
           "tooling/m0/capture-browser-offers.ts",
           "--output",
           "{phase_dir}/browser-offers.json"
+        ],
+        [
+          "uv",
+          "run",
+          "python",
+          "tools/validate_m0_browser_offers.py",
+          "{phase_dir}/browser-offers.json",
+          "--schema",
+          "schemas/m0-browser-offers-v1.schema.json",
+          "--dependency-lock",
+          "dependencies.lock.json"
         ]
       ],
       "environment_names": ["PLAYWRIGHT_BROWSERS_PATH"],
@@ -246,7 +288,12 @@
       "title": "NVENC 720p30 fixture, independent decode, and two-browser recovery matrix",
       "kind": "command",
       "required": true,
-      "dependencies": ["gpu-selection", "doctor-gpu", "browser-offers"],
+      "dependencies": [
+        "gpu-selection",
+        "doctor-gpu",
+        "nvenc-ownership-failure-contracts",
+        "browser-offers"
+      ],
       "commands": [
         [
           "build/linux-gpu/glyphrelay",
@@ -297,7 +344,11 @@
       "title": "Frozen fixed-map quality, bitrate, latency, and cleanup experiment",
       "kind": "command",
       "required": true,
-      "dependencies": ["gpu-selection", "doctor-gpu"],
+      "dependencies": [
+        "gpu-selection",
+        "doctor-gpu",
+        "nvenc-ownership-failure-contracts"
+      ],
       "commands": [
         [
           "build/linux-gpu/glyphrelay",

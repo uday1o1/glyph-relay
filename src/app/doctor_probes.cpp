@@ -1,5 +1,7 @@
+#include "glyphrelay/cuda_context.hpp"
 #include "glyphrelay/dependency_versions.hpp"
 #include "glyphrelay/doctor.hpp"
+#include "glyphrelay/nvenc_probe.hpp"
 
 #include <algorithm>
 #include <array>
@@ -420,8 +422,8 @@ void probe_nvenc(EnvironmentSnapshot &snapshot) {
   if (get_max_version == nullptr || get_max_version(&maximum) != 0) {
     snapshot.nvenc_api_compatibility = {"incompatible", "nvenc_api_version_query_failed"};
   } else {
-    const auto major = maximum & 0xFFFFU;
-    const auto minor = maximum >> 24U;
+    const auto major = maximum & 0xFFU;
+    const auto minor = (maximum >> 24U) & 0xFFU;
     snapshot.nvenc_max_api_version = std::to_string(major) + "." + std::to_string(minor);
     const std::uint32_t compiled =
         static_cast<std::uint32_t>(dependency_versions::nvenc_api_major) |
@@ -431,13 +433,38 @@ void probe_nvenc(EnvironmentSnapshot &snapshot) {
       snapshot.nvenc_api_compatibility = {"incompatible", "nvidia_driver_below_header_minimum"};
     } else {
       snapshot.nvenc_api_compatibility =
-          maximum >= compiled ? ProbeResult{"available", "compiled_nvenc_api_supported"}
-                              : ProbeResult{"incompatible", "compiled_nvenc_api_too_new"};
+          nvenc_api_version_compatible(maximum, compiled)
+              ? ProbeResult{"available", "compiled_nvenc_api_supported"}
+              : ProbeResult{"incompatible", "compiled_nvenc_api_too_new"};
     }
   }
+  dlclose(library);
+#if GLYPHRELAY_HAS_NVENC
+  if (snapshot.nvenc_api_compatibility.status != "available") {
+    snapshot.h264_nvenc = {"incompatible", "nvenc_api_compatibility_required"};
+    snapshot.emphasis_map = {"incompatible", "nvenc_api_compatibility_required"};
+    return;
+  }
+  CudaPrimaryContext context(0);
+  const auto capability = probe_nvenc_capabilities(context);
+  snapshot.h264_nvenc = capability.h264 ? ProbeResult{"available", "h264_nvenc_supported"}
+                                        : ProbeResult{"unavailable", "h264_nvenc_unsupported"};
+  snapshot.emphasis_map = capability.emphasis_map
+                              ? ProbeResult{"available", "emphasis_map_supported"}
+                              : ProbeResult{"unavailable", "emphasis_map_unsupported"};
+  if (capability.nv12) {
+    snapshot.nvenc_input_formats.push_back("nv12");
+  }
+  snapshot.maximum_width = capability.maximum_width;
+  snapshot.maximum_height = capability.maximum_height;
+  if (!context.shutdown()) {
+    snapshot.h264_nvenc = {"error", "cuda_primary_context_release_failed"};
+    snapshot.emphasis_map = {"error", "cuda_primary_context_release_failed"};
+  }
+#else
   snapshot.h264_nvenc = {"not_probed", "nvenc_device_capability_query_required"};
   snapshot.emphasis_map = {"not_probed", "nvenc_device_capability_query_required"};
-  dlclose(library);
+#endif
 #else
   snapshot.nvenc_api_compatibility = {"unsupported", "linux_sender_only"};
   snapshot.h264_nvenc = {"unsupported", "linux_sender_only"};

@@ -31,7 +31,7 @@ common=(
   -Wpedantic
   -Wshadow
   -DGLYPHRELAY_HAS_NVENC=1
-  '-DGLYPHRELAY_M0_PROTOCOL_SHA256="532c2961261f8d20b24559cd5f1461a84b8adfd1d6a2f584354638e7b09c0f06"'
+  '-DGLYPHRELAY_M0_PROTOCOL_SHA256="5443417595e3ccb88c89adc3a2d22842fde3206c736d3069042b62cd1c8ab708"'
   -I"${repository_root}/tests/stubs"
   -I"${repository_root}/include"
   -isystem
@@ -40,3 +40,5 @@ common=(
 
 "${compiler}" "${common[@]}" "${repository_root}/src/gpu/nvenc_benchmark.cpp"
 "${compiler}" "${common[@]}" "${repository_root}/src/gpu/nvenc_browser_fixture.cpp"
+"${compiler}" "${common[@]}" "${repository_root}/src/gpu/nvenc_probe.cpp"
+"${compiler}" "${common[@]}" "${repository_root}/src/app/doctor_probes.cpp"

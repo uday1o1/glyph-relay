@@ -5,6 +5,7 @@ import hashlib
 import json
 import math
 import os
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -107,11 +108,67 @@ def validate_configuration(path: Path, expected_sha256: str) -> None:
     )
 
 
+def validate_independent_decoder(stream: Path) -> None:
+    command = [
+        "ffprobe",
+        "-v",
+        "error",
+        "-count_frames",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        (
+            "stream=codec_name,profile,width,height,pix_fmt,level,color_range,color_space,"
+            "color_transfer,color_primaries,nb_read_frames"
+        ),
+        "-of",
+        "json",
+        str(stream),
+    ]
+    try:
+        completed = subprocess.run(
+            command, check=False, capture_output=True, text=True, timeout=300
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise BenchmarkValidationError(
+            f"independent_decoder_execution_failed:{stream.stem}"
+        ) from error
+    require(completed.returncode == 0, f"independent_decoder_failed:{stream.stem}")
+    try:
+        payload = json.loads(completed.stdout)
+        streams = payload["streams"]
+        facts = streams[0]
+    except (json.JSONDecodeError, KeyError, IndexError, TypeError) as error:
+        raise BenchmarkValidationError(
+            f"independent_decoder_output_invalid:{stream.stem}"
+        ) from error
+    expected = {
+        "codec_name": "h264",
+        "profile": "Constrained Baseline",
+        "width": 1920,
+        "height": 1080,
+        "pix_fmt": "yuv420p",
+        "level": 40,
+        "color_range": "tv",
+        "color_space": "bt709",
+        "color_transfer": "bt709",
+        "color_primaries": "bt709",
+        "nb_read_frames": str(FRAME_COUNT),
+    }
+    for name, expected_value in expected.items():
+        require(
+            facts.get(name) == expected_value,
+            f"independent_decoder_contract_mismatch:{stream.stem}:{name}",
+        )
+
+
 def validate_run(
     root: Path,
     condition: str,
     repeat: int,
     summary: dict[str, Any],
+    *,
+    run_independent_decoder: bool,
 ) -> dict[str, float]:
     stem = f"{condition}-repeat-{repeat:02d}"
     frame_rows = read_tsv(
@@ -151,6 +208,8 @@ def validate_run(
     stream = root / f"{stem}.h264"
     require(stream.is_file() and not stream.is_symlink(), f"stream_missing:{stem}")
     require(stream.stat().st_size == all_bytes, f"stream_size_mismatch:{stem}")
+    if run_independent_decoder:
+        validate_independent_decoder(stream)
     payload_bps = measurement_bytes * 8.0 * 30.0 / MEASUREMENT_FRAMES
     require(summary.get("measurement_bytes") == measurement_bytes, f"summary_bytes_mismatch:{stem}")
     require(
@@ -239,7 +298,13 @@ def expected_files() -> set[str]:
     return files
 
 
-def validate_benchmark(root: Path, schemas: Path, expected_manifest_sha256: str) -> dict[str, Any]:
+def validate_benchmark(
+    root: Path,
+    schemas: Path,
+    expected_manifest_sha256: str,
+    *,
+    run_independent_decoder: bool = True,
+) -> dict[str, Any]:
     require(not root.is_symlink(), "benchmark_root_invalid")
     directory = root.resolve(strict=True)
     require(directory.is_dir(), "benchmark_root_invalid")
@@ -303,7 +368,15 @@ def validate_benchmark(root: Path, schemas: Path, expected_manifest_sha256: str)
                 run_summary.get("configuration_sha256") == selected_hash,
                 "benchmark_configuration_drift",
             )
-            condition_runs.append(validate_run(directory, condition_name, repeat, run_summary))
+            condition_runs.append(
+                validate_run(
+                    directory,
+                    condition_name,
+                    repeat,
+                    run_summary,
+                    run_independent_decoder=run_independent_decoder,
+                )
+            )
         observed[condition_name] = condition_runs
 
     uniform = observed[CONDITIONS[0]]

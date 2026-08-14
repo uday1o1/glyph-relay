@@ -1,10 +1,12 @@
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from tools import validate_m0_benchmark
 from tools.validate_m0_benchmark import BenchmarkValidationError, validate_benchmark
 
 CONDITIONS = ("controlled_uniform", "fixed_emphasis_level_4")
@@ -152,7 +154,12 @@ def create_valid_benchmark(root: Path) -> None:
 def test_full_benchmark_artifact_set_passes_independent_recalculation(tmp_path: Path) -> None:
     benchmark = tmp_path / "benchmark"
     create_valid_benchmark(benchmark)
-    result = validate_benchmark(benchmark, Path("schemas").resolve(strict=True), "a" * 64)
+    result = validate_benchmark(
+        benchmark,
+        Path("schemas").resolve(strict=True),
+        "a" * 64,
+        run_independent_decoder=False,
+    )
     assert result["status"] == "PASSED"
     assert result["protected_psnr_improvement_db"] == 1.5
 
@@ -162,7 +169,12 @@ def test_tampered_stream_size_fails_for_intended_reason(tmp_path: Path) -> None:
     create_valid_benchmark(benchmark)
     (benchmark / "controlled_uniform-repeat-01.h264").write_bytes(b"bad")
     with pytest.raises(BenchmarkValidationError, match="stream_size_mismatch"):
-        validate_benchmark(benchmark, Path("schemas").resolve(strict=True), "a" * 64)
+        validate_benchmark(
+            benchmark,
+            Path("schemas").resolve(strict=True),
+            "a" * 64,
+            run_independent_decoder=False,
+        )
 
 
 def test_false_gate_measurement_fails_for_intended_reason(tmp_path: Path) -> None:
@@ -173,7 +185,12 @@ def test_false_gate_measurement_fails_for_intended_reason(tmp_path: Path) -> Non
     gate["runs"]["controlled_uniform"][0]["latency_p99_ms"] = 0.5
     write_json(gate_path, gate)
     with pytest.raises(BenchmarkValidationError, match="gate_run_recalculation_mismatch"):
-        validate_benchmark(benchmark, Path("schemas").resolve(strict=True), "a" * 64)
+        validate_benchmark(
+            benchmark,
+            Path("schemas").resolve(strict=True),
+            "a" * 64,
+            run_independent_decoder=False,
+        )
 
 
 def test_wrong_condition_map_mode_fails_for_intended_reason(tmp_path: Path) -> None:
@@ -184,4 +201,40 @@ def test_wrong_condition_map_mode_fails_for_intended_reason(tmp_path: Path) -> N
     configuration["qp_map_mode"] = "disabled"
     write_json(configuration_path, configuration)
     with pytest.raises(BenchmarkValidationError, match="configuration_mode_mismatch"):
-        validate_benchmark(benchmark, Path("schemas").resolve(strict=True), "a" * 64)
+        validate_benchmark(
+            benchmark,
+            Path("schemas").resolve(strict=True),
+            "a" * 64,
+            run_independent_decoder=False,
+        )
+
+
+def test_independent_decoder_contract_passes_and_rejects_wrong_level(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    stream = tmp_path / "run.h264"
+    stream.write_bytes(b"fixture")
+    facts = {
+        "codec_name": "h264",
+        "profile": "Constrained Baseline",
+        "width": 1920,
+        "height": 1080,
+        "pix_fmt": "yuv420p",
+        "level": 40,
+        "color_range": "tv",
+        "color_space": "bt709",
+        "color_transfer": "bt709",
+        "color_primaries": "bt709",
+        "nb_read_frames": "2100",
+    }
+
+    def run(*_args: object, **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess([], 0, json.dumps({"streams": [facts]}), "")
+
+    monkeypatch.setattr("tools.validate_m0_benchmark.subprocess.run", run)
+    validate_m0_benchmark.validate_independent_decoder(stream)
+    facts["level"] = 31
+    with pytest.raises(
+        BenchmarkValidationError, match="independent_decoder_contract_mismatch:run:level"
+    ):
+        validate_m0_benchmark.validate_independent_decoder(stream)
