@@ -52,6 +52,7 @@ window.__glyphrelayReceiver = {
   error: null,
   state: "READY",
   snapshot: receiverSnapshot,
+  transportSnapshot,
 };
 
 function receiverSnapshot() {
@@ -101,6 +102,48 @@ function drainFrameObservations() {
   return {
     droppedFrameObservations,
     observations,
+  };
+}
+
+async function transportSnapshot() {
+  if (!peerConnection) {
+    return null;
+  }
+  const reports = await peerConnection.getStats();
+  let selectedPair;
+  for (const report of reports.values()) {
+    if (
+      report.type === "transport" &&
+      typeof report.selectedCandidatePairId === "string"
+    ) {
+      selectedPair = reports.get(report.selectedCandidatePairId);
+      break;
+    }
+  }
+  if (!selectedPair) {
+    selectedPair = [...reports.values()].find(
+      (report) =>
+        report.type === "candidate-pair" &&
+        report.state === "succeeded" &&
+        report.nominated === true,
+    );
+  }
+  if (!selectedPair) {
+    return null;
+  }
+  const local = reports.get(selectedPair.localCandidateId);
+  const remote = reports.get(selectedPair.remoteCandidateId);
+  if (!local || !remote) {
+    return null;
+  }
+  return {
+    candidatePairState: selectedPair.state ?? null,
+    localAddress: local.address ?? local.ip ?? null,
+    localCandidateType: local.candidateType ?? null,
+    localProtocol: local.protocol ?? null,
+    remoteAddress: remote.address ?? remote.ip ?? null,
+    remoteCandidateType: remote.candidateType ?? null,
+    remoteProtocol: remote.protocol ?? null,
   };
 }
 

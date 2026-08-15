@@ -1,0 +1,433 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyphrelay.invalid/schemas/controller-network-evidence-v1.schema.json",
+  "title": "GlyphRelay controller network qualification evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "protocol",
+    "status",
+    "sourceCommit",
+    "sourceBundleId",
+    "controllerProtocolSha256",
+    "matrixSha256",
+    "deterministicTransportValidation",
+    "environment",
+    "runs"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "protocol": { "const": "glyphrelay-controller-network-evidence-v1" },
+    "status": { "const": "CAPTURED" },
+    "sourceCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sourceBundleId": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "controllerProtocolSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "matrixSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "deterministicTransportValidation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "artifact", "sha256"],
+      "properties": {
+        "status": { "const": "PASSED" },
+        "artifact": { "$ref": "#/$defs/basename" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kernelRelease",
+        "ipVersion",
+        "tcVersion",
+        "tsharkVersion",
+        "iproute2Package"
+      ],
+      "properties": {
+        "kernelRelease": { "$ref": "#/$defs/nonempty" },
+        "ipVersion": { "$ref": "#/$defs/nonempty" },
+        "tcVersion": { "$ref": "#/$defs/nonempty" },
+        "tsharkVersion": { "$ref": "#/$defs/nonempty" },
+        "iproute2Package": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["manager", "name", "version", "architecture"],
+          "properties": {
+            "manager": { "const": "dpkg" },
+            "name": { "const": "iproute2" },
+            "version": { "$ref": "#/$defs/nonempty" },
+            "architecture": { "$ref": "#/$defs/nonempty" }
+          }
+        }
+      }
+    },
+    "runs": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "items": { "$ref": "#/$defs/run" }
+    }
+  },
+  "$defs": {
+    "nonempty": { "type": "string", "minLength": 1, "maxLength": 4096 },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "basename": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+    },
+    "nullableTime": {
+      "type": ["number", "null"],
+      "minimum": 0
+    },
+    "browser": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "executableSha256"],
+      "properties": {
+        "name": { "enum": ["chromium", "firefox"] },
+        "version": { "$ref": "#/$defs/nonempty" },
+        "executableSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "oneWayDelayMilliseconds",
+        "queueLimitPackets",
+        "baseRateKbit",
+        "collapseRateKbit",
+        "appliedCommands",
+        "senderQdisc",
+        "receiverQdisc"
+      ],
+      "properties": {
+        "oneWayDelayMilliseconds": { "const": 25 },
+        "queueLimitPackets": { "const": 1000 },
+        "baseRateKbit": { "enum": [500, 1000, 2000, 4000] },
+        "collapseRateKbit": {
+          "oneOf": [{ "const": 100 }, { "type": "null" }]
+        },
+        "appliedCommands": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 6,
+          "items": { "$ref": "#/$defs/nonempty" }
+        },
+        "senderQdisc": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "object" }
+        },
+        "receiverQdisc": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "object" }
+        }
+      }
+    },
+    "clock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "valid",
+        "offsetMilliseconds",
+        "uncertaintyMilliseconds",
+        "networkDelayMilliseconds",
+        "requestSequence"
+      ],
+      "properties": {
+        "valid": { "type": "boolean" },
+        "offsetMilliseconds": { "type": "number" },
+        "uncertaintyMilliseconds": { "type": "number", "minimum": 0 },
+        "networkDelayMilliseconds": { "type": "number", "minimum": 0 },
+        "requestSequence": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "sample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "senderMilliseconds",
+        "senderMonotonicRawNanoseconds",
+        "wireEgressBytes",
+        "elementaryStreamBytes",
+        "retransmissionBytes",
+        "deliveredFrames",
+        "transportedAccessUnits",
+        "encodedAccessUnits",
+        "pacerQueueBytes",
+        "pacerQueuePackets",
+        "pacerOldestAgeMilliseconds",
+        "presentationProfile",
+        "width",
+        "height",
+        "framesPerSecond",
+        "dependencyEpoch",
+        "controllerState",
+        "action",
+        "controllerTrace",
+        "clockCorrelation"
+      ],
+      "properties": {
+        "senderMilliseconds": { "type": "integer", "minimum": 0 },
+        "senderMonotonicRawNanoseconds": { "type": "integer", "minimum": 1 },
+        "wireEgressBytes": { "type": "integer", "minimum": 0 },
+        "elementaryStreamBytes": { "type": "integer", "minimum": 0 },
+        "retransmissionBytes": { "type": "integer", "minimum": 0 },
+        "deliveredFrames": { "type": "integer", "minimum": 0 },
+        "transportedAccessUnits": { "type": "integer", "minimum": 0 },
+        "encodedAccessUnits": { "type": "integer", "minimum": 0 },
+        "pacerQueueBytes": { "type": "integer", "minimum": 0 },
+        "pacerQueuePackets": { "type": "integer", "minimum": 0 },
+        "pacerOldestAgeMilliseconds": { "type": "number", "minimum": 0 },
+        "presentationProfile": { "enum": ["720p30", "720p24", "720p15"] },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 },
+        "framesPerSecond": { "enum": [15, 24, 30] },
+        "dependencyEpoch": { "type": "integer", "minimum": 1 },
+        "controllerState": {
+          "enum": [
+            "STABLE",
+            "RATE_PRESSURE",
+            "CONGESTED",
+            "RECOVERY",
+            "UNUSABLE"
+          ]
+        },
+        "action": { "$ref": "#/$defs/nonempty" },
+        "controllerTrace": { "type": "object" },
+        "clockCorrelation": { "$ref": "#/$defs/clock" }
+      }
+    },
+    "sender": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result", "samples", "rtpClockBase", "recoveryPoints"],
+      "properties": {
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "exitCode",
+            "reason",
+            "capturedFrames",
+            "encodedAccessUnits",
+            "transportedAccessUnits",
+            "wireEgressBytes",
+            "controllerTicks",
+            "controllerActions"
+          ],
+          "properties": {
+            "exitCode": { "type": "integer", "minimum": 0, "maximum": 255 },
+            "reason": { "$ref": "#/$defs/nonempty" },
+            "capturedFrames": { "type": "integer", "minimum": 0 },
+            "encodedAccessUnits": { "type": "integer", "minimum": 0 },
+            "transportedAccessUnits": { "type": "integer", "minimum": 0 },
+            "wireEgressBytes": { "type": "integer", "minimum": 0 },
+            "controllerTicks": { "type": "integer", "minimum": 0 },
+            "controllerActions": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "samples": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4096,
+          "items": { "$ref": "#/$defs/sample" }
+        },
+        "rtpClockBase": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sourceFrameId",
+            "sourceMonotonicRawNanoseconds",
+            "extendedRtpTimestamp",
+            "wireRtpTimestamp",
+            "dependencyEpoch",
+            "geometryEpoch"
+          ],
+          "properties": {
+            "sourceFrameId": { "type": "integer", "minimum": 1 },
+            "sourceMonotonicRawNanoseconds": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "extendedRtpTimestamp": { "type": "integer", "minimum": 0 },
+            "wireRtpTimestamp": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            },
+            "dependencyEpoch": { "type": "integer", "minimum": 1 },
+            "geometryEpoch": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "recoveryPoints": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1024,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "sourceFrameId",
+              "sourceMonotonicRawNanoseconds",
+              "extendedRtpTimestamp",
+              "wireRtpTimestamp",
+              "dependencyEpoch",
+              "geometryEpoch"
+            ],
+            "properties": {
+              "sourceFrameId": { "type": "integer", "minimum": 1 },
+              "sourceMonotonicRawNanoseconds": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "extendedRtpTimestamp": { "type": "integer", "minimum": 0 },
+              "wireRtpTimestamp": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4294967295
+              },
+              "dependencyEpoch": { "type": "integer", "minimum": 1 },
+              "geometryEpoch": { "type": "integer", "minimum": 1 }
+            }
+          }
+        }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "callbackTimeMs",
+        "captureTimeMs",
+        "expectedDisplayTimeMs",
+        "presentationTimeMs",
+        "receiveTimeMs",
+        "rtpTimestamp"
+      ],
+      "properties": {
+        "callbackTimeMs": { "$ref": "#/$defs/nullableTime" },
+        "captureTimeMs": { "$ref": "#/$defs/nullableTime" },
+        "expectedDisplayTimeMs": { "$ref": "#/$defs/nullableTime" },
+        "presentationTimeMs": { "$ref": "#/$defs/nullableTime" },
+        "receiveTimeMs": { "$ref": "#/$defs/nullableTime" },
+        "rtpTimestamp": {
+          "oneOf": [
+            { "type": "integer", "minimum": 0, "maximum": 4294967295 },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "receiver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finalSnapshot",
+        "observations",
+        "droppedFrameObservations",
+        "errors"
+      ],
+      "properties": {
+        "finalSnapshot": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "presentedFrames", "videoWidth", "videoHeight"],
+          "properties": {
+            "state": { "$ref": "#/$defs/nonempty" },
+            "presentedFrames": { "type": "integer", "minimum": 0 },
+            "videoWidth": { "type": "integer", "minimum": 0 },
+            "videoHeight": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "observations": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100000,
+          "items": { "$ref": "#/$defs/observation" }
+        },
+        "droppedFrameObservations": { "type": "integer", "minimum": 0 },
+        "errors": {
+          "type": "array",
+          "maxItems": 1024,
+          "items": { "$ref": "#/$defs/nonempty" }
+        }
+      }
+    },
+    "capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "sha256", "packetCount", "ipTotalBytes"],
+      "properties": {
+        "file": { "$ref": "#/$defs/basename" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "packetCount": { "type": "integer", "minimum": 1 },
+        "ipTotalBytes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "timing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "measurementStartSenderMilliseconds",
+        "measurementEndSenderMilliseconds",
+        "collapseStartSenderMilliseconds",
+        "restoredAtSenderMilliseconds",
+        "recoveryTickSenderMilliseconds"
+      ],
+      "properties": {
+        "measurementStartSenderMilliseconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "measurementEndSenderMilliseconds": { "type": "integer", "minimum": 1 },
+        "collapseStartSenderMilliseconds": {
+          "oneOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }]
+        },
+        "restoredAtSenderMilliseconds": {
+          "oneOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }]
+        },
+        "recoveryTickSenderMilliseconds": {
+          "oneOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }]
+        }
+      }
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runId",
+        "kind",
+        "browser",
+        "transport",
+        "capBitsPerSecond",
+        "network",
+        "timing",
+        "sender",
+        "receiver",
+        "capture"
+      ],
+      "properties": {
+        "runId": {
+          "type": "string",
+          "pattern": "^(steady|collapse)-(chromium|firefox)-(500|1000|2000|4000)k$"
+        },
+        "kind": { "enum": ["steady", "collapse"] },
+        "browser": { "$ref": "#/$defs/browser" },
+        "transport": { "const": "direct_ipv4" },
+        "capBitsPerSecond": { "enum": [500000, 1000000, 2000000, 4000000] },
+        "network": { "$ref": "#/$defs/network" },
+        "timing": { "$ref": "#/$defs/timing" },
+        "sender": { "$ref": "#/$defs/sender" },
+        "receiver": { "$ref": "#/$defs/receiver" },
+        "capture": { "$ref": "#/$defs/capture" }
+      }
+    }
+  }
+}

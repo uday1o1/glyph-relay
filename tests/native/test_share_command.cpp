@@ -351,13 +351,16 @@ void test_peer_disconnect_preserves_recording(const std::filesystem::path &outpu
 void test_live_share_defers_capture() {
   ScriptedTransport transport;
   SyntheticShareSource source(std::nullopt, transport);
-  const auto result =
-      glyphrelay::run_share_pipeline({.signaling_origin = "https://share.example.test",
-                                      .signaling_ca_path = std::nullopt,
-                                      .bitrate_profile = "1m",
-                                      .recording_path = std::nullopt,
-                                      .json = false},
-                                     source, transport);
+  std::vector<std::pair<std::string, std::string>> statuses;
+  const auto result = glyphrelay::run_share_pipeline(
+      {.signaling_origin = "https://share.example.test",
+       .signaling_ca_path = std::nullopt,
+       .bitrate_profile = "1m",
+       .recording_path = std::nullopt,
+       .json = true},
+      source, transport, {}, [&statuses](std::string_view state, std::string_view detail) {
+        statuses.emplace_back(state, detail);
+      });
   require(result.exit_code == 0 && result.reason == "capture_closed" &&
               source.start_calls() == 1U && result.encoded_access_units == 5U &&
               result.transported_access_units == 5U && result.recorder.accepted_access_units == 0U,
@@ -367,6 +370,15 @@ void test_live_share_defers_capture() {
               result.controller_levels.presentation_profile == "720p30" &&
               transport.diagnostics().peer.pacer.target_bits_per_second == 810'000.0,
           "live-only share must apply causal receiver feedback to the real transport pacer");
+  const auto qualification = std::find_if(statuses.begin(), statuses.end(), [](const auto &item) {
+    return item.first == "qualification_sample";
+  });
+  require(qualification != statuses.end() &&
+              qualification->second.find("\"senderMonotonicRawNanoseconds\":") !=
+                  std::string::npos &&
+              qualification->second.find("\"controllerTrace\":{") != std::string::npos &&
+              qualification->second.find("\"clockCorrelation\":{") != std::string::npos,
+          "JSON sharing must expose synchronized production qualification samples");
 }
 #endif
 

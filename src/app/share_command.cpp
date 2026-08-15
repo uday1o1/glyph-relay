@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <iomanip>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -19,6 +20,10 @@
 #include <string>
 #include <thread>
 #include <utility>
+
+#if defined(__linux__)
+#include <time.h>
+#endif
 
 namespace glyphrelay {
 namespace {
@@ -31,6 +36,20 @@ std::uint64_t monotonic_now_ns() {
                          std::chrono::steady_clock::now().time_since_epoch())
                          .count();
   return value < 0 ? 0U : static_cast<std::uint64_t>(value);
+}
+
+std::uint64_t monotonic_raw_now_ns() {
+#if defined(__linux__)
+  timespec timestamp{};
+  if (clock_gettime(CLOCK_MONOTONIC_RAW, &timestamp) != 0 || timestamp.tv_sec < 0 ||
+      timestamp.tv_nsec < 0) {
+    return 0U;
+  }
+  return static_cast<std::uint64_t>(timestamp.tv_sec) * 1'000'000'000ULL +
+         static_cast<std::uint64_t>(timestamp.tv_nsec);
+#else
+  return monotonic_now_ns();
+#endif
 }
 
 std::uint64_t rtp_timestamp(std::uint64_t relative_ns) {
@@ -82,6 +101,43 @@ std::string frame_clock_detail(const CapturedFrame &frame, const RecordedAccessU
          << static_cast<std::uint32_t>(access_unit.extended_rtp_timestamp)
          << ",\"dependencyEpoch\":" << access_unit.dependency_epoch
          << ",\"geometryEpoch\":" << access_unit.geometry_epoch << '}';
+  return output.str();
+}
+
+std::string
+controller_sample_detail(std::uint64_t sender_milliseconds,
+                         std::uint64_t sender_monotonic_raw_nanoseconds,
+                         std::uint64_t elementary_stream_bytes, std::uint64_t delivered_frames,
+                         std::uint64_t transported_access_units, std::uint64_t encoded_access_units,
+                         std::uint64_t dependency_epoch, const ShareTransportDiagnostics &transport,
+                         const ControllerDecision &decision) {
+  const auto &peer = transport.peer;
+  const auto &clock = peer.clock_correlation;
+  const auto request_sequence = clock.samples.empty() ? 0U : clock.samples.back().request_sequence;
+  std::ostringstream output;
+  output << std::setprecision(17) << "{\"senderMilliseconds\":" << sender_milliseconds
+         << ",\"senderMonotonicRawNanoseconds\":" << sender_monotonic_raw_nanoseconds
+         << ",\"wireEgressBytes\":" << peer.egress.ip_total_bytes
+         << ",\"elementaryStreamBytes\":" << elementary_stream_bytes
+         << ",\"retransmissionBytes\":" << peer.retransmission_bytes_sent
+         << ",\"deliveredFrames\":" << delivered_frames
+         << ",\"transportedAccessUnits\":" << transported_access_units
+         << ",\"encodedAccessUnits\":" << encoded_access_units
+         << ",\"pacerQueueBytes\":" << peer.pacer.bytes
+         << ",\"pacerQueuePackets\":" << peer.pacer.packets
+         << ",\"pacerOldestAgeMilliseconds\":" << peer.pacer.oldest_packet_age_milliseconds
+         << ",\"presentationProfile\":\"" << decision.levels.presentation_profile
+         << "\",\"width\":" << decision.levels.width << ",\"height\":" << decision.levels.height
+         << ",\"framesPerSecond\":" << decision.levels.frames_per_second
+         << ",\"dependencyEpoch\":" << dependency_epoch << ",\"controllerState\":\""
+         << controller_state_name(decision.resulting_state) << "\",\"action\":\""
+         << controller_action_name(decision.action)
+         << "\",\"controllerTrace\":" << decision.trace_json
+         << ",\"clockCorrelation\":{\"valid\":" << (clock.valid ? "true" : "false")
+         << ",\"offsetMilliseconds\":" << clock.offset_ms
+         << ",\"uncertaintyMilliseconds\":" << clock.uncertainty_ms
+         << ",\"networkDelayMilliseconds\":" << clock.network_delay_ms
+         << ",\"requestSequence\":" << request_sequence << "}}";
   return output.str();
 }
 
@@ -436,6 +492,12 @@ ShareRunResult run_share_pipeline(const ShareCommandOptions &options, RecordFram
       result.last_controller_trace = decision.trace_json;
       if (options.json) {
         report_status(status, "controller_trace", decision.trace_json);
+        report_status(
+            status, "qualification_sample",
+            controller_sample_detail(controller_now_ns / 1'000'000ULL, monotonic_raw_now_ns(),
+                                     result.elementary_stream_bytes, latest_compositor_frames,
+                                     result.transported_access_units, result.encoded_access_units,
+                                     dependency_epoch, transport_metrics, decision));
       }
       if (decision.action != ControllerAction::none) {
         ++result.controller_actions;

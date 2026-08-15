@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "protocol": "glyphrelay-controller-network-matrix-v1",
+  "controllerProtocolSha256": "3ab488430dca0117df8bcf93fc8e516cc39bd4bb0c39a4aecde699d7831d49c3",
+  "transport": "direct_ipv4",
+  "topology": {
+    "implementation": "linux_network_namespaces_veth_router",
+    "senderAddress": "10.77.1.2/24",
+    "senderGateway": "10.77.1.1",
+    "receiverAddress": "10.77.2.2/24",
+    "receiverGateway": "10.77.2.1",
+    "signalingOrigin": "http://127.0.0.1:8443",
+    "oneWayDelayMilliseconds": 25,
+    "queueLimitPackets": 1000,
+    "qdiscCommandTemplate": "tc qdisc replace dev {device} root netem limit 1000 delay 25ms rate {rate_kbit}kbit"
+  },
+  "steady": {
+    "warmupSeconds": 10,
+    "measurementSeconds": 120,
+    "windowMilliseconds": 1000,
+    "windowAdvanceMilliseconds": 100,
+    "capsBitsPerSecond": [500000, 1000000, 2000000, 4000000],
+    "browsers": [
+      {
+        "name": "chromium",
+        "version": "151.0.7922.34"
+      },
+      {
+        "name": "firefox",
+        "version": "153.0"
+      }
+    ]
+  },
+  "collapse": {
+    "warmupSeconds": 10,
+    "baselineSeconds": 10,
+    "durationSeconds": 30,
+    "recoverySeconds": 8,
+    "baseCapBitsPerSecond": 1000000,
+    "collapseRateBitsPerSecond": 100000,
+    "browsers": ["chromium", "firefox"]
+  },
+  "acceptance": {
+    "wireP95MaximumCapFraction": 1.1,
+    "counterMaximumRelativeError": 0.01,
+    "minimumCompositorFramesPerSecond": 24,
+    "minimumDeliveryFraction": 0.95,
+    "maximumP95LatencyMilliseconds": 250,
+    "maximumPacerQueueBytes": 4194304,
+    "maximumPacerAgeMilliseconds": 100,
+    "steadyPresentationProfile": "720p30",
+    "recoveryIdrAndFrameAgeDeadlineMilliseconds": 2000,
+    "maximumProfileRecoveryMilliseconds": 8000,
+    "maximumPostIdrFreezeMilliseconds": 1000
+  }
+}
