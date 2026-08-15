@@ -6,7 +6,7 @@ Planning snapshot: 2026-08-13.
 
 ## Pause-boundary status
 
-This status was frozen on 2026-08-14 after implementation commit `89577b4d2e2b13d21520473ea3ecce2da49742f4` was pushed to and verified on `origin/main`.
+This status was frozen on 2026-08-14 after implementation commit `d81c8117b2b59c7124818fe7850aef629a7a04cf` was pushed to and verified on `origin/main`.
 It uses the exact state model in Section 5.1 and does not treat locally verified work as milestone acceptance.
 
 ### Implemented and verified
@@ -20,8 +20,11 @@ It uses the exact state model in Section 5.1 and does not treat locally verified
 - M5-L01A through M5-L01D are `IMPLEMENTED_LOCAL` and cover the frozen controller protocol, deterministic controller and replay, final-success wire accounting, and real pre-SRTP pacing with feedback ingestion.
 - M5-L01E is `IMPLEMENTED_LOCAL` at commit `5cf1b208c250f5fd93f5b71e400027c43a8ae593` and wires the controller into the public live-share loop with actual queue, encoder, egress, REMB, loss, RTT, and receiver feedback.
 - M5-L02 is `IMPLEMENTED_LOCAL` at commit `89577b4d2e2b13d21520473ea3ecce2da49742f4` and records four-timestamp clock-correlation samples, uncertainty, receiver video-frame callback timing, source-frame to RTP identity, and recovery points through the production path.
-- The verified pause-boundary commands are `make transport-check`, `make linux-cpu-check`, `make check`, and `make cuda-compile-check`.
-- The Linux CPU and sanitizer gate, 26 native macOS tests, 149 Python tests, 39 TypeScript and JavaScript tests, the real loopback DTLS-SRTP transport integrations, and the 59-target CUDA 13.3 compile check all passed.
+- M5-L03A is `IMPLEMENTED_LOCAL` at commit `d81c8117b2b59c7124818fe7850aef629a7a04cf` and freezes the direct-IPv4 steady and collapse matrix, adds a strict evidence schema and independent packet-capture validator, emits synchronized production controller samples, and adds the bounded receiver render and selected-candidate probe.
+- The current verified pause-boundary commands are `make linux-cpu-check` and `make check`.
+- The current Linux CPU gate passed 42 native and integration tests plus seven sanitizer tests.
+- The current complete local gate passed formatting, static analysis, protocol and repository audits, 26 native macOS tests, 157 Python tests, and 41 TypeScript and JavaScript tests.
+- The previously verified `make transport-check` and 59-target `make cuda-compile-check` evidence remains unchanged by M5-L03A.
 - No milestone is `ACCEPTED`, the portfolio-ready core checkpoint has not passed, and no release or hardware claim is authorized.
 
 ### Deferred target-only gates
@@ -32,8 +35,9 @@ It uses the exact state model in Section 5.1 and does not treat locally verified
 
 ### Pending local work
 
-- M5-L03 is `PENDING_LOCAL` and must implement the Linux network-namespace and `tc netem` qualification runner, strict evidence schema and validator, packet-capture cross-check, stable-link and collapse matrices, recovery timing, and production trace capture.
-- Milestone 5 remains `IN_PROGRESS` until M5-L03 is `IMPLEMENTED_LOCAL`, after which it may become `WAITING_HARDWARE` but not `ACCEPTED` without its target gates.
+- M5-L03B is `PENDING_LOCAL` and must implement the Linux network-namespace topology, `tc netem` acquisition runner, signaling proxy, `tshark` capture orchestration, evidence assembly, cleanup, seeded topology tests, and consolidated target-phase integration.
+- M5-L03 remains incomplete until M5-L03B composes the verified M5-L03A contracts into the real user-facing run.
+- Milestone 5 remains `IN_PROGRESS` until M5-L03B is `IMPLEMENTED_LOCAL`, after which it may become `WAITING_HARDWARE` but not `ACCEPTED` without its target gates.
 - Milestone 6 is `IN_PROGRESS` because privacy revocation, receiver clearing, transition-failure coverage, threat-model closure, packaging, log-content auditing, and clean-install work packages remain `PENDING_LOCAL`.
 - Milestone 7 is `IN_PROGRESS` because its optional profiling precondition and honest disabled-result path remain pending.
 - Milestone 8 is `IN_PROGRESS` because the frozen final evaluation, exclusion accounting, analysis, plots, and versioned result work packages remain `PENDING_LOCAL`.
@@ -61,12 +65,17 @@ make check
 make cuda-compile-check
 ```
 
-Resume implementation at M5-L03 and inspect its unchanged authority and tracker entries with:
+Resume implementation at M5-L03B and inspect its authority, verified M5-L03A contracts, and tracker entries with:
 
 ```bash
 sed -n '2125,2151p' BUILD_PLAN.md
 sed -n '194,225p' docs/implementation-status.md
+sed -n '1,220p' qualification/controller-network-v1.json
+sed -n '1,260p' tools/validate_controller_network_qualification.py
+sed -n '1,260p' tooling/controller/qualify-live-receiver.ts
 ```
+
+The next implementation step is to add `tools/run_controller_network_qualification.py` and its bounded TCP proxy, exercise namespace creation and cleanup in a privileged Linux test container, then add the resulting command to `qualification/m0-phases.json` as the captured-desktop controller-network phase.
 
 After each verified local work-package commit, push and verify it before continuing with:
 
