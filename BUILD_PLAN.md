@@ -1,8 +1,89 @@
 # GlyphRelay Build Plan
 
-Status: implementation-ready plan with a mandatory hardware feasibility gate.
+Status: implementation in progress with mandatory target-only gates still outstanding.
 
 Planning snapshot: 2026-08-13.
+
+## Pause-boundary status
+
+This status was frozen on 2026-08-14 after implementation commit `89577b4d2e2b13d21520473ea3ecce2da49742f4` was pushed to and verified on `origin/main`.
+It uses the exact state model in Section 5.1 and does not treat locally verified work as milestone acceptance.
+
+### Implemented and verified
+
+- Milestone 0 is `WAITING_HARDWARE` because M0-L01 through M0-L10 are `IMPLEMENTED_LOCAL` and every target-only gate remains outstanding.
+- Milestone 1 is `WAITING_HARDWARE` because M1-L01A through M1-L04 are `IMPLEMENTED_LOCAL` and the remaining selected-window, browser, capture-lifecycle, and target recording gates remain outstanding.
+- Milestone 2 is `WAITING_HARDWARE` because M2-L01 through M2-L03B are `IMPLEMENTED_LOCAL` and the CUDA runtime, compute-sanitizer, deterministic target output, and 1080p30 timing gates remain outstanding.
+- Milestone 3 is `WAITING_HARDWARE` because M3-L01 through M3-L03 are `IMPLEMENTED_LOCAL` and the real NVENC, decoder, browser, multi-flight, quality-shift, and teardown gates remain outstanding.
+- Milestone 4 is `WAITING_HARDWARE` because M4-L01 through M4-L05 are `IMPLEMENTED_LOCAL` and the target development selection plus one-shot validation gates remain outstanding.
+- Milestone 5 is `IN_PROGRESS`.
+- M5-L01A through M5-L01D are `IMPLEMENTED_LOCAL` and cover the frozen controller protocol, deterministic controller and replay, final-success wire accounting, and real pre-SRTP pacing with feedback ingestion.
+- M5-L01E is `IMPLEMENTED_LOCAL` at commit `5cf1b208c250f5fd93f5b71e400027c43a8ae593` and wires the controller into the public live-share loop with actual queue, encoder, egress, REMB, loss, RTT, and receiver feedback.
+- M5-L02 is `IMPLEMENTED_LOCAL` at commit `89577b4d2e2b13d21520473ea3ecce2da49742f4` and records four-timestamp clock-correlation samples, uncertainty, receiver video-frame callback timing, source-frame to RTP identity, and recovery points through the production path.
+- The verified pause-boundary commands are `make transport-check`, `make linux-cpu-check`, `make check`, and `make cuda-compile-check`.
+- The Linux CPU and sanitizer gate, 26 native macOS tests, 149 Python tests, 39 TypeScript and JavaScript tests, the real loopback DTLS-SRTP transport integrations, and the 59-target CUDA 13.3 compile check all passed.
+- No milestone is `ACCEPTED`, the portfolio-ready core checkpoint has not passed, and no release or hardware claim is authorized.
+
+### Deferred target-only gates
+
+- Every unexecuted NVIDIA GPU, NVENC, CUDA runtime, compute-sanitizer, Nsight, PipeWire portal, target-browser, packet-capture, `tc netem`, sustained recording, final corpus, and release qualification gate is `DEFERRED_HARDWARE`.
+- No deferred gate has been converted to a pass through compile-only, CPU, synthetic, loopback, or emulated evidence.
+- No target gate has produced an `ACCEPTED`, `FAILED`, or repository-owned `BLOCKED` qualification artifact.
+
+### Pending local work
+
+- M5-L03 is `PENDING_LOCAL` and must implement the Linux network-namespace and `tc netem` qualification runner, strict evidence schema and validator, packet-capture cross-check, stable-link and collapse matrices, recovery timing, and production trace capture.
+- Milestone 5 remains `IN_PROGRESS` until M5-L03 is `IMPLEMENTED_LOCAL`, after which it may become `WAITING_HARDWARE` but not `ACCEPTED` without its target gates.
+- Milestone 6 is `IN_PROGRESS` because privacy revocation, receiver clearing, transition-failure coverage, threat-model closure, packaging, log-content auditing, and clean-install work packages remain `PENDING_LOCAL`.
+- Milestone 7 is `IN_PROGRESS` because its optional profiling precondition and honest disabled-result path remain pending.
+- Milestone 8 is `IN_PROGRESS` because the frozen final evaluation, exclusion accounting, analysis, plots, and versioned result work packages remain `PENDING_LOCAL`.
+- Milestone 9 is `IN_PROGRESS` because the extended phase set, clean-checkout release workflow, final documentation, demonstration, license and secret audit, public-claim mapping, and release evidence remain `PENDING_LOCAL`.
+
+### Blocked prerequisite
+
+- The consolidated GPU entry point currently exits with status 5 and `external_command_failed:ssh` in the available execution environment.
+- The current environment also rejected a direct read-only SSH connectivity probe before network access, so repository evidence cannot distinguish missing target reachability, authentication, or execution-policy authorization.
+- This is an external prerequisite for target qualification, but it does not reclassify unattempted target gates from `DEFERRED_HARDWARE` and it does not excuse the pending local work.
+- Resume requires an environment authorized to reach the `cuda-pm` SSH alias, the designated NVIDIA GPU workstation, and an active graphical desktop session for portal and browser gates.
+
+### Exact resume procedure
+
+Resume from the verified remote branch with:
+
+```bash
+git fetch origin
+git switch main
+git pull --ff-only origin main
+test "$(git rev-parse HEAD)" = "$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+make transport-check
+make linux-cpu-check
+make check
+make cuda-compile-check
+```
+
+Resume implementation at M5-L03 and inspect its unchanged authority and tracker entries with:
+
+```bash
+sed -n '2125,2151p' BUILD_PLAN.md
+sed -n '194,225p' docs/implementation-status.md
+```
+
+After each verified local work-package commit, push and verify it before continuing with:
+
+```bash
+git push origin main
+test "$(git rev-parse HEAD)" = "$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+```
+
+After every remaining local package through Milestone 9 is `IMPLEMENTED_LOCAL`, verify target access and run the single consolidated handoff with:
+
+```bash
+ssh -o BatchMode=yes -o ConnectTimeout=10 cuda-pm true
+./scripts/gpu/qualify_cuda_pm.sh
+```
+
+If the handoff produces a freeze-required or resumable result, commit the repository-owned selection or status artifacts, push and verify `origin/main`, then rerun the same entry point.
+Only a hash-verified returned `PASSED` artifact bundle may advance target gates to `ACCEPTED`.
 
 GlyphRelay is a local-first, text-aware screen-sharing and recording product for coding interviews, remote debugging, technical teaching, and support over constrained networks.
 The sender selects one application window and a bandwidth cap.

@@ -40,8 +40,8 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 | 1 | `WAITING_HARDWARE` | M1-L01A through M1-L04 are locally implemented and all remaining acceptance items require the designated target |
 | 2 | `WAITING_HARDWARE` | M2-L01 through M2-L03B are locally implemented, while the real development-grid selection and CUDA runtime gates require the designated target |
 | 3 | `WAITING_HARDWARE` | M3-L01 through M3-L03 are locally implemented, while browser, real multi-flight, quality, and target teardown gates require the designated target |
-| 4 | `IN_PROGRESS` | Correction controls and the frozen uniform-AQ selector are locally implemented, while target development evidence and the one-shot validation gate remain pending |
-| 5 | `IN_PROGRESS` | Local work packages remain pending |
+| 4 | `WAITING_HARDWARE` | M4-L01 through M4-L05 are locally implemented, while target development selection and the one-shot validation gate remain deferred |
+| 5 | `IN_PROGRESS` | M5-L01A through M5-L02 are locally implemented, while the network-namespace qualification package remains pending and target gates remain deferred |
 | 6 | `IN_PROGRESS` | Local work packages remain pending |
 | 7 | `IN_PROGRESS` | Profiling precondition and local experiment remain pending, but this milestone does not block the core release |
 | 8 | `IN_PROGRESS` | Frozen evaluation work and target gates remain pending |
@@ -201,6 +201,9 @@ Every verified commit must pass the repository audit, be pushed immediately, and
 | M5-L01B | `IMPLEMENTED_LOCAL` | Production cumulative-counter controller, feedback freshness and causality, ordered degradation and restoration, profile epochs, pin-violation visibility, bounded media pacer, and offline replay | `native.controller`; `native.media_pacer`; `integration.controller_trace_replay`; all eight frozen fixtures reproduce byte-for-byte; seeded action and future-feedback defects fail |
 | M5-L01C | `IMPLEMENTED_LOCAL` | Verified-cap transport eligibility and exact final-success IP-layer accounting for direct IPv4, direct IPv6, and TURN over UDP | `native.media_egress`; patched final libjuice send-boundary test; untrusted provenance, non-UDP, IPv4 options, IPv6 extensions, fragmentation, failed send, and short send controls |
 | M5-L01D | `IMPLEMENTED_LOCAL` | Real pre-SRTP pacing for new RTP and Generic NACK retransmissions plus RTCP receiver-report ingestion | Exact patched-stack loopback peer; constrained asynchronous drain preserves plaintext bytes, order, and extended identity; only released packets enter the shared bounded cache; peer diagnostics expose target, bounds, retransmission bytes, REMB, loss, RTT, and final wire bytes; `make transport-check` |
+| M5-L01E | `IMPLEMENTED_LOCAL` | Production live-share controller integration with actual queue, encoder, final-egress, REMB, loss, RTT, and receiver feedback plus Level 3.1 presentation enforcement | `native.share_command`; `native.controller`; exact live configuration and diagnostics; commit `5cf1b208c250f5fd93f5b71e400027c43a8ae593`; `make check`; `make linux-cpu-check`; `make transport-check`; `make cuda-compile-check` |
+| M5-L02 | `IMPLEMENTED_LOCAL` | Four-timestamp clock correlation, receiver render metadata, immutable source-to-RTP identity, and recovery-point evidence through the production path | `integration.control_protocol`; `integration.peer_sender`; browser control tests; clock discontinuity and negative-delay controls; commit `89577b4d2e2b13d21520473ea3ecce2da49742f4`; `make check`; `make linux-cpu-check`; `make transport-check`; `make cuda-compile-check` |
+| M5-L03 | `PENDING_LOCAL` | Linux network-namespace and `tc netem` runner, strict evidence validator, packet-capture cross-check, stable-link and collapse matrices, recovery timing, and production trace capture | None |
 
 | State | Acceptance item | Evidence |
 | --- | --- | --- |
