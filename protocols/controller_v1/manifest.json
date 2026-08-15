@@ -101,7 +101,7 @@
       "automaticEmphasisCap": 4,
       "protectedThresholdDelta": 0.0,
       "payloadAndVbvStep": 0,
-      "presentationProfile": "1080p30"
+      "presentationProfile": "720p30"
     },
     "minimum": {
       "automaticEmphasisCap": 0,
@@ -116,8 +116,7 @@
     "payloadAndVbvStep": "max(base_payload_target*pow(0.90,k),profile_minimum_payload_bps)",
     "payloadStepMultiplier": 0.9,
     "minimumPayloadBpsByProfile": {
-      "1080p30": 100000,
-      "1080p24": 100000,
+      "720p30": 100000,
       "720p24": 100000,
       "720p15": 100000
     },
@@ -126,16 +125,10 @@
   },
   "presentationProfiles": [
     {
-      "name": "1080p30",
-      "width": 1920,
-      "height": 1080,
+      "name": "720p30",
+      "width": 1280,
+      "height": 720,
       "framesPerSecond": 30
-    },
-    {
-      "name": "1080p24",
-      "width": 1920,
-      "height": 1080,
-      "framesPerSecond": 24
     },
     {
       "name": "720p24",
@@ -154,7 +147,7 @@
     "startsNewGeometryEpoch": true,
     "startsNewDependencyEpoch": true,
     "requiresIdrWithSpsAndPps": true,
-    "maximumOutstandingRecoverySteps": 3
+    "maximumOutstandingRecoverySteps": 2
   },
   "stateMachine": {
     "states": ["STABLE", "RATE_PRESSURE", "CONGESTED", "RECOVERY", "UNUSABLE"],
@@ -238,6 +231,7 @@
       "minimumCompositorFramesPerSecond": 24,
       "minimumDeliveryFraction": 0.95,
       "maximumP95LatencyMilliseconds": 250,
+      "presentationProfile": "720p30",
       "resolutionReductionAllowed": false
     },
     "collapse": {

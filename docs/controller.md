@@ -20,7 +20,8 @@ TURN over TCP or TLS, IPv4 options, IPv6 extension headers, fragmentation, and a
 Degradation lowers automatic emphasis first, tightens protected thresholds second, lowers payload and VBV in ten-percent steps third, and lowers the presentation profile last.
 Restoration uses the exact reverse order.
 Stale-frame dropping remains active continuously before encoder submission.
-The four presentation profiles are 1080p30, 1080p24, 720p24, and 720p15.
+The live presentation profiles are 720p30, 720p24, and 720p15.
+ADR 0002 keeps 1080p30 and 1080p24 for record-only and deterministic evaluation because the pinned browser offer cannot authorize a live Level 4.0 stream.
 A profile transition starts new geometry and dependency epochs and requires an IDR containing SPS and PPS.
 
 User-pinned and cursor minima are never weakened by automatic control.

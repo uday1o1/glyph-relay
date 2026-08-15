@@ -53,6 +53,7 @@ struct MediaPacerSnapshot {
   double target_bits_per_second = 0.0;
   double available_tokens_bytes = 0.0;
   double burst_capacity_bytes = 0.0;
+  double oldest_packet_age_milliseconds = 0.0;
 };
 
 class MediaPacerQueue {
@@ -67,7 +68,7 @@ public:
   MediaPacerDequeue dequeue(std::uint64_t now_milliseconds);
   bool require_recovery();
   void stop();
-  MediaPacerSnapshot snapshot() const;
+  MediaPacerSnapshot snapshot(std::optional<std::uint64_t> now_milliseconds = std::nullopt) const;
 
 private:
   struct Entry {

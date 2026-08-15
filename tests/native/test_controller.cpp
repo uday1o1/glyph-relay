@@ -151,7 +151,7 @@ void test_hard_congestion_recovery_and_profile_epoch() {
   }
   require(decision.resulting_state == glyphrelay::ControllerState::congested &&
               decision.action == glyphrelay::ControllerAction::reduce_presentation_profile &&
-              decision.levels.presentation_profile == "1080p24" &&
+              decision.levels.presentation_profile == "720p24" &&
               decision.request_idr_with_parameter_sets && decision.starts_geometry_epoch &&
               decision.starts_dependency_epoch,
           "ordered hard-congestion steps must reach a profile transition with a new epoch IDR");

@@ -4,16 +4,16 @@
   "files": [
     {
       "path": "protocols/controller_v1/manifest.json",
-      "sha256": "1be243016eb1d25fbe0b44819d9f351b49cae870a368a47310914d273e0360e3"
+      "sha256": "b5330a8c183596a88fe3383f000dd158754d540b408ae28ab19b7cb9f3aaf615"
     },
     {
       "path": "schemas/controller-v1.schema.json",
-      "sha256": "5f902db8e9805876fc14357e30c79551d11f242d473df6d44f0e55cd0200b520"
+      "sha256": "a33b50f49c0fb15d743ac82b2f91e2ac4f503881d8451b722ab2e3b2aa8cc770"
     },
     {
       "path": "tools/check_controller_protocol.py",
-      "sha256": "8f9fd8de426149d5f793337982ed946487ef7ff8ba6cf1466bea291064373d11"
+      "sha256": "6586d0b35c2a9d509ba3505f78d7c6d1fd2ade91a8c4b3d00879865897119f7d"
     }
   ],
-  "protocol_sha256": "0088578978411a9f1705880ca6122e0896037b0f115a298f48376e2caca96701"
+  "protocol_sha256": "3ab488430dca0117df8bcf93fc8e516cc39bd4bb0c39a4aecde699d7831d49c3"
 }

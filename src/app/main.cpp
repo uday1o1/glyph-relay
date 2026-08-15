@@ -253,7 +253,11 @@ int run_share(int argc, char **argv) {
   const auto result = glyphrelay::run_interactive_share(
       options, []() { return command_stop_requested != 0; },
       options.json
-          ? glyphrelay::ShareStatusCallback{}
+          ? glyphrelay::ShareStatusCallback{[](std::string_view state, std::string_view detail) {
+              std::cout << "{\"type\":\"status\",\"state\":" << json_quote(state)
+                        << ",\"detail\":" << json_quote(detail) << "}\n";
+              std::cout.flush();
+            }}
           : glyphrelay::ShareStatusCallback{[](std::string_view state, std::string_view detail) {
               if (state == "join_open") {
                 std::cout << "Share link: " << detail << '\n';
@@ -265,13 +269,32 @@ int run_share(int argc, char **argv) {
   static_cast<void>(std::signal(SIGTERM, previous_terminate));
 
   if (options.json) {
-    std::cout << "{\"exitCode\":" << result.exit_code << ",\"reason\":" << json_quote(result.reason)
+    const auto &peer = result.transport.peer;
+    const auto receiver = peer.latest_receiver_stats.value_or(glyphrelay::ReceiverControlStats{});
+    std::cout << "{\"type\":\"result\",\"exitCode\":" << result.exit_code
+              << ",\"reason\":" << json_quote(result.reason)
               << ",\"connectionState\":" << json_quote(result.connection_state)
               << ",\"joinUrl\":" << json_quote(result.join_url)
               << ",\"recordingError\":" << json_quote(result.recording_error)
               << ",\"capturedFrames\":" << result.captured_frames
               << ",\"encodedAccessUnits\":" << result.encoded_access_units
-              << ",\"transportedAccessUnits\":" << result.transported_access_units << "}\n";
+              << ",\"transportedAccessUnits\":" << result.transported_access_units
+              << ",\"elementaryStreamBytes\":" << result.elementary_stream_bytes
+              << ",\"controllerTicks\":" << result.controller_ticks
+              << ",\"controllerFeedbackEvents\":" << result.controller_feedback_events
+              << ",\"controllerActions\":" << result.controller_actions << ",\"controllerState\":"
+              << json_quote(glyphrelay::controller_state_name(result.controller_state))
+              << ",\"presentationProfile\":"
+              << json_quote(result.controller_levels.presentation_profile)
+              << ",\"wireEgressBytes\":" << peer.egress.ip_total_bytes
+              << ",\"retransmissionBytes\":" << peer.retransmission_bytes_sent
+              << ",\"pacerQueueBytes\":" << peer.pacer.bytes
+              << ",\"pacerQueuePackets\":" << peer.pacer.packets
+              << ",\"pacerOldestAgeMilliseconds\":" << peer.pacer.oldest_packet_age_milliseconds
+              << ",\"compositorFrames\":" << receiver.compositor_frames
+              << ",\"decodedFrames\":" << receiver.decoded_frames
+              << ",\"droppedFrames\":" << receiver.dropped_frames
+              << ",\"lastControllerTrace\":" << json_quote(result.last_controller_trace) << "}\n";
   } else if (result.exit_code != 0) {
     std::cerr << "share failed: " << result.reason << '\n';
   }

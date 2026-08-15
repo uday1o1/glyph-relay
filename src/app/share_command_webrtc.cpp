@@ -3,6 +3,7 @@
 #include "glyphrelay/owner_signaling.hpp"
 #include "glyphrelay/peer_sender.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -20,6 +21,12 @@ namespace glyphrelay {
 namespace {
 
 constexpr std::size_t kMaximumShareEvents = 32U;
+constexpr double kMinimumPacingTargetBps = 100'000.0;
+
+double initial_pacing_target(std::uint64_t wire_cap_bps) {
+  const double cap = static_cast<double>(wire_cap_bps);
+  return std::max(cap - std::max(0.10 * cap, 64'000.0), kMinimumPacingTargetBps);
+}
 
 class WebRtcShareTransport final : public ShareTransport {
 public:
@@ -32,9 +39,8 @@ public:
                     : std::nullopt,
             .automatically_create_join = true,
         }),
-        initial_pacing_target_bps_(
-            static_cast<double>(record_bitrate_bps(options.bitrate_profile).value_or(4'000'000U))) {
-  }
+        initial_pacing_target_bps_(initial_pacing_target(
+            record_bitrate_bps(options.bitrate_profile).value_or(4'000'000U))) {}
 
   ~WebRtcShareTransport() override { stop("SHARE_TRANSPORT_DESTROYED"); }
 
@@ -78,7 +84,7 @@ public:
   }
 
   bool send_access_unit(const RecordedAccessUnit &access_unit) override {
-    PeerSender *peer = nullptr;
+    std::shared_ptr<PeerSender> peer;
     {
       std::scoped_lock lock(mutex_);
       if (!diagnostics_.peer_ready || diagnostics_.stopped || !peer_ || !access_unit.bytes) {
@@ -92,7 +98,7 @@ public:
         diagnostics_.reason = "SHARE_TRANSPORT_COUNTER_OVERFLOW";
         return false;
       }
-      peer = peer_.get();
+      peer = peer_;
     }
     if (!peer->send_access_unit(access_unit)) {
       const auto reason = peer->diagnostics().reason;
@@ -107,8 +113,28 @@ public:
     return true;
   }
 
+  bool set_pacing_target_bits_per_second(double target_bits_per_second) override {
+    std::shared_ptr<PeerSender> peer;
+    {
+      std::scoped_lock lock(mutex_);
+      if (!diagnostics_.peer_ready || diagnostics_.stopped || !peer_) {
+        diagnostics_.reason = "SHARE_PEER_NOT_READY";
+        return false;
+      }
+      peer = peer_;
+    }
+    try {
+      peer->set_pacing_target_bits_per_second(target_bits_per_second);
+      return true;
+    } catch (const std::exception &error) {
+      std::scoped_lock lock(mutex_);
+      diagnostics_.reason = error.what();
+      return false;
+    }
+  }
+
   void stop(std::string_view reason) override {
-    std::unique_ptr<PeerSender> peer;
+    std::shared_ptr<PeerSender> peer;
     bool stop_owner = false;
     {
       std::scoped_lock lock(mutex_);
@@ -125,6 +151,9 @@ public:
     }
     if (peer) {
       peer->stop(reason);
+      const auto peer_diagnostics = peer->diagnostics();
+      std::scoped_lock lock(mutex_);
+      diagnostics_.peer = peer_diagnostics;
     }
     if (stop_owner) {
       owner_.stop(true);
@@ -132,8 +161,17 @@ public:
   }
 
   ShareTransportDiagnostics diagnostics() const override {
-    std::scoped_lock lock(mutex_);
-    return diagnostics_;
+    std::shared_ptr<PeerSender> peer;
+    ShareTransportDiagnostics result;
+    {
+      std::scoped_lock lock(mutex_);
+      result = diagnostics_;
+      peer = peer_;
+    }
+    if (peer) {
+      result.peer = peer->diagnostics();
+    }
+    return result;
   }
 
 private:
@@ -146,11 +184,11 @@ private:
         return;
       }
       session_id_ = event.value;
-      push_locked({ShareTransportEventKind::session_created, event.value});
+      push_locked({ShareTransportEventKind::session_created, event.value, {}});
       break;
     }
     case OwnerSignalingEventKind::join_created:
-      push({ShareTransportEventKind::join_created, event.value});
+      push({ShareTransportEventKind::join_created, event.value, {}});
       break;
     case OwnerSignalingEventKind::receiver_reserved:
       break;
@@ -165,11 +203,13 @@ private:
       break;
     case OwnerSignalingEventKind::receiver_disconnected:
       push({ShareTransportEventKind::peer_disconnected,
-            event.value.empty() ? "RECEIVER_SIGNALING_DISCONNECTED" : event.value});
+            event.value.empty() ? "RECEIVER_SIGNALING_DISCONNECTED" : event.value,
+            {}});
       break;
     case OwnerSignalingEventKind::terminal:
       push({ShareTransportEventKind::terminal,
-            event.value.empty() ? owner_.diagnostics().reason : event.value});
+            event.value.empty() ? owner_.diagnostics().reason : event.value,
+            {}});
       break;
     }
   }
@@ -184,22 +224,24 @@ private:
       }
       session_id = session_id_;
     }
-    std::unique_ptr<PeerSender> peer;
+    std::shared_ptr<PeerSender> peer;
     try {
-      peer = std::make_unique<PeerSender>(PeerSenderConfig{
+      peer = std::make_shared<PeerSender>(PeerSenderConfig{
           .session_id = std::move(session_id),
           .bind_address = std::nullopt,
           .ice_server_urls = {},
           .event_callback = [this](const PeerSenderEvent &event) { handle_peer_event(event); },
           .request_idr_with_parameter_sets =
-              [this] { push({ShareTransportEventKind::recovery_requested, "PEER_REQUESTED_IDR"}); },
+              [this] {
+                push({ShareTransportEventKind::recovery_requested, "PEER_REQUESTED_IDR", {}});
+              },
           .initial_pacing_target_bps = initial_pacing_target_bps_,
       });
     } catch (const std::exception &error) {
       fail(std::string("SHARE_PEER_CREATE_FAILED:") + error.what());
       return;
     }
-    PeerSender *raw_peer = peer.get();
+    auto raw_peer = peer;
     {
       std::scoped_lock lock(mutex_);
       if (diagnostics_.stopped) {
@@ -213,14 +255,14 @@ private:
   }
 
   void add_candidate(const std::string &candidate) {
-    PeerSender *peer = nullptr;
+    std::shared_ptr<PeerSender> peer;
     {
       std::scoped_lock lock(mutex_);
       if (!peer_ || diagnostics_.stopped) {
         fail_locked("SHARE_RECEIVER_CANDIDATE_STATE_INVALID");
         return;
       }
-      peer = peer_.get();
+      peer = peer_;
     }
     if (!peer->add_remote_candidate(candidate)) {
       fail(peer->diagnostics().reason);
@@ -249,15 +291,15 @@ private:
       set_peer_flag(PeerFlag::control);
       break;
     case PeerSenderEventKind::disconnected:
-      push({ShareTransportEventKind::peer_disconnected, "PEER_DISCONNECTED"});
+      push({ShareTransportEventKind::peer_disconnected, "PEER_DISCONNECTED", {}});
       break;
     case PeerSenderEventKind::recovery_requested:
-      push({ShareTransportEventKind::recovery_requested, event.value});
+      push({ShareTransportEventKind::recovery_requested, event.value, {}});
       break;
     case PeerSenderEventKind::ended: {
       std::scoped_lock lock(mutex_);
       if (!stopping_) {
-        push_locked({ShareTransportEventKind::terminal, event.value});
+        push_locked({ShareTransportEventKind::terminal, event.value, {}});
       }
       break;
     }
@@ -265,8 +307,34 @@ private:
       fail(event.value);
       break;
     case PeerSenderEventKind::receiver_stats:
+      push({ShareTransportEventKind::feedback,
+            {},
+            {.loss_fraction = std::nullopt,
+             .round_trip_time_milliseconds = std::nullopt,
+             .remb_bits_per_second = std::nullopt,
+             .remb_payload_type_valid = false,
+             .remb_rtcp_source_valid = false,
+             .receiver_stats = event.receiver_stats}});
+      break;
     case PeerSenderEventKind::receiver_report:
+      push({ShareTransportEventKind::feedback,
+            {},
+            {.loss_fraction = event.loss_fraction,
+             .round_trip_time_milliseconds = event.round_trip_time_milliseconds,
+             .remb_bits_per_second = std::nullopt,
+             .remb_payload_type_valid = false,
+             .remb_rtcp_source_valid = false,
+             .receiver_stats = std::nullopt}});
+      break;
     case PeerSenderEventKind::remb:
+      push({ShareTransportEventKind::feedback,
+            {},
+            {.loss_fraction = std::nullopt,
+             .round_trip_time_milliseconds = std::nullopt,
+             .remb_bits_per_second = static_cast<double>(event.number),
+             .remb_payload_type_valid = true,
+             .remb_rtcp_source_valid = true,
+             .receiver_stats = std::nullopt}});
       break;
     }
   }
@@ -289,7 +357,7 @@ private:
     if (!diagnostics_.peer_ready && peer_connected_ && peer_track_open_ && peer_control_open_) {
       diagnostics_.peer_ready = true;
       diagnostics_.reason = "SHARE_PEER_READY";
-      push_locked({ShareTransportEventKind::peer_ready, "PEER_READY"});
+      push_locked({ShareTransportEventKind::peer_ready, "PEER_READY", {}});
     }
   }
 
@@ -301,7 +369,7 @@ private:
   void fail_locked(std::string reason) {
     diagnostics_.peer_ready = false;
     diagnostics_.reason = reason;
-    push_locked({ShareTransportEventKind::terminal, std::move(reason)});
+    push_locked({ShareTransportEventKind::terminal, std::move(reason), {}});
   }
 
   void push(ShareTransportEvent event) {
@@ -317,7 +385,7 @@ private:
       events_.clear();
       diagnostics_.peer_ready = false;
       diagnostics_.reason = "SHARE_EVENT_QUEUE_OVERFLOW";
-      events_.push_back({ShareTransportEventKind::terminal, diagnostics_.reason});
+      events_.push_back({ShareTransportEventKind::terminal, diagnostics_.reason, {}});
       return;
     }
     events_.push_back(std::move(event));
@@ -335,7 +403,7 @@ private:
 
   mutable std::mutex mutex_;
   OwnerSignalingClient owner_;
-  std::unique_ptr<PeerSender> peer_;
+  std::shared_ptr<PeerSender> peer_;
   std::deque<ShareTransportEvent> events_;
   ShareTransportDiagnostics diagnostics_;
   std::string session_id_;

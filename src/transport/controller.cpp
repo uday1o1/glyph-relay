@@ -28,9 +28,8 @@ struct PresentationProfile {
   std::uint32_t frames_per_second;
 };
 
-constexpr std::array<PresentationProfile, 4> kProfiles = {
-    PresentationProfile{"1080p30", 1920U, 1080U, 30U},
-    PresentationProfile{"1080p24", 1920U, 1080U, 24U},
+constexpr std::array<PresentationProfile, 3> kProfiles = {
+    PresentationProfile{"720p30", 1280U, 720U, 30U},
     PresentationProfile{"720p24", 1280U, 720U, 24U},
     PresentationProfile{"720p15", 1280U, 720U, 15U},
 };

@@ -63,6 +63,7 @@ struct PeerSenderDiagnostics {
   std::uint64_t latest_remb_bps = 0;
   std::optional<double> latest_loss_fraction;
   std::optional<double> latest_round_trip_time_milliseconds;
+  std::optional<ReceiverControlStats> latest_receiver_stats;
   std::string reason;
   SenderControlDiagnostics control;
   RecoveryDiagnostics recovery;

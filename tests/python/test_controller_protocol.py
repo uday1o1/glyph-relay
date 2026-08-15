@@ -76,3 +76,11 @@ def test_semantics_reject_shortened_measurement(tmp_path: Path) -> None:
     manifest["qualification"]["steady"]["measurementSeconds"] = 12
     write_manifest(root, manifest)
     assert "controller steady measurement window changed" in validate_manifest(root)
+
+
+def test_semantics_reject_pre_pivot_live_profile(tmp_path: Path) -> None:
+    root = copy_protocol(tmp_path)
+    manifest = load_object(root / "protocols/controller_v1/manifest.json")
+    manifest["qualification"]["steady"]["presentationProfile"] = "1080p30"
+    write_manifest(root, manifest)
+    assert "controller live steady profile changed" in validate_manifest(root)

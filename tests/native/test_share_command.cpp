@@ -37,10 +37,19 @@ public:
     diagnostics_.started = true;
     diagnostics_.reason = "SCRIPTED_SIGNALING_STARTED";
     events_.push_back(
-        {glyphrelay::ShareTransportEventKind::session_created, "abcdefghijklmnopqrstuv"});
+        {glyphrelay::ShareTransportEventKind::session_created, "abcdefghijklmnopqrstuv", {}});
     events_.push_back({glyphrelay::ShareTransportEventKind::join_created,
-                       "https://share.example.test/#join=abcdefghijklmnopqrstuv.token"});
-    events_.push_back({glyphrelay::ShareTransportEventKind::peer_ready, "receiver_ready"});
+                       "https://share.example.test/#join=abcdefghijklmnopqrstuv.token",
+                       {}});
+    events_.push_back({glyphrelay::ShareTransportEventKind::peer_ready, "receiver_ready", {}});
+    events_.push_back({glyphrelay::ShareTransportEventKind::feedback,
+                       {},
+                       {.loss_fraction = 0.0,
+                        .round_trip_time_milliseconds = 50.0,
+                        .remb_bits_per_second = 1'000'000.0,
+                        .remb_payload_type_valid = true,
+                        .remb_rtcp_source_valid = true,
+                        .receiver_stats = glyphrelay::ReceiverControlStats{}}});
     return true;
   }
 
@@ -71,12 +80,18 @@ public:
     diagnostics_.bytes_sent += access_unit.bytes->size();
     diagnostics_.reason = "SCRIPTED_ACCESS_UNIT_SENT";
     if (sent_.size() == 1U && mode_ == Mode::recover_after_first) {
-      events_.push_back({glyphrelay::ShareTransportEventKind::recovery_requested, "SCRIPTED_PLI"});
+      events_.push_back(
+          {glyphrelay::ShareTransportEventKind::recovery_requested, "SCRIPTED_PLI", {}});
     } else if (sent_.size() == 1U && mode_ == Mode::disconnect_after_first) {
       events_.push_back(
-          {glyphrelay::ShareTransportEventKind::peer_disconnected, "SCRIPTED_DISCONNECT"});
+          {glyphrelay::ShareTransportEventKind::peer_disconnected, "SCRIPTED_DISCONNECT", {}});
     }
     return true;
+  }
+
+  bool set_pacing_target_bits_per_second(double target_bits_per_second) override {
+    diagnostics_.peer.pacer.target_bits_per_second = target_bits_per_second;
+    return diagnostics_.peer_ready && !diagnostics_.stopped;
   }
 
   void stop(std::string_view reason) override {
@@ -347,6 +362,11 @@ void test_live_share_defers_capture() {
               source.start_calls() == 1U && result.encoded_access_units == 5U &&
               result.transported_access_units == 5U && result.recorder.accepted_access_units == 0U,
           "live-only share must defer capture and encode until receiver readiness");
+  require(result.controller_ticks >= 1U && result.controller_feedback_events == 1U &&
+              !result.last_controller_trace.empty() &&
+              result.controller_levels.presentation_profile == "720p30" &&
+              transport.diagnostics().peer.pacer.target_bits_per_second == 810'000.0,
+          "live-only share must apply causal receiver feedback to the real transport pacer");
 }
 #endif
 

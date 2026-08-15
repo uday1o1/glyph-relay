@@ -579,7 +579,7 @@ RetransmissionCacheSnapshot BoundedNackResponder::cache_snapshot() const {
 
 MediaPacerSnapshot BoundedNackResponder::pacer_snapshot() const {
   std::lock_guard lock(mutex_);
-  return pacer_.snapshot();
+  return pacer_.snapshot(now_milliseconds_());
 }
 
 std::uint64_t BoundedNackResponder::retransmission_bytes_sent() const {

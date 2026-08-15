@@ -285,11 +285,16 @@ void MediaPacerQueue::stop() {
   snapshot_.awaiting_recovery = false;
 }
 
-MediaPacerSnapshot MediaPacerQueue::snapshot() const {
+MediaPacerSnapshot MediaPacerQueue::snapshot(std::optional<std::uint64_t> now_milliseconds) const {
   auto result = snapshot_;
   result.target_bits_per_second = target_bits_per_second_;
   result.available_tokens_bytes = tokens_bytes_;
   result.burst_capacity_bytes = burst_capacity_bytes_;
+  if (now_milliseconds && !queue_.empty() &&
+      *now_milliseconds >= queue_.front().admitted_milliseconds) {
+    result.oldest_packet_age_milliseconds =
+        static_cast<double>(*now_milliseconds - queue_.front().admitted_milliseconds);
+  }
   return result;
 }
 

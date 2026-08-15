@@ -96,9 +96,9 @@ struct ControllerLevelStack {
   double protected_threshold_delta = 0.0;
   std::size_t payload_and_vbv_step = 0;
   std::uint64_t payload_target_bps = 0;
-  std::string presentation_profile = "1080p30";
-  std::uint32_t width = 1920;
-  std::uint32_t height = 1080;
+  std::string presentation_profile = "720p30";
+  std::uint32_t width = 1280;
+  std::uint32_t height = 720;
   std::uint32_t frames_per_second = 30;
 };
 

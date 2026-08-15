@@ -585,6 +585,10 @@ struct PeerSender::Implementation {
     std::optional<std::string> terminal_reason;
     for (const auto &event : output.events) {
       if (event.kind == ReceiverControlEventKind::receiver_stats) {
+        {
+          std::scoped_lock lock(mutex);
+          diagnostics_state.latest_receiver_stats = event.stats;
+        }
         emit({.kind = PeerSenderEventKind::receiver_stats,
               .value = {},
               .number = 0U,

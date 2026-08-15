@@ -32,14 +32,14 @@
     "knobStack": { "type": "object" },
     "presentationProfiles": {
       "type": "array",
-      "minItems": 4,
-      "maxItems": 4,
+      "minItems": 3,
+      "maxItems": 3,
       "items": {
         "type": "object",
         "additionalProperties": false,
         "required": ["name", "width", "height", "framesPerSecond"],
         "properties": {
-          "name": { "enum": ["1080p30", "1080p24", "720p24", "720p15"] },
+          "name": { "enum": ["720p30", "720p24", "720p15"] },
           "width": { "type": "integer", "minimum": 1 },
           "height": { "type": "integer", "minimum": 1 },
           "framesPerSecond": { "type": "integer", "minimum": 1 }

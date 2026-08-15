@@ -154,7 +154,7 @@ def validate_manifest(root: Path = ROOT) -> list[str]:
         "automaticEmphasisCap": 4,
         "protectedThresholdDelta": 0.0,
         "payloadAndVbvStep": 0,
-        "presentationProfile": "1080p30",
+        "presentationProfile": "720p30",
     }:
         errors.append("controller initial level stack changed")
     if knobs.get("minimum") != {
@@ -169,21 +169,21 @@ def validate_manifest(root: Path = ROOT) -> list[str]:
     if knobs.get("protectedThresholdDeltas") != [0.0, 0.05, 0.1, 0.15]:
         errors.append("controller threshold stack changed")
     if knobs.get("minimumPayloadBpsByProfile") != {
-        "1080p30": 100000,
-        "1080p24": 100000,
+        "720p30": 100000,
         "720p24": 100000,
         "720p15": 100000,
     }:
         errors.append("controller profile minimum payloads changed")
 
     expected_profiles = [
-        {"name": "1080p30", "width": 1920, "height": 1080, "framesPerSecond": 30},
-        {"name": "1080p24", "width": 1920, "height": 1080, "framesPerSecond": 24},
+        {"name": "720p30", "width": 1280, "height": 720, "framesPerSecond": 30},
         {"name": "720p24", "width": 1280, "height": 720, "framesPerSecond": 24},
         {"name": "720p15", "width": 1280, "height": 720, "framesPerSecond": 15},
     ]
     if manifest.get("presentationProfiles") != expected_profiles:
         errors.append("controller presentation profiles changed")
+    if manifest.get("profileTransition", {}).get("maximumOutstandingRecoverySteps") != 2:
+        errors.append("controller live profile recovery depth changed")
 
     states = manifest.get("stateMachine", {})
     if states.get("states") != [
@@ -220,6 +220,8 @@ def validate_manifest(root: Path = ROOT) -> list[str]:
         errors.append("controller steady cap matrix changed")
     if steady.get("warmupSeconds") != 10 or steady.get("measurementSeconds") != 120:
         errors.append("controller steady measurement window changed")
+    if steady.get("presentationProfile") != "720p30":
+        errors.append("controller live steady profile changed")
     network = qualification.get("networkFixture", {})
     if network.get("commandTemplate") != (
         "tc qdisc replace dev {device} root netem limit 1000 delay 25ms rate {rate_kbit}kbit"
