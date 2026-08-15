@@ -31,7 +31,10 @@ public:
                     ? std::optional<std::string>(options.signaling_ca_path->string())
                     : std::nullopt,
             .automatically_create_join = true,
-        }) {}
+        }),
+        initial_pacing_target_bps_(
+            static_cast<double>(record_bitrate_bps(options.bitrate_profile).value_or(4'000'000U))) {
+  }
 
   ~WebRtcShareTransport() override { stop("SHARE_TRANSPORT_DESTROYED"); }
 
@@ -190,6 +193,7 @@ private:
           .event_callback = [this](const PeerSenderEvent &event) { handle_peer_event(event); },
           .request_idr_with_parameter_sets =
               [this] { push({ShareTransportEventKind::recovery_requested, "PEER_REQUESTED_IDR"}); },
+          .initial_pacing_target_bps = initial_pacing_target_bps_,
       });
     } catch (const std::exception &error) {
       fail(std::string("SHARE_PEER_CREATE_FAILED:") + error.what());
@@ -261,6 +265,7 @@ private:
       fail(event.value);
       break;
     case PeerSenderEventKind::receiver_stats:
+    case PeerSenderEventKind::receiver_report:
     case PeerSenderEventKind::remb:
       break;
     }
@@ -338,6 +343,7 @@ private:
   bool peer_track_open_ = false;
   bool peer_control_open_ = false;
   bool stopping_ = false;
+  double initial_pacing_target_bps_ = 4'000'000.0;
 };
 
 } // namespace

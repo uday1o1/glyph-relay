@@ -282,6 +282,12 @@ void test_loopback_peer_control_media_and_cleanup() {
   require(peer_ready && failure.empty(),
           "both loopback peers, the video track, and reliable control channel must open");
 
+  sender->set_pacing_target_bits_per_second(1'000'000.0);
+  require(sender->diagnostics().pacer.target_bits_per_second == 1'000'000.0 &&
+              sender->diagnostics().pacer.maximum_age_milliseconds == 100U &&
+              sender->diagnostics().pacer.maximum_bytes == 4U * 1024U * 1024U,
+          "the real peer path must expose the configured pacing target and frozen hard bounds");
+
   Json stats = {
       {"compositorFrames", 1U},
       {"decodedFrames", 1U},
@@ -299,8 +305,11 @@ void test_loopback_peer_control_media_and_cleanup() {
               failure.empty(),
           "sender must surface one validated receiver-statistics event");
 
-  require(sender->send_access_unit(recovery_access_unit()),
-          "sender must packetize and send one complete recovery access unit");
+  const bool access_unit_sent = sender->send_access_unit(recovery_access_unit());
+  if (!access_unit_sent) {
+    std::cerr << "peer access-unit rejection: " << sender->diagnostics().reason << '\n';
+  }
+  require(access_unit_sent, "sender must packetize and send one complete recovery access unit");
   require(wait_for(mutex, changed, std::chrono::seconds(2),
                    [&] { return received_rtp_packets > 0U || !failure.empty(); }) &&
               failure.empty(),

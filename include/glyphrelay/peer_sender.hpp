@@ -2,6 +2,7 @@
 
 #include "glyphrelay/control_protocol.hpp"
 #include "glyphrelay/media_egress.hpp"
+#include "glyphrelay/media_pacer.hpp"
 #include "glyphrelay/recording.hpp"
 #include "glyphrelay/rtp_transport.hpp"
 
@@ -23,6 +24,7 @@ enum class PeerSenderEventKind {
   disconnected,
   control_open,
   receiver_stats,
+  receiver_report,
   remb,
   recovery_requested,
   ended,
@@ -33,6 +35,8 @@ struct PeerSenderEvent {
   PeerSenderEventKind kind = PeerSenderEventKind::failed;
   std::string value;
   std::uint64_t number = 0;
+  std::optional<double> loss_fraction;
+  std::optional<double> round_trip_time_milliseconds;
   ReceiverControlStats receiver_stats;
 };
 
@@ -42,6 +46,7 @@ struct PeerSenderConfig {
   std::vector<std::string> ice_server_urls;
   std::function<void(const PeerSenderEvent &)> event_callback;
   std::function<void()> request_idr_with_parameter_sets;
+  double initial_pacing_target_bps = 4'000'000.0;
 };
 
 struct PeerSenderDiagnostics {
@@ -54,11 +59,15 @@ struct PeerSenderDiagnostics {
   std::uint64_t dependency_epoch = 0;
   std::uint64_t access_units_sent = 0;
   std::uint64_t bytes_sent = 0;
+  std::uint64_t retransmission_bytes_sent = 0;
   std::uint64_t latest_remb_bps = 0;
+  std::optional<double> latest_loss_fraction;
+  std::optional<double> latest_round_trip_time_milliseconds;
   std::string reason;
   SenderControlDiagnostics control;
   RecoveryDiagnostics recovery;
   RetransmissionCacheSnapshot retransmission_cache;
+  MediaPacerSnapshot pacer;
   DatagramEgressSnapshot egress;
 };
 
@@ -75,6 +84,7 @@ public:
   bool accept_offer(std::string_view sdp);
   bool add_remote_candidate(std::string_view encoded_candidate);
   bool send_access_unit(const RecordedAccessUnit &access_unit);
+  void set_pacing_target_bits_per_second(double target_bits_per_second);
   void stop(std::string_view reason = "OWNER_STOP");
   PeerSenderDiagnostics diagnostics() const;
 

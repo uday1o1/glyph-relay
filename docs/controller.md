@@ -30,6 +30,17 @@ The native `ProtectedRegionController` consumes cumulative counters and causally
 The native `MediaPacerQueue` applies the controller's payload budget with a monotonic token bucket whose burst is exactly 100 milliseconds of target bytes.
 It admits every access unit atomically and purges the complete dependency epoch plus retransmission cache when the 100-millisecond age bound or hard byte bound is reached.
 
+## Production media path
+
+The patched libdatachannel media chain places the bounded pacer after strict RTP packetization and before the single DTLS-SRTP transport.
+New packets and Generic NACK retransmissions therefore share one token budget, and a retransmission reuses the cached plaintext RTP identity through the same SRTP context.
+Only packets released by the pacer enter the bounded retransmission cache.
+Deferred packets retain their original byte sequence, extended sequence, access-unit identity, dependency epoch, and marker bit.
+An epoch purge clears both the pacer and retransmission cache before a new IDR carrying SPS and PPS is admitted.
+The public share bitrate selects the initial pacing target, while authenticated REMB applies the frozen effective-cap and control-reserve calculation without lowering the packet-safe 100 kbps V1 floor.
+Matching RTCP receiver reports surface fractional loss and round-trip time, and the receiver control channel separately supplies compositor, decoded-frame, and dropped-frame counters.
+Peer diagnostics expose the current pacer bounds and target, retransmission bytes, final wire counter, latest REMB, latest loss, and latest round-trip time without substituting configured values for measured values.
+
 ## Deterministic replay
 
 Run `glyphrelay_controller_trace_fixture --fixture stable_link --output trace.jsonl` to exercise the production controller path without target hardware.

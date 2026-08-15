@@ -25,18 +25,24 @@ COPY patches ./patches
 COPY scripts/bootstrap_libdatachannel.sh ./scripts/bootstrap_libdatachannel.sh
 RUN GLYPHRELAY_REPOSITORY_ROOT=/workspace bash scripts/bootstrap_libdatachannel.sh
 COPY CMakeLists.txt CMakePresets.json ./
+COPY cmake ./cmake
 COPY include ./include
 COPY protocols ./protocols
 COPY src ./src
 COPY vendor ./vendor
 COPY tests/cmake ./tests/cmake
 COPY tests/native ./tests/native
+COPY tools/controller_trace_fixture.cpp ./tools/controller_trace_fixture.cpp
+COPY tools/evaluate_saliency_validation.cpp ./tools/evaluate_saliency_validation.cpp
+COPY tools/evaluate_uniform_aq.cpp ./tools/evaluate_uniform_aq.cpp
 COPY tools/freeze_m0_protocol.cpp ./tools/freeze_m0_protocol.cpp
 COPY tools/hash_m0_browser_source.cpp ./tools/hash_m0_browser_source.cpp
 COPY tools/m0_transport_fixture.cpp ./tools/m0_transport_fixture.cpp
 COPY tools/m0_webrtc_sender.cpp ./tools/m0_webrtc_sender.cpp
 COPY tools/owner_signaling_fixture.cpp ./tools/owner_signaling_fixture.cpp
 COPY tools/render_saliency_preview.cpp ./tools/render_saliency_preview.cpp
+COPY tools/replay_controller_trace.py ./tools/replay_controller_trace.py
+COPY tools/run_controller_trace_matrix.py ./tools/run_controller_trace_matrix.py
 COPY tools/validate_m0_benchmark.py ./tools/validate_m0_benchmark.py
 COPY tools/run_linux_capture_analyzer.sh ./tools/run_linux_capture_analyzer.sh
 COPY tools/run_linux_recording_analyzer.sh ./tools/run_linux_recording_analyzer.sh

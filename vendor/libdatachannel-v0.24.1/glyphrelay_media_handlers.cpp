@@ -14,6 +14,7 @@
 #include <rtc/rtp.hpp>
 
 #include <algorithm>
+#include <chrono>
 #include <cstddef>
 #include <limits>
 #include <span>
@@ -27,6 +28,10 @@ namespace {
 constexpr std::size_t kRtcpFeedbackHeaderBytes = 12U;
 constexpr std::size_t kRtcpNackFieldBytes = 4U;
 constexpr std::size_t kMaximumParsedNackFields = 101U;
+constexpr std::size_t kMaximumPacerDrainPackets = 4'096U;
+constexpr double kInitialPacerBitsPerSecond = 4'000'000.0;
+constexpr std::uint32_t kMaximumReportedRttCompactNtp = 60U * 65'536U;
+constexpr auto kPacerWakeInterval = std::chrono::milliseconds(1);
 
 std::span<const std::uint8_t> as_uint8_span(const rtc::binary &bytes) {
   return {reinterpret_cast<const std::uint8_t *>(bytes.data()), bytes.size()};
@@ -153,6 +158,51 @@ rtc::message_ptr to_rtc_message(const PlaintextRtpPacket &packet) {
   return message;
 }
 
+std::uint32_t compact_ntp_now() {
+  constexpr std::uint64_t kNtpEpochOffsetSeconds = 2'208'988'800ULL;
+  const auto now = std::chrono::system_clock::now().time_since_epoch();
+  const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(now);
+  const auto fraction = now - seconds;
+  const auto ntp_seconds = static_cast<std::uint64_t>(seconds.count()) + kNtpEpochOffsetSeconds;
+  const auto fractional_units =
+      static_cast<std::uint64_t>(std::chrono::duration<double>(fraction).count() * 4'294'967'296.0);
+  return static_cast<std::uint32_t>(((ntp_seconds & 0xFFFFU) << 16U) |
+                                    ((fractional_units >> 16U) & 0xFFFFU));
+}
+
+struct ParsedReceiverReport {
+  std::optional<double> loss_fraction;
+  std::optional<double> round_trip_time_milliseconds;
+};
+
+ParsedReceiverReport parse_receiver_report(std::span<const std::uint8_t> bytes, std::size_t offset,
+                                           std::size_t packet_bytes, std::uint32_t media_ssrc) {
+  ParsedReceiverReport result;
+  const auto report_count = static_cast<std::size_t>(bytes[offset] & 0x1FU);
+  if (packet_bytes < 8U + report_count * 24U) {
+    return result;
+  }
+  for (std::size_t index = 0U; index < report_count; ++index) {
+    const auto report_offset = offset + 8U + index * 24U;
+    if (read_u32(bytes, report_offset) != media_ssrc) {
+      continue;
+    }
+    result.loss_fraction =
+        static_cast<double>(bytes[report_offset + 4U]) / static_cast<double>(256U);
+    const auto last_sender_report = read_u32(bytes, report_offset + 16U);
+    const auto delay_since_sender_report = read_u32(bytes, report_offset + 20U);
+    if (last_sender_report != 0U) {
+      const auto elapsed = static_cast<std::uint32_t>(compact_ntp_now() - last_sender_report -
+                                                      delay_since_sender_report);
+      if (elapsed <= kMaximumReportedRttCompactNtp) {
+        result.round_trip_time_milliseconds = static_cast<double>(elapsed) * 1000.0 / 65'536.0;
+      }
+    }
+    break;
+  }
+  return result;
+}
+
 } // namespace
 
 StrictH264Packetizer::StrictH264Packetizer(std::shared_ptr<rtc::RtpPacketizationConfig> config)
@@ -232,15 +282,21 @@ std::optional<std::string> StrictH264Packetizer::take_last_rejection() {
 
 BoundedNackResponder::BoundedNackResponder(std::uint32_t media_ssrc, Clock now_milliseconds,
                                            Callback request_idr_with_parameter_sets,
-                                           Callback terminate_session)
+                                           Callback terminate_session,
+                                           NetworkFeedbackCallback network_feedback)
     : media_ssrc_(media_ssrc), now_milliseconds_(std::move(now_milliseconds)),
       request_idr_with_parameter_sets_(std::move(request_idr_with_parameter_sets)),
-      terminate_session_(std::move(terminate_session)), recovery_(cache_) {
+      terminate_session_(std::move(terminate_session)),
+      network_feedback_(std::move(network_feedback)), pacer_(cache_), recovery_(cache_) {
   if (media_ssrc_ == 0U || !now_milliseconds_ || !request_idr_with_parameter_sets_ ||
       !terminate_session_) {
     throw std::invalid_argument("bounded NACK responder requires an SSRC, clock, and callbacks");
   }
+  pacer_.set_target_bits_per_second(kInitialPacerBitsPerSecond, now_milliseconds_());
+  pacer_worker_ = std::thread([this] { run_pacer(); });
 }
+
+BoundedNackResponder::~BoundedNackResponder() { stop(); }
 
 bool BoundedNackResponder::begin_epoch(std::uint64_t media_epoch, std::uint64_t dependency_epoch,
                                        RecoveryTrigger trigger) {
@@ -248,6 +304,10 @@ bool BoundedNackResponder::begin_epoch(std::uint64_t media_epoch, std::uint64_t 
   {
     std::lock_guard lock(mutex_);
     const auto now = now_milliseconds_();
+    if (media_epoch_ != 0U &&
+        (media_epoch_ != media_epoch || dependency_epoch_ != dependency_epoch)) {
+      static_cast<void>(pacer_.require_recovery());
+    }
     requested = recovery_.begin_epoch(media_epoch, dependency_epoch, now, trigger);
     if (cache_.media_epoch() == media_epoch && cache_.dependency_epoch() == dependency_epoch) {
       media_epoch_ = media_epoch;
@@ -259,6 +319,17 @@ bool BoundedNackResponder::begin_epoch(std::uint64_t media_epoch, std::uint64_t 
     request_idr_with_parameter_sets_();
   }
   return requested;
+}
+
+void BoundedNackResponder::set_target_bits_per_second(double target_bits_per_second) {
+  {
+    std::lock_guard lock(mutex_);
+    if (pacer_stopping_) {
+      return;
+    }
+    pacer_.set_target_bits_per_second(target_bits_per_second, now_milliseconds_());
+  }
+  pacer_changed_.notify_all();
 }
 
 bool BoundedNackResponder::request_forced_idr(RecoveryTrigger trigger) {
@@ -274,21 +345,58 @@ bool BoundedNackResponder::request_forced_idr(RecoveryTrigger trigger) {
 }
 
 void BoundedNackResponder::stop() {
-  std::lock_guard lock(mutex_);
-  recovery_.stop();
-  media_epoch_ = 0U;
-  dependency_epoch_ = 0U;
+  {
+    std::lock_guard lock(mutex_);
+    if (!pacer_stopping_) {
+      pacer_stopping_ = true;
+      pacer_.stop();
+      recovery_.stop();
+      send_callback_ = {};
+      media_epoch_ = 0U;
+      dependency_epoch_ = 0U;
+    }
+  }
+  pacer_changed_.notify_all();
+  if (pacer_worker_.joinable() && pacer_worker_.get_id() != std::this_thread::get_id()) {
+    pacer_worker_.join();
+  }
 }
 
 void BoundedNackResponder::outgoing(rtc::message_vector &messages,
                                     const rtc::message_callback &send) {
-  static_cast<void>(send);
-  std::lock_guard lock(mutex_);
-  for (const auto &message : messages) {
-    const auto packet = to_cached_packet(message, media_ssrc_);
-    if (packet) {
-      cache_.store(*packet, now_milliseconds_());
+  bool request_idr = false;
+  {
+    std::lock_guard lock(mutex_);
+    if (pacer_stopping_) {
+      messages.clear();
+      last_pacer_rejection_ = "PACER_STOPPED";
+      return;
     }
+    std::vector<PlaintextRtpPacket> packets;
+    packets.reserve(messages.size());
+    for (const auto &message : messages) {
+      const auto packet = to_cached_packet(message, media_ssrc_);
+      if (!packet) {
+        messages.clear();
+        last_pacer_rejection_ = "PACER_RTP_PACKET_INVALID";
+        return;
+      }
+      packets.push_back(*packet);
+    }
+    const auto now = now_milliseconds_();
+    const auto admission = pacer_.admit_access_unit(packets, now);
+    messages.clear();
+    if (!admission.accepted) {
+      last_pacer_rejection_ = admission.reason;
+      request_idr = admission.recovery_required;
+    } else {
+      send_callback_ = send;
+      drain_locked(messages, now);
+      pacer_changed_.notify_all();
+    }
+  }
+  if (request_idr) {
+    request_idr_with_parameter_sets_();
   }
 }
 
@@ -297,6 +405,8 @@ void BoundedNackResponder::incoming(rtc::message_vector &messages,
   std::vector<rtc::message_ptr> retransmissions;
   bool request_idr = false;
   bool terminate = false;
+  std::optional<double> loss_fraction;
+  std::optional<double> round_trip_time_milliseconds;
   {
     std::lock_guard lock(mutex_);
     for (const auto &message : messages) {
@@ -320,7 +430,15 @@ void BoundedNackResponder::incoming(rtc::message_vector &messages,
           break;
         }
         const auto format = static_cast<std::uint8_t>(first & 0x1FU);
-        if (payload_type == 205U && format == 1U) {
+        if (payload_type == 201U) {
+          const auto report = parse_receiver_report(bytes, offset, packet_bytes, media_ssrc_);
+          if (report.loss_fraction) {
+            loss_fraction = report.loss_fraction;
+          }
+          if (report.round_trip_time_milliseconds) {
+            round_trip_time_milliseconds = report.round_trip_time_milliseconds;
+          }
+        } else if (payload_type == 205U && format == 1U) {
           if (packet_bytes < kRtcpFeedbackHeaderBytes + kRtcpNackFieldBytes ||
               (packet_bytes - kRtcpFeedbackHeaderBytes) % kRtcpNackFieldBytes != 0U) {
             ++malformed_feedback_messages_;
@@ -339,7 +457,14 @@ void BoundedNackResponder::incoming(rtc::message_vector &messages,
             const auto decision =
                 recovery_.handle_nack(media_epoch_, dependency_epoch_, fields, now_milliseconds_());
             for (const auto &packet : decision.retransmissions) {
-              retransmissions.push_back(to_rtc_message(packet));
+              auto retransmission = packet;
+              retransmission.retransmission = true;
+              const auto admission =
+                  pacer_.admit_retransmission(retransmission, now_milliseconds_());
+              if (!admission.accepted) {
+                last_pacer_rejection_ = admission.reason;
+                request_idr = request_idr || admission.recovery_required;
+              }
             }
             request_idr = request_idr || decision.request_idr_with_parameter_sets;
             terminate = terminate || decision.terminate_session;
@@ -362,6 +487,10 @@ void BoundedNackResponder::incoming(rtc::message_vector &messages,
     } else if (terminate) {
       termination_notified_ = true;
     }
+    if (send) {
+      send_callback_ = send;
+    }
+    drain_locked(retransmissions, now_milliseconds_());
   }
 
   for (auto &message : retransmissions) {
@@ -370,8 +499,71 @@ void BoundedNackResponder::incoming(rtc::message_vector &messages,
   if (request_idr) {
     request_idr_with_parameter_sets_();
   }
+  if (network_feedback_ && (loss_fraction || round_trip_time_milliseconds)) {
+    try {
+      network_feedback_(loss_fraction, round_trip_time_milliseconds);
+    } catch (...) {
+    }
+  }
   if (terminate) {
     terminate_session_();
+  }
+}
+
+void BoundedNackResponder::drain_locked(rtc::message_vector &messages,
+                                        std::uint64_t now_milliseconds) {
+  for (std::size_t count = 0U; count < kMaximumPacerDrainPackets; ++count) {
+    auto next = pacer_.dequeue(now_milliseconds);
+    if (!next.packet) {
+      if (next.recovery_required && next.reason != "PACER_AWAITING_RECOVERY_IDR") {
+        last_pacer_rejection_ = next.reason;
+      }
+      break;
+    }
+    if (next.packet->retransmission) {
+      if (next.packet->bytes.size() >
+          std::numeric_limits<std::uint64_t>::max() - retransmission_bytes_sent_) {
+        retransmission_bytes_sent_ = std::numeric_limits<std::uint64_t>::max();
+      } else {
+        retransmission_bytes_sent_ += next.packet->bytes.size();
+      }
+    } else if (!cache_.store(*next.packet, now_milliseconds)) {
+      static_cast<void>(pacer_.require_recovery());
+      last_pacer_rejection_ = "PACER_RETRANSMISSION_CACHE_REJECTED";
+      break;
+    }
+    messages.push_back(to_rtc_message(*next.packet));
+  }
+}
+
+void BoundedNackResponder::run_pacer() {
+  std::unique_lock lock(mutex_);
+  while (!pacer_stopping_) {
+    pacer_changed_.wait_for(lock, kPacerWakeInterval);
+    if (pacer_stopping_) {
+      break;
+    }
+    if (pacer_.snapshot().packets == 0U) {
+      continue;
+    }
+    rtc::message_vector messages;
+    drain_locked(messages, now_milliseconds_());
+    auto send = send_callback_;
+    lock.unlock();
+    if (send) {
+      for (auto &message : messages) {
+        try {
+          send(std::move(message));
+        } catch (...) {
+          lock.lock();
+          static_cast<void>(pacer_.require_recovery());
+          last_pacer_rejection_ = "PACER_ASYNC_TRANSPORT_SEND_FAILED";
+          lock.unlock();
+          break;
+        }
+      }
+    }
+    lock.lock();
   }
 }
 
@@ -385,9 +577,26 @@ RetransmissionCacheSnapshot BoundedNackResponder::cache_snapshot() const {
   return cache_.snapshot();
 }
 
+MediaPacerSnapshot BoundedNackResponder::pacer_snapshot() const {
+  std::lock_guard lock(mutex_);
+  return pacer_.snapshot();
+}
+
+std::uint64_t BoundedNackResponder::retransmission_bytes_sent() const {
+  std::lock_guard lock(mutex_);
+  return retransmission_bytes_sent_;
+}
+
 std::uint64_t BoundedNackResponder::malformed_feedback_messages() const {
   std::lock_guard lock(mutex_);
   return malformed_feedback_messages_;
+}
+
+std::optional<std::string> BoundedNackResponder::take_last_pacer_rejection() {
+  std::lock_guard lock(mutex_);
+  auto result = std::move(last_pacer_rejection_);
+  last_pacer_rejection_.reset();
+  return result;
 }
 
 } // namespace glyphrelay::rtc_adapter

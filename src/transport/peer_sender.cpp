@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <condition_variable>
 #include <cstddef>
 #include <cstdint>
@@ -47,6 +48,13 @@ constexpr std::uint64_t kInitialMediaEpoch = 1U;
 constexpr std::chrono::milliseconds kWorkerInterval{100};
 constexpr std::chrono::seconds kControlEndTimeout{2};
 constexpr std::size_t kMaximumCandidateBytes = 4U * 1024U;
+constexpr double kMinimumPacingTargetBps = 100'000.0;
+
+double pacing_target_from_remb(double user_target_bps, std::uint64_t remb_bps) {
+  const double effective_cap = std::min(user_target_bps, 0.90 * static_cast<double>(remb_bps));
+  const double control_reserve = std::max(0.10 * effective_cap, 64'000.0);
+  return std::max(effective_cap - control_reserve, kMinimumPacingTargetBps);
+}
 
 void append_control(SenderControlOutput &destination, SenderControlOutput source) {
   destination.valid = destination.valid && source.valid;
@@ -192,8 +200,10 @@ struct PeerSender::Implementation {
   explicit Implementation(PeerSenderConfig peer_config)
       : config(std::move(peer_config)), control(config.session_id), started_at(Clock::now()),
         egress(kInitialMediaEpoch), peer(rtc_configuration()) {
-    if (!config.event_callback || !config.request_idr_with_parameter_sets) {
-      throw std::invalid_argument("peer sender callbacks are required");
+    if (!config.event_callback || !config.request_idr_with_parameter_sets ||
+        !std::isfinite(config.initial_pacing_target_bps) ||
+        config.initial_pacing_target_bps <= 0.0) {
+      throw std::invalid_argument("peer sender callbacks and pacing target are required");
     }
     diagnostics_state.media_epoch = kInitialMediaEpoch;
     diagnostics_state.reason = "PEER_NEW";
@@ -237,12 +247,16 @@ struct PeerSender::Implementation {
       emit({.kind = PeerSenderEventKind::local_description,
             .value = static_cast<std::string>(description),
             .number = 0U,
+            .loss_fraction = std::nullopt,
+            .round_trip_time_milliseconds = std::nullopt,
             .receiver_stats = {}});
     });
     peer.onLocalCandidate([this](rtc::Candidate candidate) {
       emit({.kind = PeerSenderEventKind::local_candidate,
             .value = local_candidate_json(candidate),
             .number = 0U,
+            .loss_fraction = std::nullopt,
+            .round_trip_time_milliseconds = std::nullopt,
             .receiver_stats = {}});
     });
     peer.onStateChange([this](rtc::PeerConnection::State state) {
@@ -256,6 +270,8 @@ struct PeerSender::Implementation {
         emit({.kind = PeerSenderEventKind::connected,
               .value = {},
               .number = 0U,
+              .loss_fraction = std::nullopt,
+              .round_trip_time_milliseconds = std::nullopt,
               .receiver_stats = {}});
       } else if (state == rtc::PeerConnection::State::Disconnected) {
         {
@@ -266,6 +282,8 @@ struct PeerSender::Implementation {
         emit({.kind = PeerSenderEventKind::disconnected,
               .value = {},
               .number = 0U,
+              .loss_fraction = std::nullopt,
+              .round_trip_time_milliseconds = std::nullopt,
               .receiver_stats = {}});
       } else if (state == rtc::PeerConnection::State::Failed ||
                  state == rtc::PeerConnection::State::Closed) {
@@ -373,19 +391,49 @@ struct PeerSender::Implementation {
             emit({.kind = PeerSenderEventKind::recovery_requested,
                   .value = {},
                   .number = 0U,
+                  .loss_fraction = std::nullopt,
+                  .round_trip_time_milliseconds = std::nullopt,
                   .receiver_stats = {}});
             safe_request_idr();
           },
-          [this] { fail("PEER_FEEDBACK_FLOOD"); });
+          [this] { fail("PEER_FEEDBACK_FLOOD"); },
+          [this](std::optional<double> loss_fraction,
+                 std::optional<double> round_trip_time_milliseconds) {
+            {
+              std::scoped_lock lock(mutex);
+              if (loss_fraction) {
+                diagnostics_state.latest_loss_fraction = loss_fraction;
+              }
+              if (round_trip_time_milliseconds) {
+                diagnostics_state.latest_round_trip_time_milliseconds =
+                    round_trip_time_milliseconds;
+              }
+            }
+            emit({.kind = PeerSenderEventKind::receiver_report,
+                  .value = {},
+                  .number = 0U,
+                  .loss_fraction = loss_fraction,
+                  .round_trip_time_milliseconds = round_trip_time_milliseconds,
+                  .receiver_stats = {}});
+          });
+      nack->set_target_bits_per_second(config.initial_pacing_target_bps);
       packetizer->addToChain(nack);
       packetizer->addToChain(std::make_shared<rtc::RembHandler>([this](unsigned int bitrate) {
+        std::shared_ptr<rtc_adapter::BoundedNackResponder> active_recovery;
         {
           std::scoped_lock lock(mutex);
           diagnostics_state.latest_remb_bps = bitrate;
+          active_recovery = recovery;
+        }
+        if (active_recovery && bitrate > 0U) {
+          active_recovery->set_target_bits_per_second(
+              pacing_target_from_remb(config.initial_pacing_target_bps, bitrate));
         }
         emit({.kind = PeerSenderEventKind::remb,
               .value = {},
               .number = bitrate,
+              .loss_fraction = std::nullopt,
+              .round_trip_time_milliseconds = std::nullopt,
               .receiver_stats = {}});
       }));
       incoming->setMediaHandler(packetizer);
@@ -398,6 +446,8 @@ struct PeerSender::Implementation {
         emit({.kind = PeerSenderEventKind::track_open,
               .value = {},
               .number = 0U,
+              .loss_fraction = std::nullopt,
+              .round_trip_time_milliseconds = std::nullopt,
               .receiver_stats = {}});
       });
       incoming->onClosed([this] {
@@ -495,6 +545,8 @@ struct PeerSender::Implementation {
     emit({.kind = PeerSenderEventKind::control_open,
           .value = {},
           .number = 0U,
+          .loss_fraction = std::nullopt,
+          .round_trip_time_milliseconds = std::nullopt,
           .receiver_stats = {}});
   }
 
@@ -536,6 +588,8 @@ struct PeerSender::Implementation {
         emit({.kind = PeerSenderEventKind::receiver_stats,
               .value = {},
               .number = 0U,
+              .loss_fraction = std::nullopt,
+              .round_trip_time_milliseconds = std::nullopt,
               .receiver_stats = event.stats});
       } else if (event.kind == ReceiverControlEventKind::terminal ||
                  event.kind == ReceiverControlEventKind::protocol_error) {
@@ -602,12 +656,18 @@ struct PeerSender::Implementation {
     message->accessUnitId = access_unit_id;
     message->dependencyEpoch = access_unit.dependency_epoch;
     message->extendedTimestamp = access_unit.extended_rtp_timestamp;
-    if (!active_track->sendMessage(std::move(message))) {
+    try {
+      static_cast<void>(active_track->sendMessage(std::move(message)));
+    } catch (const std::exception &) {
       fail("PEER_TRACK_SEND_FAILED");
       return false;
     }
     if (const auto rejection = active_packetizer->take_last_rejection()) {
       fail("PEER_PACKETIZER_REJECTED:" + *rejection);
+      return false;
+    }
+    if (const auto rejection = active_recovery->take_last_pacer_rejection()) {
+      fail("PEER_PACER_REJECTED:" + *rejection);
       return false;
     }
     bool counter_overflow = false;
@@ -627,6 +687,18 @@ struct PeerSender::Implementation {
       return false;
     }
     return true;
+  }
+
+  void set_pacing_target_bits_per_second(double target_bits_per_second) {
+    std::shared_ptr<rtc_adapter::BoundedNackResponder> active_recovery;
+    {
+      std::scoped_lock lock(mutex);
+      if (failed || stopping || stopped || !recovery) {
+        throw std::logic_error("peer pacing target state invalid");
+      }
+      active_recovery = recovery;
+    }
+    active_recovery->set_target_bits_per_second(target_bits_per_second);
   }
 
   void stop(std::string_view reason) {
@@ -702,6 +774,8 @@ struct PeerSender::Implementation {
     emit({.kind = PeerSenderEventKind::ended,
           .value = std::string(reason),
           .number = 0U,
+          .loss_fraction = std::nullopt,
+          .round_trip_time_milliseconds = std::nullopt,
           .receiver_stats = {}});
   }
 
@@ -732,6 +806,8 @@ struct PeerSender::Implementation {
     if (recovery) {
       result.recovery = recovery->diagnostics();
       result.retransmission_cache = recovery->cache_snapshot();
+      result.pacer = recovery->pacer_snapshot();
+      result.retransmission_bytes_sent = recovery->retransmission_bytes_sent();
     }
     result.egress = egress.snapshot();
     return result;
@@ -782,6 +858,8 @@ struct PeerSender::Implementation {
       emit({.kind = PeerSenderEventKind::failed,
             .value = std::move(reason),
             .number = 0U,
+            .loss_fraction = std::nullopt,
+            .round_trip_time_milliseconds = std::nullopt,
             .receiver_stats = {}});
     }
   }
@@ -855,6 +933,10 @@ bool PeerSender::send_access_unit(const RecordedAccessUnit &access_unit) {
   return implementation_->send_access_unit(access_unit);
 }
 
+void PeerSender::set_pacing_target_bits_per_second(double target_bits_per_second) {
+  implementation_->set_pacing_target_bits_per_second(target_bits_per_second);
+}
+
 void PeerSender::stop(std::string_view reason) { implementation_->stop(reason); }
 
 PeerSenderDiagnostics PeerSender::diagnostics() const { return implementation_->diagnostics(); }
@@ -875,6 +957,8 @@ std::string_view peer_sender_event_name(PeerSenderEventKind kind) {
     return "CONTROL_OPEN";
   case PeerSenderEventKind::receiver_stats:
     return "RECEIVER_STATS";
+  case PeerSenderEventKind::receiver_report:
+    return "RECEIVER_REPORT";
   case PeerSenderEventKind::remb:
     return "REMB";
   case PeerSenderEventKind::recovery_requested:

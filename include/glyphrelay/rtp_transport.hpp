@@ -41,6 +41,7 @@ struct PlaintextRtpPacket {
   std::vector<std::uint8_t> bytes;
   std::size_t rtp_header_bytes = kRtpHeaderBytes;
   RtpPacketIdentity identity;
+  bool retransmission = false;
 
   std::span<const std::uint8_t> payload() const;
 };
