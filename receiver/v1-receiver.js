@@ -6,6 +6,7 @@ import {
 } from "/control-protocol.js";
 
 const SIGNAL_PROTOCOL = "glyphrelay-signal-v1";
+const MAXIMUM_FRAME_OBSERVATIONS = 512;
 
 const statusElement = document.querySelector("#status");
 const connectionElement = document.querySelector("#connection");
@@ -40,10 +41,14 @@ let lastStatsSentAt = Number.NEGATIVE_INFINITY;
 let offerSent = false;
 let ended = false;
 let pendingCandidates = [];
+let frameObservations = [];
+let droppedFrameObservations = 0;
+let latestFrameObservation = null;
 const controlRateLimit = new SlidingControlRateLimit();
 const hasInitialJoin = consumeInitialFragment();
 
 window.__glyphrelayReceiver = {
+  drainFrameObservations,
   error: null,
   state: "READY",
   snapshot: receiverSnapshot,
@@ -52,12 +57,50 @@ window.__glyphrelayReceiver = {
 function receiverSnapshot() {
   return {
     error: window.__glyphrelayReceiver.error,
+    droppedFrameObservations,
+    latestFrameObservation,
+    pendingFrameObservations: frameObservations.length,
     presentedFrames,
     sessionId,
     signalingState: signalSocket?.readyState ?? WebSocket.CLOSED,
     state: window.__glyphrelayReceiver.state,
     videoHeight: video.videoHeight,
     videoWidth: video.videoWidth,
+  };
+}
+
+function optionalTimestamp(value) {
+  return Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+function recordFrameObservation(callbackTime, metadata) {
+  const rtpTimestamp =
+    Number.isSafeInteger(metadata.rtpTimestamp) &&
+    metadata.rtpTimestamp >= 0 &&
+    metadata.rtpTimestamp <= 0xffffffff
+      ? metadata.rtpTimestamp
+      : null;
+  latestFrameObservation = {
+    callbackTimeMs: optionalTimestamp(callbackTime),
+    captureTimeMs: optionalTimestamp(metadata.captureTime),
+    expectedDisplayTimeMs: optionalTimestamp(metadata.expectedDisplayTime),
+    presentationTimeMs: optionalTimestamp(metadata.presentationTime),
+    receiveTimeMs: optionalTimestamp(metadata.receiveTime),
+    rtpTimestamp,
+  };
+  if (frameObservations.length === MAXIMUM_FRAME_OBSERVATIONS) {
+    frameObservations.shift();
+    droppedFrameObservations += 1;
+  }
+  frameObservations.push(latestFrameObservation);
+}
+
+function drainFrameObservations() {
+  const observations = frameObservations;
+  frameObservations = [];
+  return {
+    droppedFrameObservations,
+    observations,
   };
 }
 
@@ -133,21 +176,22 @@ function signalIceState() {
   }
 }
 
-function capturePresentedFrame(_now, metadata) {
+function capturePresentedFrame(now, metadata) {
   if (ended) {
     return;
   }
+  recordFrameObservation(now, metadata);
   presentedFrames += 1;
   framesElement.textContent = String(presentedFrames);
   timestampElement.textContent =
     metadata.rtpTimestamp === undefined
       ? "Unavailable"
       : String(metadata.rtpTimestamp);
-  sendReceiverStats(metadata);
+  sendReceiverStats(metadata, now);
   video.requestVideoFrameCallback(capturePresentedFrame);
 }
 
-async function sendReceiverStats(metadata) {
+async function sendReceiverStats(metadata, callbackTime) {
   const now = performance.now();
   if (
     !controlChannel ||
@@ -173,7 +217,14 @@ async function sendReceiverStats(metadata) {
     compositorFrames: presentedFrames,
     decodedFrames,
     droppedFrames,
+    latestCallbackTimeMs: optionalTimestamp(callbackTime),
+    latestCaptureTimeMs: optionalTimestamp(metadata.captureTime),
+    latestExpectedDisplayTimeMs: optionalTimestamp(
+      metadata.expectedDisplayTime,
+    ),
+    latestPresentationTimeMs: optionalTimestamp(metadata.presentationTime),
     latestPresentedRtpTimestamp: metadata.rtpTimestamp ?? null,
+    latestReceiveTimeMs: optionalTimestamp(metadata.receiveTime),
   });
 }
 

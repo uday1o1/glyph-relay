@@ -30,6 +30,7 @@
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include <time.h>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -49,6 +50,19 @@ constexpr std::chrono::milliseconds kWorkerInterval{100};
 constexpr std::chrono::seconds kControlEndTimeout{2};
 constexpr std::size_t kMaximumCandidateBytes = 4U * 1024U;
 constexpr double kMinimumPacingTargetBps = 100'000.0;
+
+double sender_control_clock_milliseconds() {
+#if defined(__linux__)
+  timespec timestamp{};
+  if (clock_gettime(CLOCK_MONOTONIC_RAW, &timestamp) != 0) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+  return static_cast<double>(timestamp.tv_sec) * 1'000.0 +
+         static_cast<double>(timestamp.tv_nsec) / 1'000'000.0;
+#else
+  return std::chrono::duration<double, std::milli>(Clock::now().time_since_epoch()).count();
+#endif
+}
 
 double pacing_target_from_remb(double user_target_bps, std::uint64_t remb_bps) {
   const double effective_cap = std::min(user_target_bps, 0.90 * static_cast<double>(remb_bps));
@@ -535,7 +549,7 @@ struct PeerSender::Implementation {
       }
       diagnostics_state.control_open = true;
       output = control.begin(kInitialMediaEpoch);
-      const auto now = elapsed_ms();
+      const auto now = sender_control_clock_milliseconds();
       for (std::size_t sample = 0U; sample < 5U && output.valid; ++sample) {
         append_control(output, control.request_clock(now));
       }
@@ -554,7 +568,7 @@ struct PeerSender::Implementation {
     SenderControlOutput output;
     {
       std::scoped_lock lock(mutex);
-      output = control.receive(message, elapsed_ms());
+      output = control.receive(message, sender_control_clock_milliseconds());
     }
     std::fill(message.begin(), message.end(), '\0');
     message.clear();
@@ -584,7 +598,13 @@ struct PeerSender::Implementation {
     }
     std::optional<std::string> terminal_reason;
     for (const auto &event : output.events) {
-      if (event.kind == ReceiverControlEventKind::receiver_stats) {
+      if (event.kind == ReceiverControlEventKind::clock_response) {
+        std::scoped_lock lock(mutex);
+        if (!clock_correlation.observe(event)) {
+          clock_correlation.reset();
+        }
+        diagnostics_state.clock_correlation = clock_correlation.snapshot();
+      } else if (event.kind == ReceiverControlEventKind::receiver_stats) {
         {
           std::scoped_lock lock(mutex);
           diagnostics_state.latest_receiver_stats = event.stats;
@@ -794,7 +814,7 @@ struct PeerSender::Implementation {
           control.diagnostics().phase != SenderControlPhase::connected) {
         continue;
       }
-      auto output = control.request_clock(elapsed_ms());
+      auto output = control.request_clock(sender_control_clock_milliseconds());
       lock.unlock();
       if (!output.outbound_messages.empty() || !output.valid) {
         apply_control(std::move(output));
@@ -807,6 +827,7 @@ struct PeerSender::Implementation {
     std::scoped_lock lock(mutex);
     auto result = diagnostics_state;
     result.control = control.diagnostics();
+    result.clock_correlation = clock_correlation.snapshot();
     if (recovery) {
       result.recovery = recovery->diagnostics();
       result.retransmission_cache = recovery->cache_snapshot();
@@ -888,10 +909,6 @@ struct PeerSender::Implementation {
     }
   }
 
-  double elapsed_ms() const {
-    return std::chrono::duration<double, std::milli>(Clock::now() - started_at).count();
-  }
-
   std::uint64_t elapsed_ms_u64() const {
     const auto value =
         std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - started_at).count();
@@ -902,6 +919,7 @@ struct PeerSender::Implementation {
   mutable std::mutex mutex;
   std::condition_variable changed;
   SenderControlProtocol control;
+  ClockCorrelationEstimator clock_correlation;
   Clock::time_point started_at;
   MediaEgressGate egress;
   rtc::PeerConnection peer;

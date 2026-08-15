@@ -14,6 +14,7 @@
 #include <limits>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -70,6 +71,18 @@ bool encoder_restart_required(ControllerAction action) {
          action == ControllerAction::restore_payload_and_vbv ||
          action == ControllerAction::reduce_presentation_profile ||
          action == ControllerAction::restore_presentation_profile;
+}
+
+std::string frame_clock_detail(const CapturedFrame &frame, const RecordedAccessUnit &access_unit) {
+  std::ostringstream output;
+  output << "{\"sourceFrameId\":" << access_unit.source_frame_id
+         << ",\"sourceMonotonicRawNanoseconds\":" << frame.monotonic_timestamp_ns
+         << ",\"extendedRtpTimestamp\":" << access_unit.extended_rtp_timestamp
+         << ",\"wireRtpTimestamp\":"
+         << static_cast<std::uint32_t>(access_unit.extended_rtp_timestamp)
+         << ",\"dependencyEpoch\":" << access_unit.dependency_epoch
+         << ",\"geometryEpoch\":" << access_unit.geometry_epoch << '}';
+  return output.str();
 }
 
 int capture_terminal_exit(CaptureState state) {
@@ -591,6 +604,13 @@ ShareRunResult run_share_pipeline(const ShareCommandOptions &options, RecordFram
         .parameter_sets_present = parameter_sets_present,
         .presentation_timestamp_ns = relative_ns + 1U,
     };
+
+    if (options.json && result.encoded_access_units == 0U) {
+      report_status(status, "rtp_clock_base", frame_clock_detail(frame, access_unit));
+    }
+    if (options.json && access_unit.keyframe && access_unit.parameter_sets_present) {
+      report_status(status, "recovery_point", frame_clock_detail(frame, access_unit));
+    }
 
     ++result.encoded_access_units;
     if (peer_ready && fanout) {

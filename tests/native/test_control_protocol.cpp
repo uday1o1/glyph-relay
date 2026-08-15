@@ -39,6 +39,16 @@ std::string receiver_message(std::string_view type, std::uint64_t sequence,
   return message.dump();
 }
 
+Json receiver_stats(Json fields) {
+  Json value = {
+      {"latestCallbackTimeMs", nullptr},        {"latestCaptureTimeMs", nullptr},
+      {"latestExpectedDisplayTimeMs", nullptr}, {"latestPresentationTimeMs", nullptr},
+      {"latestReceiveTimeMs", nullptr},
+  };
+  value.update(fields);
+  return value;
+}
+
 void test_exact_lifecycle_and_clock_contract() {
   glyphrelay::SenderControlProtocol protocol{std::string(kSession)};
   const auto hello = one_message(protocol.begin(1U));
@@ -61,11 +71,12 @@ void test_exact_lifecycle_and_clock_contract() {
                                            {"requestSequence", request_sequence},
                                            {"senderSendTimeMs", sent_at}}),
                          100.0 + static_cast<double>(index));
-    require(response.valid && response.events.size() == 1U &&
-                response.events.front().kind ==
-                    glyphrelay::ReceiverControlEventKind::clock_response &&
-                response.events.front().request_sequence == request_sequence,
-            "clock response must match one outstanding sender request exactly");
+    require(
+        response.valid && response.events.size() == 1U &&
+            response.events.front().kind == glyphrelay::ReceiverControlEventKind::clock_response &&
+            response.events.front().request_sequence == request_sequence &&
+            response.events.front().sender_receive_time_ms == 100.0 + static_cast<double>(index),
+        "clock response must match one outstanding sender request exactly");
   }
   const auto early = protocol.request_clock(5'000.5);
   require(early.valid && !early.close_channel && early.outbound_messages.empty(),
@@ -76,10 +87,17 @@ void test_exact_lifecycle_and_clock_contract() {
 
   const auto stats =
       protocol.receive(receiver_message("RECEIVER_STATS", 6U,
-                                        {{"compositorFrames", 30U},
-                                         {"decodedFrames", 31U},
-                                         {"droppedFrames", 1U},
-                                         {"latestPresentedRtpTimestamp", 0xFFFF'FFF0U}}),
+                                        receiver_stats({
+                                            {"compositorFrames", 30U},
+                                            {"decodedFrames", 31U},
+                                            {"droppedFrames", 1U},
+                                            {"latestCallbackTimeMs", 20.0},
+                                            {"latestCaptureTimeMs", 12.0},
+                                            {"latestExpectedDisplayTimeMs", 21.0},
+                                            {"latestPresentationTimeMs", 19.0},
+                                            {"latestPresentedRtpTimestamp", 0xFFFF'FFF0U},
+                                            {"latestReceiveTimeMs", 14.0},
+                                        })),
                        1'100.0);
   require(stats.valid && stats.events.size() == 1U &&
               stats.events.front().kind == glyphrelay::ReceiverControlEventKind::receiver_stats &&
@@ -116,6 +134,40 @@ void test_exact_lifecycle_and_clock_contract() {
           "matching end acknowledgment must close the reliable control channel");
 }
 
+void test_clock_correlation_estimator() {
+  glyphrelay::ClockCorrelationEstimator estimator;
+  const auto observe = [&estimator](std::uint64_t sequence, double sender_send,
+                                    double receiver_receive, double receiver_send,
+                                    double sender_receive) {
+    return estimator.observe({
+        .kind = glyphrelay::ReceiverControlEventKind::clock_response,
+        .request_sequence = sequence,
+        .sender_send_time_ms = sender_send,
+        .receiver_receive_time_ms = receiver_receive,
+        .receiver_send_time_ms = receiver_send,
+        .sender_receive_time_ms = sender_receive,
+        .stats = {},
+        .reason = {},
+    });
+  };
+  require(observe(1U, 100.0, 150.0, 151.0, 111.0), "first four-timestamp sample must be accepted");
+  require(observe(2U, 200.0, 245.0, 246.0, 209.0), "second bounded-offset sample must be accepted");
+  require(observe(3U, 300.0, 342.0, 343.0, 307.0), "third bounded-offset sample must be accepted");
+  const auto stable = estimator.snapshot();
+  require(stable.valid && stable.samples.size() == 3U && stable.network_delay_ms == 6.0 &&
+              stable.offset_ms == 39.0 && stable.uncertainty_ms == 9.0 && stable.reset_count == 0U,
+          "clock estimator must use minimum delay plus three-sample offset variation");
+
+  require(observe(4U, 400.0, 500.0, 501.0, 408.0),
+          "offset discontinuity sample must establish a fresh correlation epoch");
+  const auto reset = estimator.snapshot();
+  require(reset.valid && reset.samples.size() == 1U && reset.reset_count == 1U &&
+              reset.network_delay_ms == 7.0,
+          "offset jumps beyond uncertainty must reset prior clock evidence");
+  require(!observe(5U, 500.0, 600.0, 700.0, 510.0) && estimator.snapshot().samples.size() == 1U,
+          "negative network-delay samples must not contaminate clock evidence");
+}
+
 void initialize(glyphrelay::SenderControlProtocol &protocol) {
   require(protocol.begin(1U).valid, "negative fixture must begin one control session");
 }
@@ -147,7 +199,9 @@ void test_invalid_input_fails_closed() {
         "\",\"sequence\":1,\"sequence\":1,\"sessionId\":\"" + std::string(kSession) +
         "\",\"type\":\"RECEIVER_STATS\",\"compositorFrames\":0,"
         "\"decodedFrames\":0,\"droppedFrames\":0,"
-        "\"latestPresentedRtpTimestamp\":null}";
+        "\"latestCallbackTimeMs\":null,\"latestCaptureTimeMs\":null,"
+        "\"latestExpectedDisplayTimeMs\":null,\"latestPresentationTimeMs\":null,"
+        "\"latestPresentedRtpTimestamp\":null,\"latestReceiveTimeMs\":null}";
     require(!protocol.receive(duplicate, 0.0).valid,
             "duplicate control keys must fail before schema validation");
   }
@@ -156,10 +210,12 @@ void test_invalid_input_fails_closed() {
     initialize(protocol);
     const auto commented = std::string("/* extension */") +
                            receiver_message("RECEIVER_STATS", 1U,
-                                            {{"compositorFrames", 0U},
-                                             {"decodedFrames", 0U},
-                                             {"droppedFrames", 0U},
-                                             {"latestPresentedRtpTimestamp", nullptr}});
+                                            receiver_stats({
+                                                {"compositorFrames", 0U},
+                                                {"decodedFrames", 0U},
+                                                {"droppedFrames", 0U},
+                                                {"latestPresentedRtpTimestamp", nullptr},
+                                            }));
     require(!protocol.receive(commented, 0.0).valid,
             "JSON comments must not extend the exact control grammar");
   }
@@ -167,16 +223,22 @@ void test_invalid_input_fails_closed() {
     glyphrelay::SenderControlProtocol protocol{std::string(kSession)};
     initialize(protocol);
     const auto first = receiver_message("RECEIVER_STATS", 1U,
-                                        {{"compositorFrames", 10U},
-                                         {"decodedFrames", 10U},
-                                         {"droppedFrames", 1U},
-                                         {"latestPresentedRtpTimestamp", nullptr}});
+                                        receiver_stats({
+                                            {"compositorFrames", 10U},
+                                            {"decodedFrames", 10U},
+                                            {"droppedFrames", 1U},
+                                            {"latestCallbackTimeMs", 10.0},
+                                            {"latestPresentedRtpTimestamp", nullptr},
+                                        }));
     require(protocol.receive(first, 0.0).valid, "statistics control must pass");
     const auto regressed = receiver_message("RECEIVER_STATS", 2U,
-                                            {{"compositorFrames", 9U},
-                                             {"decodedFrames", 10U},
-                                             {"droppedFrames", 1U},
-                                             {"latestPresentedRtpTimestamp", nullptr}});
+                                            receiver_stats({
+                                                {"compositorFrames", 9U},
+                                                {"decodedFrames", 10U},
+                                                {"droppedFrames", 1U},
+                                                {"latestCallbackTimeMs", 11.0},
+                                                {"latestPresentedRtpTimestamp", nullptr},
+                                            }));
     require(!protocol.receive(regressed, 1'000.0).valid,
             "cumulative untrusted telemetry must never regress");
   }
@@ -184,19 +246,26 @@ void test_invalid_input_fails_closed() {
     glyphrelay::SenderControlProtocol protocol{std::string(kSession)};
     initialize(protocol);
     for (std::uint64_t index = 0U; index < 10U; ++index) {
-      const auto message = receiver_message("RECEIVER_STATS", index + 1U,
-                                            {{"compositorFrames", index},
-                                             {"decodedFrames", index},
-                                             {"droppedFrames", 0U},
-                                             {"latestPresentedRtpTimestamp", nullptr}});
+      const auto message =
+          receiver_message("RECEIVER_STATS", index + 1U,
+                           receiver_stats({
+                               {"compositorFrames", index},
+                               {"decodedFrames", index},
+                               {"droppedFrames", 0U},
+                               {"latestCallbackTimeMs", static_cast<double>(index)},
+                               {"latestPresentedRtpTimestamp", nullptr},
+                           }));
       require(protocol.receive(message, static_cast<double>(index)).valid,
               "the first ten receiver messages in a rolling second must pass");
     }
     const auto flood = receiver_message("RECEIVER_STATS", 11U,
-                                        {{"compositorFrames", 10U},
-                                         {"decodedFrames", 10U},
-                                         {"droppedFrames", 0U},
-                                         {"latestPresentedRtpTimestamp", nullptr}});
+                                        receiver_stats({
+                                            {"compositorFrames", 10U},
+                                            {"decodedFrames", 10U},
+                                            {"droppedFrames", 0U},
+                                            {"latestCallbackTimeMs", 10.0},
+                                            {"latestPresentedRtpTimestamp", nullptr},
+                                        }));
     require(!protocol.receive(flood, 999.0).valid &&
                 protocol.diagnostics().reason == "CONTROL_RECEIVER_RATE_OR_CLOCK_INVALID",
             "the eleventh receiver message in a rolling second must fail closed");
@@ -230,6 +299,7 @@ void test_invalid_input_fails_closed() {
 
 int main() {
   test_exact_lifecycle_and_clock_contract();
+  test_clock_correlation_estimator();
   test_invalid_input_fails_closed();
   std::cout << "sender control protocol tests passed\n";
   return 0;

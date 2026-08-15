@@ -175,7 +175,7 @@ void test_loopback_peer_control_media_and_cleanup() {
             response = {
                 {"protocolVersion", glyphrelay::kControlProtocol},
                 {"receiverReceiveTimeMs", 10.0},
-                {"receiverSendTimeMs", 11.0},
+                {"receiverSendTimeMs", 10.0},
                 {"requestSequence", message.at("sequence")},
                 {"senderSendTimeMs", message.at("senderSendTimeMs")},
                 {"sequence", receiver_sequence.fetch_add(1U) + 1U},
@@ -274,7 +274,8 @@ void test_loopback_peer_control_media_and_cleanup() {
     return !failure.empty() ||
            (receiver_connected && receiver_control_open && diagnostics.connected &&
             diagnostics.track_open && diagnostics.control_open &&
-            diagnostics.control.receive_sequence >= 5U);
+            diagnostics.control.receive_sequence >= 5U && diagnostics.clock_correlation.valid &&
+            !diagnostics.clock_correlation.samples.empty());
   });
   if (!failure.empty()) {
     std::cerr << "peer integration failure: " << failure << '\n';
@@ -283,16 +284,24 @@ void test_loopback_peer_control_media_and_cleanup() {
           "both loopback peers, the video track, and reliable control channel must open");
 
   sender->set_pacing_target_bits_per_second(1'000'000.0);
-  require(sender->diagnostics().pacer.target_bits_per_second == 1'000'000.0 &&
-              sender->diagnostics().pacer.maximum_age_milliseconds == 100U &&
-              sender->diagnostics().pacer.maximum_bytes == 4U * 1024U * 1024U,
-          "the real peer path must expose the configured pacing target and frozen hard bounds");
+  const auto initial_diagnostics = sender->diagnostics();
+  require(initial_diagnostics.pacer.target_bits_per_second == 1'000'000.0 &&
+              initial_diagnostics.pacer.maximum_age_milliseconds == 100U &&
+              initial_diagnostics.pacer.maximum_bytes == 4U * 1024U * 1024U &&
+              initial_diagnostics.clock_correlation.valid &&
+              !initial_diagnostics.clock_correlation.samples.empty(),
+          "the real peer path must expose pacing bounds and four-timestamp clock evidence");
 
   Json stats = {
       {"compositorFrames", 1U},
       {"decodedFrames", 1U},
       {"droppedFrames", 0U},
+      {"latestCallbackTimeMs", 20.0},
+      {"latestCaptureTimeMs", 12.0},
+      {"latestExpectedDisplayTimeMs", 21.0},
+      {"latestPresentationTimeMs", 19.0},
       {"latestPresentedRtpTimestamp", nullptr},
+      {"latestReceiveTimeMs", 14.0},
       {"protocolVersion", glyphrelay::kControlProtocol},
       {"sequence", receiver_sequence.fetch_add(1U) + 1U},
       {"sessionId", kSession},

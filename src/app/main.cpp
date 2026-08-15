@@ -9,7 +9,9 @@
 #include <csignal>
 #include <cstdlib>
 #include <filesystem>
+#include <iomanip>
 #include <iostream>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -70,6 +72,14 @@ std::string json_quote(std::string_view value) {
   }
   result.push_back('\"');
   return result;
+}
+
+void print_optional_json_number(std::ostream &output, const std::optional<double> &value) {
+  if (value) {
+    output << *value;
+  } else {
+    output << "null";
+  }
 }
 
 struct ArtifactArguments {
@@ -271,6 +281,8 @@ int run_share(int argc, char **argv) {
   if (options.json) {
     const auto &peer = result.transport.peer;
     const auto receiver = peer.latest_receiver_stats.value_or(glyphrelay::ReceiverControlStats{});
+    const auto &clock = peer.clock_correlation;
+    std::cout << std::setprecision(17);
     std::cout << "{\"type\":\"result\",\"exitCode\":" << result.exit_code
               << ",\"reason\":" << json_quote(result.reason)
               << ",\"connectionState\":" << json_quote(result.connection_state)
@@ -294,7 +306,33 @@ int run_share(int argc, char **argv) {
               << ",\"compositorFrames\":" << receiver.compositor_frames
               << ",\"decodedFrames\":" << receiver.decoded_frames
               << ",\"droppedFrames\":" << receiver.dropped_frames
-              << ",\"lastControllerTrace\":" << json_quote(result.last_controller_trace) << "}\n";
+              << ",\"clockCorrelation\":{\"valid\":" << (clock.valid ? "true" : "false")
+              << ",\"offsetMilliseconds\":" << clock.offset_ms
+              << ",\"uncertaintyMilliseconds\":" << clock.uncertainty_ms
+              << ",\"networkDelayMilliseconds\":" << clock.network_delay_ms
+              << ",\"resetCount\":" << clock.reset_count << ",\"samples\":[";
+    for (std::size_t index = 0U; index < clock.samples.size(); ++index) {
+      const auto &sample = clock.samples[index];
+      if (index != 0U) {
+        std::cout << ',';
+      }
+      std::cout << "{\"requestSequence\":" << sample.request_sequence
+                << ",\"senderSendTimeMilliseconds\":" << sample.sender_send_time_ms
+                << ",\"receiverReceiveTimeMilliseconds\":" << sample.receiver_receive_time_ms
+                << ",\"receiverSendTimeMilliseconds\":" << sample.receiver_send_time_ms
+                << ",\"senderReceiveTimeMilliseconds\":" << sample.sender_receive_time_ms << "}";
+    }
+    std::cout << "]},\"receiverTiming\":{\"callbackTimeMilliseconds\":";
+    print_optional_json_number(std::cout, receiver.latest_callback_time_ms);
+    std::cout << ",\"expectedDisplayTimeMilliseconds\":";
+    print_optional_json_number(std::cout, receiver.latest_expected_display_time_ms);
+    std::cout << ",\"presentationTimeMilliseconds\":";
+    print_optional_json_number(std::cout, receiver.latest_presentation_time_ms);
+    std::cout << ",\"captureTimeMilliseconds\":";
+    print_optional_json_number(std::cout, receiver.latest_capture_time_ms);
+    std::cout << ",\"receiveTimeMilliseconds\":";
+    print_optional_json_number(std::cout, receiver.latest_receive_time_ms);
+    std::cout << "},\"lastControllerTrace\":" << json_quote(result.last_controller_trace) << "}\n";
   } else if (result.exit_code != 0) {
     std::cerr << "share failed: " << result.reason << '\n';
   }

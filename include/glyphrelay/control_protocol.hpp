@@ -40,6 +40,11 @@ struct ReceiverControlStats {
   std::uint64_t decoded_frames = 0;
   std::uint64_t dropped_frames = 0;
   std::optional<std::uint32_t> latest_presented_rtp_timestamp;
+  std::optional<double> latest_callback_time_ms;
+  std::optional<double> latest_expected_display_time_ms;
+  std::optional<double> latest_presentation_time_ms;
+  std::optional<double> latest_capture_time_ms;
+  std::optional<double> latest_receive_time_ms;
 };
 
 struct ReceiverControlEvent {
@@ -48,8 +53,40 @@ struct ReceiverControlEvent {
   double sender_send_time_ms = 0.0;
   double receiver_receive_time_ms = 0.0;
   double receiver_send_time_ms = 0.0;
+  double sender_receive_time_ms = 0.0;
   ReceiverControlStats stats;
   std::string reason;
+};
+
+struct ClockCorrelationSample {
+  std::uint64_t request_sequence = 0;
+  double sender_send_time_ms = 0.0;
+  double receiver_receive_time_ms = 0.0;
+  double receiver_send_time_ms = 0.0;
+  double sender_receive_time_ms = 0.0;
+  double network_delay_ms = 0.0;
+  double offset_ms = 0.0;
+};
+
+struct ClockCorrelationSnapshot {
+  bool valid = false;
+  double offset_ms = 0.0;
+  double uncertainty_ms = 0.0;
+  double network_delay_ms = 0.0;
+  std::uint64_t reset_count = 0;
+  std::vector<ClockCorrelationSample> samples;
+};
+
+class ClockCorrelationEstimator {
+public:
+  bool observe(const ReceiverControlEvent &event);
+  void reset();
+  ClockCorrelationSnapshot snapshot() const;
+
+private:
+  void refresh();
+
+  ClockCorrelationSnapshot snapshot_;
 };
 
 struct SenderControlOutput {

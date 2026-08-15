@@ -128,7 +128,12 @@ function receiverFieldsForType(type) {
         "compositorFrames",
         "decodedFrames",
         "droppedFrames",
+        "latestCallbackTimeMs",
+        "latestCaptureTimeMs",
+        "latestExpectedDisplayTimeMs",
+        "latestPresentationTimeMs",
         "latestPresentedRtpTimestamp",
+        "latestReceiveTimeMs",
       ];
     case "SESSION_PAUSED_ACK":
     case "SESSION_RESUMED_ACK":
@@ -208,6 +213,17 @@ export function decodeReceiverControlMessage(
       value.latestPresentedRtpTimestamp > 0xffffffff)
   ) {
     return undefined;
+  }
+  for (const field of [
+    "latestCallbackTimeMs",
+    "latestCaptureTimeMs",
+    "latestExpectedDisplayTimeMs",
+    "latestPresentationTimeMs",
+    "latestReceiveTimeMs",
+  ]) {
+    if (field in value && value[field] !== null && !validTime(value[field])) {
+      return undefined;
+    }
   }
   if (
     "code" in value &&

@@ -23,8 +23,11 @@ constexpr std::uint64_t kMaximumSafeInteger = 9'007'199'254'740'991ULL;
 constexpr std::uint64_t kMaximumRtpTimestamp = 0xFFFF'FFFFULL;
 constexpr std::uint64_t kInitialClockRequestCount = 5U;
 constexpr std::size_t kMaximumOutstandingClockRequests = 8U;
+constexpr std::size_t kMaximumClockCorrelationSamples = 12U;
+constexpr std::size_t kClockCorrelationVariationSamples = 3U;
 constexpr double kClockRequestIntervalMs = 5'000.0;
 constexpr double kReceiverRateWindowMs = 1'000.0;
+constexpr double kClockDelayRoundingToleranceMs = 1e-6;
 
 const std::regex kSessionPattern("^[A-Za-z0-9_-]{22}$");
 const std::regex kReasonPattern("^[A-Z0-9_]{1,64}$");
@@ -36,6 +39,16 @@ bool valid_time(const Json &value) {
   const auto number = value.get<double>();
   return std::isfinite(number) && number >= 0.0 &&
          number <= static_cast<double>(kMaximumSafeInteger);
+}
+
+bool valid_optional_time(const Json &value, std::string_view key) {
+  const auto iterator = value.find(std::string(key));
+  return iterator != value.end() && (iterator->is_null() || valid_time(*iterator));
+}
+
+std::optional<double> optional_time(const Json &value, std::string_view key) {
+  const auto &item = value.at(std::string(key));
+  return item.is_null() ? std::nullopt : std::optional<double>(item.get<double>());
 }
 
 bool valid_safe_integer(const Json &value, bool allow_zero = false) {
@@ -102,6 +115,87 @@ bool active_phase(SenderControlPhase phase) {
 }
 
 } // namespace
+
+bool ClockCorrelationEstimator::observe(const ReceiverControlEvent &event) {
+  if (event.kind != ReceiverControlEventKind::clock_response || event.request_sequence == 0U ||
+      !std::isfinite(event.sender_send_time_ms) || event.sender_send_time_ms < 0.0 ||
+      !std::isfinite(event.receiver_receive_time_ms) || event.receiver_receive_time_ms < 0.0 ||
+      !std::isfinite(event.receiver_send_time_ms) ||
+      event.receiver_send_time_ms < event.receiver_receive_time_ms ||
+      !std::isfinite(event.sender_receive_time_ms) ||
+      event.sender_receive_time_ms < event.sender_send_time_ms) {
+    return false;
+  }
+  double delay = (event.sender_receive_time_ms - event.sender_send_time_ms) -
+                 (event.receiver_send_time_ms - event.receiver_receive_time_ms);
+  if (!std::isfinite(delay) || delay < -kClockDelayRoundingToleranceMs) {
+    return false;
+  }
+  delay = std::max(0.0, delay);
+  const auto offset = ((event.receiver_receive_time_ms - event.sender_send_time_ms) +
+                       (event.receiver_send_time_ms - event.sender_receive_time_ms)) /
+                      2.0;
+  if (!std::isfinite(offset)) {
+    return false;
+  }
+  if (snapshot_.valid && std::abs(offset - snapshot_.offset_ms) > snapshot_.uncertainty_ms) {
+    reset();
+  }
+  if (snapshot_.samples.size() == kMaximumClockCorrelationSamples) {
+    snapshot_.samples.erase(snapshot_.samples.begin());
+  }
+  snapshot_.samples.push_back({
+      .request_sequence = event.request_sequence,
+      .sender_send_time_ms = event.sender_send_time_ms,
+      .receiver_receive_time_ms = event.receiver_receive_time_ms,
+      .receiver_send_time_ms = event.receiver_send_time_ms,
+      .sender_receive_time_ms = event.sender_receive_time_ms,
+      .network_delay_ms = delay,
+      .offset_ms = offset,
+  });
+  refresh();
+  return true;
+}
+
+void ClockCorrelationEstimator::reset() {
+  snapshot_.valid = false;
+  snapshot_.offset_ms = 0.0;
+  snapshot_.uncertainty_ms = 0.0;
+  snapshot_.network_delay_ms = 0.0;
+  snapshot_.samples.clear();
+  ++snapshot_.reset_count;
+}
+
+ClockCorrelationSnapshot ClockCorrelationEstimator::snapshot() const { return snapshot_; }
+
+void ClockCorrelationEstimator::refresh() {
+  if (snapshot_.samples.empty()) {
+    snapshot_.valid = false;
+    return;
+  }
+  std::vector<const ClockCorrelationSample *> ordered;
+  ordered.reserve(snapshot_.samples.size());
+  for (const auto &sample : snapshot_.samples) {
+    ordered.push_back(&sample);
+  }
+  std::sort(ordered.begin(), ordered.end(), [](const auto *left, const auto *right) {
+    return left->network_delay_ms < right->network_delay_ms ||
+           (left->network_delay_ms == right->network_delay_ms &&
+            left->request_sequence < right->request_sequence);
+  });
+  const auto variation_count = std::min(kClockCorrelationVariationSamples, ordered.size());
+  auto minimum_offset = ordered.front()->offset_ms;
+  auto maximum_offset = ordered.front()->offset_ms;
+  for (std::size_t index = 1U; index < variation_count; ++index) {
+    minimum_offset = std::min(minimum_offset, ordered[index]->offset_ms);
+    maximum_offset = std::max(maximum_offset, ordered[index]->offset_ms);
+  }
+  snapshot_.valid = true;
+  snapshot_.offset_ms = ordered.front()->offset_ms;
+  snapshot_.network_delay_ms = ordered.front()->network_delay_ms;
+  snapshot_.uncertainty_ms =
+      ordered.front()->network_delay_ms / 2.0 + maximum_offset - minimum_offset;
+}
 
 SenderControlProtocol::SenderControlProtocol(std::string session_id)
     : session_id_(std::move(session_id)) {
@@ -227,6 +321,7 @@ SenderControlOutput SenderControlProtocol::protocol_error(std::string_view code)
                              .sender_send_time_ms = 0.0,
                              .receiver_receive_time_ms = 0.0,
                              .receiver_send_time_ms = 0.0,
+                             .sender_receive_time_ms = 0.0,
                              .stats = {},
                              .reason = reason_});
   }
@@ -281,14 +376,17 @@ SenderControlOutput SenderControlProtocol::receive(std::string_view encoded,
          .sender_send_time_ms = request->second,
          .receiver_receive_time_ms = decoded.at("receiverReceiveTimeMs").get<double>(),
          .receiver_send_time_ms = decoded.at("receiverSendTimeMs").get<double>(),
+         .sender_receive_time_ms = received_at_ms,
          .stats = {},
          .reason = {}});
     outstanding_clock_requests_.erase(request);
   } else if (type == "RECEIVER_STATS") {
     if (phase_ != SenderControlPhase::connected ||
-        !exact_keys(decoded, {"compositorFrames", "decodedFrames", "droppedFrames",
-                              "latestPresentedRtpTimestamp", "protocolVersion", "sequence",
-                              "sessionId", "type"}) ||
+        !exact_keys(decoded,
+                    {"compositorFrames", "decodedFrames", "droppedFrames", "latestCallbackTimeMs",
+                     "latestCaptureTimeMs", "latestExpectedDisplayTimeMs",
+                     "latestPresentationTimeMs", "latestPresentedRtpTimestamp",
+                     "latestReceiveTimeMs", "protocolVersion", "sequence", "sessionId", "type"}) ||
         !decoded.contains("compositorFrames") ||
         !valid_safe_integer(decoded.at("compositorFrames"), true) ||
         !decoded.contains("decodedFrames") ||
@@ -298,7 +396,12 @@ SenderControlOutput SenderControlProtocol::receive(std::string_view encoded,
         !decoded.contains("latestPresentedRtpTimestamp") ||
         (!decoded.at("latestPresentedRtpTimestamp").is_null() &&
          (!valid_safe_integer(decoded.at("latestPresentedRtpTimestamp"), true) ||
-          safe_integer(decoded.at("latestPresentedRtpTimestamp")) > kMaximumRtpTimestamp))) {
+          safe_integer(decoded.at("latestPresentedRtpTimestamp")) > kMaximumRtpTimestamp)) ||
+        !valid_optional_time(decoded, "latestCallbackTimeMs") ||
+        !valid_optional_time(decoded, "latestExpectedDisplayTimeMs") ||
+        !valid_optional_time(decoded, "latestPresentationTimeMs") ||
+        !valid_optional_time(decoded, "latestCaptureTimeMs") ||
+        !valid_optional_time(decoded, "latestReceiveTimeMs")) {
       return fail("CONTROL_RECEIVER_STATS_INVALID");
     }
     ReceiverControlStats stats{
@@ -310,10 +413,17 @@ SenderControlOutput SenderControlProtocol::receive(std::string_view encoded,
                 ? std::nullopt
                 : std::optional<std::uint32_t>(static_cast<std::uint32_t>(
                       safe_integer(decoded.at("latestPresentedRtpTimestamp")))),
+        .latest_callback_time_ms = optional_time(decoded, "latestCallbackTimeMs"),
+        .latest_expected_display_time_ms = optional_time(decoded, "latestExpectedDisplayTimeMs"),
+        .latest_presentation_time_ms = optional_time(decoded, "latestPresentationTimeMs"),
+        .latest_capture_time_ms = optional_time(decoded, "latestCaptureTimeMs"),
+        .latest_receive_time_ms = optional_time(decoded, "latestReceiveTimeMs"),
     };
     if (last_stats_ && (stats.compositor_frames < last_stats_->compositor_frames ||
                         stats.decoded_frames < last_stats_->decoded_frames ||
-                        stats.dropped_frames < last_stats_->dropped_frames)) {
+                        stats.dropped_frames < last_stats_->dropped_frames ||
+                        (stats.latest_callback_time_ms && last_stats_->latest_callback_time_ms &&
+                         *stats.latest_callback_time_ms < *last_stats_->latest_callback_time_ms))) {
       return fail("CONTROL_RECEIVER_STATS_REGRESSED");
     }
     last_stats_ = stats;
@@ -322,6 +432,7 @@ SenderControlOutput SenderControlProtocol::receive(std::string_view encoded,
                              .sender_send_time_ms = 0.0,
                              .receiver_receive_time_ms = 0.0,
                              .receiver_send_time_ms = 0.0,
+                             .sender_receive_time_ms = 0.0,
                              .stats = stats,
                              .reason = {}});
   } else if (type == "SESSION_PAUSED_ACK" || type == "SESSION_RESUMED_ACK" ||
@@ -356,6 +467,7 @@ SenderControlOutput SenderControlProtocol::receive(std::string_view encoded,
                              .sender_send_time_ms = 0.0,
                              .receiver_receive_time_ms = 0.0,
                              .receiver_send_time_ms = 0.0,
+                             .sender_receive_time_ms = 0.0,
                              .stats = {},
                              .reason = {}});
     pending_transition_sequence_.reset();
@@ -373,6 +485,7 @@ SenderControlOutput SenderControlProtocol::receive(std::string_view encoded,
                              .sender_send_time_ms = 0.0,
                              .receiver_receive_time_ms = 0.0,
                              .receiver_send_time_ms = 0.0,
+                             .sender_receive_time_ms = 0.0,
                              .stats = {},
                              .reason = reason_});
   } else {
@@ -419,6 +532,7 @@ SenderControlOutput SenderControlProtocol::fail(std::string reason) {
                            .sender_send_time_ms = 0.0,
                            .receiver_receive_time_ms = 0.0,
                            .receiver_send_time_ms = 0.0,
+                           .sender_receive_time_ms = 0.0,
                            .stats = {},
                            .reason = reason_});
   return output;

@@ -64,6 +64,7 @@ struct PeerSenderDiagnostics {
   std::optional<double> latest_loss_fraction;
   std::optional<double> latest_round_trip_time_milliseconds;
   std::optional<ReceiverControlStats> latest_receiver_stats;
+  ClockCorrelationSnapshot clock_correlation;
   std::string reason;
   SenderControlDiagnostics control;
   RecoveryDiagnostics recovery;
